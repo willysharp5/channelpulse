@@ -2,7 +2,6 @@
 
 import { TrendingUp, TrendingDown, ArrowRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { ChannelBadge } from "@/components/layout/channel-badge";
 import { mockTopProducts } from "@/lib/mock-data";
 import { formatCurrency, formatPercent } from "@/lib/formatters";
@@ -13,9 +12,12 @@ export function TopProducts() {
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="text-base font-semibold">Top Products</CardTitle>
-        <Button variant="ghost" size="sm" className="text-xs gap-1" render={<Link href="/products" />}>
+        <Link
+          href="/products"
+          className="inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+        >
           View All <ArrowRight className="h-3 w-3" />
-        </Button>
+        </Link>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">

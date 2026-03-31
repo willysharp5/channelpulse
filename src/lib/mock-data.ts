@@ -8,7 +8,6 @@ import type {
   TopProduct,
   PnLData,
 } from "@/types";
-import { format, subDays } from "date-fns";
 
 const ORG_ID = "org_demo_001";
 
@@ -20,7 +19,7 @@ export const mockChannels: Channel[] = [
     platform: "shopify",
     name: "My Shopify Store",
     status: "active",
-    lastSyncAt: new Date().toISOString(),
+    lastSyncAt: "2026-03-31T10:15:00Z",
     ordersCount: 1247,
     revenue: 62350,
     createdAt: "2025-12-01T00:00:00Z",
@@ -31,26 +30,42 @@ export const mockChannels: Channel[] = [
     platform: "amazon",
     name: "Amazon US Marketplace",
     status: "active",
-    lastSyncAt: new Date(Date.now() - 900000).toISOString(),
+    lastSyncAt: "2026-03-31T09:50:00Z",
     ordersCount: 834,
     revenue: 48920,
     createdAt: "2026-01-15T00:00:00Z",
   },
 ];
 
+// Deterministic seeded random for stable SSR/client hydration
+function seededRandom(seed: number): number {
+  const x = Math.sin(seed) * 10000;
+  return x - Math.floor(x);
+}
+
 // --- Revenue time series (last 30 days) ---
 function generateRevenueSeries(): RevenueTimeSeriesPoint[] {
   const points: RevenueTimeSeriesPoint[] = [];
+  const baseDate = new Date("2026-03-31");
+
   for (let i = 29; i >= 0; i--) {
-    const date = format(subDays(new Date(), i), "yyyy-MM-dd");
-    const dayOfWeek = subDays(new Date(), i).getDay();
+    const d = new Date(baseDate);
+    d.setDate(d.getDate() - i);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    const date = `${yyyy}-${mm}-${dd}`;
+
+    const dayOfWeek = d.getDay();
     const weekendDip = dayOfWeek === 0 || dayOfWeek === 6 ? 0.7 : 1;
     const trendMultiplier = 1 + (30 - i) * 0.008;
 
-    const shopify =
-      Math.round((1200 + Math.random() * 800) * weekendDip * trendMultiplier);
-    const amazon =
-      Math.round((900 + Math.random() * 600) * weekendDip * trendMultiplier);
+    const shopify = Math.round(
+      (1200 + seededRandom(i * 7 + 1) * 800) * weekendDip * trendMultiplier
+    );
+    const amazon = Math.round(
+      (900 + seededRandom(i * 7 + 2) * 600) * weekendDip * trendMultiplier
+    );
     const ebay = 0;
     const etsy = 0;
 
@@ -236,14 +251,17 @@ function generateOrders(): Order[] {
     "pending",
     "delivered",
   ];
+  const baseTime = new Date("2026-03-31T12:00:00Z").getTime();
 
   for (let i = 0; i < 20; i++) {
-    const platform = i % 3 === 0 ? "amazon" as const : "shopify" as const;
+    const platform = i % 3 === 0 ? ("amazon" as const) : ("shopify" as const);
     const channelId =
       platform === "shopify" ? "ch_shopify_001" : "ch_amazon_001";
-    const amount = Math.round((15 + Math.random() * 120) * 100) / 100;
+    const amount =
+      Math.round((15 + seededRandom(i * 13 + 100) * 120) * 100) / 100;
     const fees = amount * (platform === "amazon" ? 0.15 : 0.029);
     const cogs = amount * 0.35;
+    const hoursAgo = i * 3600000 * (1 + seededRandom(i * 13 + 200) * 2);
 
     orders.push({
       id: `ord_${String(i + 1).padStart(3, "0")}`,
@@ -258,20 +276,18 @@ function generateOrders(): Order[] {
       customerEmail: `${names[i % names.length].toLowerCase().replace(" ", ".")}@email.com`,
       subtotal: amount,
       totalTax: Math.round(amount * 0.08 * 100) / 100,
-      totalShipping: Math.round((4.99 + Math.random() * 5) * 100) / 100,
-      totalDiscounts: i % 4 === 0 ? Math.round(amount * 0.1 * 100) / 100 : 0,
+      totalShipping:
+        Math.round((4.99 + seededRandom(i * 13 + 300) * 5) * 100) / 100,
+      totalDiscounts:
+        i % 4 === 0 ? Math.round(amount * 0.1 * 100) / 100 : 0,
       totalAmount: amount,
       currency: "USD",
       platformFees: Math.round(fees * 100) / 100,
       cogs: Math.round(cogs * 100) / 100,
       netProfit: Math.round((amount - fees - cogs) * 100) / 100,
-      itemCount: Math.ceil(Math.random() * 3),
-      orderedAt: new Date(
-        Date.now() - i * 3600000 * (1 + Math.random() * 2)
-      ).toISOString(),
-      createdAt: new Date(
-        Date.now() - i * 3600000 * (1 + Math.random() * 2)
-      ).toISOString(),
+      itemCount: Math.ceil(seededRandom(i * 13 + 400) * 3),
+      orderedAt: new Date(baseTime - hoursAgo).toISOString(),
+      createdAt: new Date(baseTime - hoursAgo).toISOString(),
     });
   }
   return orders;

@@ -2,7 +2,6 @@
 
 import { ArrowRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -35,9 +34,12 @@ export function RecentOrders() {
         <CardTitle className="text-base font-semibold">
           Recent Orders
         </CardTitle>
-        <Button variant="ghost" size="sm" className="text-xs gap-1" render={<Link href="/orders" />}>
+        <Link
+          href="/orders"
+          className="inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+        >
           View All <ArrowRight className="h-3 w-3" />
-        </Button>
+        </Link>
       </CardHeader>
       <CardContent>
         <Table>
