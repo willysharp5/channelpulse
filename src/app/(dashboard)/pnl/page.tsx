@@ -52,8 +52,7 @@ export default async function PnLPage() {
     getPnLData(30),
   ]);
 
-  const now = new Date();
-  const periodLabel = now.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  const periodLabel = "Last 30 Days";
 
   return (
     <>

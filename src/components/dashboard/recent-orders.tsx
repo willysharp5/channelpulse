@@ -12,7 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ChannelBadge } from "@/components/layout/channel-badge";
-import { formatCurrency, formatRelativeDate } from "@/lib/formatters";
+import { formatCurrency, formatDate } from "@/lib/formatters";
 import Link from "next/link";
 import type { Platform } from "@/types";
 
@@ -91,7 +91,7 @@ export function RecentOrders({ orders }: RecentOrdersProps) {
                     </Badge>
                   </TableCell>
                   <TableCell className="hidden lg:table-cell text-right text-muted-foreground text-xs">
-                    {formatRelativeDate(order.ordered_at)}
+                    {formatDate(order.ordered_at, "MMM d, h:mm a")}
                   </TableCell>
                 </TableRow>
               );

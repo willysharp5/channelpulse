@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ChannelBadge } from "@/components/layout/channel-badge";
 import { CHANNEL_CONFIG } from "@/lib/constants";
-import { formatCurrency, formatNumber, formatRelativeDate } from "@/lib/formatters";
+import { formatCurrency, formatNumber, formatDate } from "@/lib/formatters";
 import { getChannelsWithStats } from "@/lib/queries";
 import { getSession } from "@/lib/auth/actions";
 import type { Platform } from "@/types";
@@ -117,7 +117,7 @@ export default async function ChannelsPage() {
                         <RefreshCw className="h-3 w-3" />
                         Last synced{" "}
                         {channel.last_sync_at
-                          ? formatRelativeDate(channel.last_sync_at)
+                          ? formatDate(channel.last_sync_at, "MMM d, h:mm a")
                           : "never"}
                       </span>
                       <Button variant="ghost" size="sm" className="h-7 text-xs">

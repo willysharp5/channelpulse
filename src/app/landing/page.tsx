@@ -328,7 +328,7 @@ export default function LandingPage() {
             <span className="text-sm font-medium">ChannelPulse</span>
           </div>
           <p className="text-xs text-muted-foreground">
-            &copy; {new Date().getFullYear()} ChannelPulse. All rights reserved.
+            &copy; 2026 ChannelPulse. All rights reserved.
           </p>
         </div>
       </footer>
