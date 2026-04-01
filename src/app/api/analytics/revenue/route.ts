@@ -6,7 +6,7 @@ export async function GET(request: Request) {
   const days = parseInt(searchParams.get("days") ?? "30", 10);
 
   try {
-    const series = await getRevenueSeries(days);
+    const series = await getRevenueSeries({ days });
     return NextResponse.json(series);
   } catch (error) {
     return NextResponse.json(

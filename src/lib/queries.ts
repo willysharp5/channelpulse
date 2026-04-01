@@ -24,33 +24,60 @@ const EMPTY_STATS = {
   aov: { value: 0, change: 0 },
 };
 
-export async function getDashboardStats(days = 30) {
+export interface DateParams {
+  days?: number;
+  from?: string;
+  to?: string;
+}
+
+function getDateRange(params: DateParams): { fromStr: string; toStr: string; prevFromStr: string; prevToStr: string } {
+  if (params.from && params.to) {
+    const from = new Date(params.from);
+    const to = new Date(params.to);
+    const diff = Math.ceil((to.getTime() - from.getTime()) / 86400000);
+    const prevFrom = new Date(from);
+    prevFrom.setDate(prevFrom.getDate() - diff);
+    return {
+      fromStr: params.from,
+      toStr: params.to,
+      prevFromStr: prevFrom.toISOString().split("T")[0],
+      prevToStr: params.from,
+    };
+  }
+  const days = params.days ?? 30;
+  const toDate = new Date();
+  const fromDate = new Date();
+  fromDate.setDate(fromDate.getDate() - days);
+  const prevFromDate = new Date();
+  prevFromDate.setDate(prevFromDate.getDate() - days * 2);
+  return {
+    fromStr: fromDate.toISOString().split("T")[0],
+    toStr: toDate.toISOString().split("T")[0],
+    prevFromStr: prevFromDate.toISOString().split("T")[0],
+    prevToStr: fromDate.toISOString().split("T")[0],
+  };
+}
+
+export async function getDashboardStats(params: DateParams = { days: 30 }) {
   const supabase = await createClient();
   const orgId = await getOrgId();
   if (!orgId) return EMPTY_STATS;
 
-  const fromDate = new Date();
-  fromDate.setDate(fromDate.getDate() - days);
-  const fromStr = fromDate.toISOString().split("T")[0];
+  const { fromStr, toStr, prevFromStr, prevToStr } = getDateRange(params);
 
-  const prevFromDate = new Date();
-  prevFromDate.setDate(prevFromDate.getDate() - days * 2);
-  const prevFromStr = prevFromDate.toISOString().split("T")[0];
-
-  // Current period stats
   const { data: currentStats } = await supabase
     .from("daily_stats")
     .select("total_revenue, total_orders, total_units, avg_order_value, platform_fees, estimated_cogs, estimated_profit")
     .eq("org_id", orgId)
-    .gte("date", fromStr);
+    .gte("date", fromStr)
+    .lte("date", toStr);
 
-  // Previous period stats (for comparison)
   const { data: prevStats } = await supabase
     .from("daily_stats")
     .select("total_revenue, total_orders, total_units, avg_order_value, platform_fees, estimated_cogs, estimated_profit")
     .eq("org_id", orgId)
     .gte("date", prevFromStr)
-    .lt("date", fromStr);
+    .lt("date", prevToStr);
 
   const sumField = (rows: Record<string, unknown>[] | null, field: string) =>
     rows?.reduce((s, r) => s + Number(r[field] || 0), 0) ?? 0;
@@ -86,20 +113,19 @@ export interface RevenuePoint {
   [key: string]: string | number;
 }
 
-export async function getRevenueSeries(days = 30): Promise<RevenuePoint[]> {
+export async function getRevenueSeries(params: DateParams = { days: 30 }): Promise<RevenuePoint[]> {
   const supabase = await createClient();
   const orgId = await getOrgId();
   if (!orgId) return [];
 
-  const fromDate = new Date();
-  fromDate.setDate(fromDate.getDate() - days);
-  const fromStr = fromDate.toISOString().split("T")[0];
+  const { fromStr, toStr } = getDateRange(params);
 
   const { data: stats } = await supabase
     .from("daily_stats")
     .select("date, channel_id, total_revenue, total_orders")
     .eq("org_id", orgId)
     .gte("date", fromStr)
+    .lte("date", toStr)
     .order("date", { ascending: true });
 
   const { data: channels } = await supabase
@@ -124,20 +150,19 @@ export async function getRevenueSeries(days = 30): Promise<RevenuePoint[]> {
     .sort((a, b) => a.date.localeCompare(b.date));
 }
 
-export async function getChannelRevenue(days = 30) {
+export async function getChannelRevenue(params: DateParams = { days: 30 }) {
   const supabase = await createClient();
   const orgId = await getOrgId();
   if (!orgId) return [];
 
-  const fromDate = new Date();
-  fromDate.setDate(fromDate.getDate() - days);
-  const fromStr = fromDate.toISOString().split("T")[0];
+  const { fromStr, toStr } = getDateRange(params);
 
   const { data: stats } = await supabase
     .from("daily_stats")
     .select("channel_id, total_revenue, total_orders")
     .eq("org_id", orgId)
-    .gte("date", fromStr);
+    .gte("date", fromStr)
+    .lte("date", toStr);
 
   const { data: channels } = await supabase
     .from("channels")
@@ -217,14 +242,12 @@ export async function getChannels() {
   return channels ?? [];
 }
 
-export async function getChannelsWithStats(days = 30) {
+export async function getChannelsWithStats(params: DateParams = { days: 30 }) {
   const supabase = await createClient();
   const orgId = await getOrgId();
   if (!orgId) return [];
 
-  const fromDate = new Date();
-  fromDate.setDate(fromDate.getDate() - days);
-  const fromStr = fromDate.toISOString().split("T")[0];
+  const { fromStr, toStr } = getDateRange(params);
 
   const { data: channels } = await supabase
     .from("channels")
@@ -236,7 +259,8 @@ export async function getChannelsWithStats(days = 30) {
     .from("daily_stats")
     .select("channel_id, total_revenue, total_orders, total_units")
     .eq("org_id", orgId)
-    .gte("date", fromStr);
+    .gte("date", fromStr)
+    .lte("date", toStr);
 
   const statsByChannel = new Map<string, { revenue: number; orders: number; units: number }>();
   for (const row of stats ?? []) {
@@ -319,20 +343,19 @@ const EMPTY_PNL = {
   costSettings: DEFAULT_COST_SETTINGS,
 };
 
-export async function getPnLData(days = 30) {
+export async function getPnLData(params: DateParams = { days: 30 }) {
   const supabase = await createClient();
   const orgId = await getOrgId();
   if (!orgId) return EMPTY_PNL;
 
-  const fromDate = new Date();
-  fromDate.setDate(fromDate.getDate() - days);
-  const fromStr = fromDate.toISOString().split("T")[0];
+  const { fromStr, toStr } = getDateRange(params);
 
   const { data: stats } = await supabase
     .from("daily_stats")
     .select("channel_id, total_revenue, total_orders, platform_fees, estimated_cogs, estimated_profit")
     .eq("org_id", orgId)
-    .gte("date", fromStr);
+    .gte("date", fromStr)
+    .lte("date", toStr);
 
   const { data: channels } = await supabase
     .from("channels")

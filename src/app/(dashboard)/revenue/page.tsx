@@ -23,15 +23,17 @@ function formatDateLabel(dateStr: string): string {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-export default async function RevenuePage({ searchParams }: { searchParams: Promise<{ range?: string }> }) {
+export default async function RevenuePage({ searchParams }: { searchParams: Promise<{ range?: string; from?: string; to?: string }> }) {
   const params = await searchParams;
-  const days = rangeToDays(params.range ?? null);
+  const dateParams = params.from && params.to
+    ? { from: params.from, to: params.to }
+    : { days: rangeToDays(params.range ?? null) };
 
   const [user, stats, revenueSeries, channelData] = await Promise.all([
     getSession(),
-    getDashboardStats(days),
-    getRevenueSeries(days),
-    getChannelRevenue(days),
+    getDashboardStats(dateParams),
+    getRevenueSeries(dateParams),
+    getChannelRevenue(dateParams),
   ]);
 
   const chartData = revenueSeries.map((point) => ({

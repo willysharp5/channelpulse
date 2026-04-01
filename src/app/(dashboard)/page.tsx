@@ -11,16 +11,20 @@ import type { Platform } from "@/types";
 
 export const dynamic = "force-dynamic";
 
-export default async function OverviewPage({ searchParams }: { searchParams: Promise<{ range?: string }> }) {
+export default async function OverviewPage({ searchParams }: { searchParams: Promise<{ range?: string; from?: string; to?: string }> }) {
   const params = await searchParams;
-  const days = rangeToDays(params.range ?? null);
-  const rangeLabel = DATE_RANGE_PRESETS.find((p) => p.value === (params.range ?? "30d"))?.label ?? "Last 30 days";
+  const dateParams = params.from && params.to
+    ? { from: params.from, to: params.to }
+    : { days: rangeToDays(params.range ?? null) };
+  const rangeLabel = params.from && params.to
+    ? `${params.from} to ${params.to}`
+    : DATE_RANGE_PRESETS.find((p) => p.value === (params.range ?? "30d"))?.label ?? "Last 30 days";
 
   const [user, stats, revenueSeries, channelData, recentOrders, products] = await Promise.all([
     getSession(),
-    getDashboardStats(days),
-    getRevenueSeries(days),
-    getChannelRevenue(days),
+    getDashboardStats(dateParams),
+    getRevenueSeries(dateParams),
+    getChannelRevenue(dateParams),
     getRecentOrders(10),
     getProducts(),
   ]);

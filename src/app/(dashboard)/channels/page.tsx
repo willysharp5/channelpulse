@@ -12,13 +12,15 @@ import type { Platform } from "@/types";
 
 export const dynamic = "force-dynamic";
 
-export default async function ChannelsPage({ searchParams }: { searchParams: Promise<{ range?: string }> }) {
+export default async function ChannelsPage({ searchParams }: { searchParams: Promise<{ range?: string; from?: string; to?: string }> }) {
   const params = await searchParams;
-  const days = rangeToDays(params.range ?? null);
+  const dateParams = params.from && params.to
+    ? { from: params.from, to: params.to }
+    : { days: rangeToDays(params.range ?? null) };
 
   const [user, channels] = await Promise.all([
     getSession(),
-    getChannelsWithStats(days),
+    getChannelsWithStats(dateParams),
   ]);
 
   return (
