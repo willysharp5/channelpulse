@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CreditCard, User, Link2, Bell } from "lucide-react";
+import { CreditCard, User, Link2, Bell, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -92,22 +92,7 @@ export function SettingsContent({ email, businessName, plan, channels }: Setting
                 <p className="text-sm text-muted-foreground">No channels connected yet.</p>
               )}
               <Separator />
-              <div>
-                <p className="text-sm font-medium mb-2">Add a new channel</p>
-                <div className="flex gap-2 flex-wrap">
-                  {(["shopify", "amazon", "ebay", "etsy", "woocommerce"] as const)
-                    .filter((p) => !channels.some((ch) => ch.platform === p))
-                    .map((platform) => (
-                      <Button key={platform} variant="outline" className="gap-2" disabled={platform !== "shopify" && platform !== "amazon"}>
-                        <span>{CHANNEL_CONFIG[platform].icon}</span>
-                        {CHANNEL_CONFIG[platform].label}
-                        {platform !== "shopify" && platform !== "amazon" && (
-                          <Badge variant="secondary" className="text-[10px]">Soon</Badge>
-                        )}
-                      </Button>
-                    ))}
-                </div>
-              </div>
+              <ConnectShopifySection hasShopify={channels.some((ch) => ch.platform === "shopify")} />
             </CardContent>
           </Card>
         </TabsContent>
@@ -210,6 +195,66 @@ export function SettingsContent({ email, businessName, plan, channels }: Setting
           </Card>
         </TabsContent>
       </Tabs>
+    </div>
+  );
+}
+
+function ConnectShopifySection({ hasShopify }: { hasShopify: boolean }) {
+  const [shopDomain, setShopDomain] = useState("");
+  const [connecting, setConnecting] = useState(false);
+
+  function handleConnectShopify() {
+    let domain = shopDomain.trim();
+    if (!domain) return;
+    if (!domain.includes(".myshopify.com")) {
+      domain = domain.replace(/\.myshopify\.com$/, "") + ".myshopify.com";
+    }
+    setConnecting(true);
+    window.location.href = `/api/auth/shopify?shop=${encodeURIComponent(domain)}`;
+  }
+
+  return (
+    <div>
+      <p className="text-sm font-medium mb-2">Add a new channel</p>
+      {!hasShopify && (
+        <div className="mb-4 rounded-lg border p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <span className="text-lg">{CHANNEL_CONFIG.shopify.icon}</span>
+            <span className="font-medium">Connect Shopify</span>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Enter your Shopify store domain to connect via OAuth.
+          </p>
+          <div className="flex gap-2">
+            <Input
+              placeholder="your-store.myshopify.com"
+              value={shopDomain}
+              onChange={(e) => setShopDomain(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleConnectShopify()}
+              className="flex-1"
+            />
+            <Button
+              onClick={handleConnectShopify}
+              disabled={!shopDomain.trim() || connecting}
+              className="bg-[#96BF48] hover:bg-[#7ea03c] text-white"
+            >
+              {connecting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Connect
+            </Button>
+          </div>
+        </div>
+      )}
+      <div className="flex gap-2 flex-wrap">
+        {(["amazon", "ebay", "etsy", "woocommerce"] as const).map((platform) => (
+          <Button key={platform} variant="outline" className="gap-2" disabled>
+            <span>{CHANNEL_CONFIG[platform].icon}</span>
+            {CHANNEL_CONFIG[platform].label}
+            <Badge variant="secondary" className="text-[10px]">
+              {platform === "amazon" ? "Soon" : "Soon"}
+            </Badge>
+          </Button>
+        ))}
+      </div>
     </div>
   );
 }
