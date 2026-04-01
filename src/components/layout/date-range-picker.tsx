@@ -6,6 +6,7 @@ import { CalendarDays } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
+import { usePageLoading } from "./page-loading-provider";
 import {
   Popover,
   PopoverContent,
@@ -22,6 +23,7 @@ export function DateRangePicker() {
   const currentRange = searchParams.get("range") as DateRange | null;
   const currentFrom = searchParams.get("from");
   const currentTo = searchParams.get("to");
+  const { startTransition } = usePageLoading();
   const [open, setOpen] = useState(false);
   const [customFrom, setCustomFrom] = useState<Date | undefined>(
     currentFrom ? new Date(currentFrom) : undefined
@@ -53,9 +55,11 @@ export function DateRangePicker() {
     } else {
       params.set("range", value);
     }
-    router.push(`${pathname}${params.toString() ? `?${params}` : ""}`);
     setOpen(false);
     setShowCalendar(false);
+    startTransition(() => {
+      router.push(`${pathname}${params.toString() ? `?${params}` : ""}`);
+    });
   }
 
   function handleCustomApply() {
@@ -64,9 +68,11 @@ export function DateRangePicker() {
     params.delete("range");
     params.set("from", format(customFrom, "yyyy-MM-dd"));
     params.set("to", format(customTo, "yyyy-MM-dd"));
-    router.push(`${pathname}?${params}`);
     setOpen(false);
     setShowCalendar(false);
+    startTransition(() => {
+      router.push(`${pathname}?${params}`);
+    });
   }
 
   return (

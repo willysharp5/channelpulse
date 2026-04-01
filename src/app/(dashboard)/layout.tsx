@@ -1,5 +1,6 @@
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/app-sidebar";
+import { PageLoadingProvider } from "@/components/layout/page-loading-provider";
 
 export default function DashboardLayout({
   children,
@@ -9,7 +10,9 @@ export default function DashboardLayout({
   return (
     <SidebarProvider>
       <AppSidebar />
-      <SidebarInset>{children}</SidebarInset>
+      <SidebarInset>
+        <PageLoadingProvider>{children}</PageLoadingProvider>
+      </SidebarInset>
     </SidebarProvider>
   );
 }
