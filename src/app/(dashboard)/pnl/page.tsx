@@ -11,6 +11,15 @@ import type { Platform } from "@/types";
 
 export const dynamic = "force-dynamic";
 
+function PnlTip({ tip }: { tip: string }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger render={<Info className="h-3.5 w-3.5 text-muted-foreground/50 cursor-help" />} />
+      <TooltipContent side="top" className="max-w-[280px] text-xs">{tip}</TooltipContent>
+    </Tooltip>
+  );
+}
+
 function PnLRow({
   label,
   value,
@@ -73,8 +82,9 @@ export default async function PnLPage() {
         <div className="grid gap-4 md:grid-cols-3">
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
+              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
                 Total Revenue
+                <PnlTip tip="Gross revenue from all connected channels before any deductions. Sum of all order amounts including tax and shipping." />
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -85,8 +95,9 @@ export default async function PnLPage() {
           </Card>
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
+              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
                 Gross Margin
+                <PnlTip tip={`Percentage of revenue remaining after COGS. Calculated as: (Revenue - COGS) ÷ Revenue × 100 = (${formatCurrency(pnl.totalRevenue)} - ${formatCurrency(pnl.cogs)}) ÷ ${formatCurrency(pnl.totalRevenue)} = ${pnl.grossMargin.toFixed(1)}%.`} />
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -97,8 +108,9 @@ export default async function PnLPage() {
           </Card>
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
+              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
                 Net Profit
+                <PnlTip tip={`Your bottom line after all costs. Calculated as: Gross Profit (${formatCurrency(pnl.grossProfit)}) - Total Expenses (${formatCurrency(pnl.fees.total)}) = ${formatCurrency(pnl.netProfit)}. Net margin: ${pnl.netMargin.toFixed(1)}%.`} />
               </CardTitle>
             </CardHeader>
             <CardContent>
