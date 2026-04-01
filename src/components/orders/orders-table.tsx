@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { useSearchParams } from "next/navigation";
-import { Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { useState, useMemo, useCallback } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import { Search, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -60,28 +60,68 @@ const STATUS_STYLES: Record<string, { variant: "default" | "secondary" | "outlin
 
 export function OrdersTable({ orders }: OrdersTableProps) {
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
   const initialSearch = searchParams.get("search") ?? "";
+  const initialStatus = searchParams.get("status") ?? "all";
+  const initialChannel = searchParams.get("channel") ?? "all";
   const highlightId = searchParams.get("order") ?? "";
 
   const [search, setSearch] = useState(initialSearch);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [channelFilter, setChannelFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState(initialStatus);
+  const [channelFilter, setChannelFilter] = useState(initialChannel);
 
   const platforms = [...new Set(orders.map((o) => o.platform))];
 
+  const updateUrl = useCallback(
+    (params: Record<string, string>) => {
+      const sp = new URLSearchParams();
+      for (const [k, v] of Object.entries(params)) {
+        if (v && v !== "all" && v !== "1") sp.set(k, v);
+      }
+      const qs = sp.toString();
+      router.replace(`${pathname}${qs ? `?${qs}` : ""}`, { scroll: false });
+    },
+    [router, pathname]
+  );
+
+  function handleSearchChange(value: string) {
+    setSearch(value);
+    setPage(1);
+    updateUrl({ search: value, status: statusFilter, channel: channelFilter });
+  }
+
+  function handleStatusChange(value: string) {
+    setStatusFilter(value);
+    setPage(1);
+    updateUrl({ search, status: value, channel: channelFilter });
+  }
+
+  function handleChannelChange(value: string) {
+    setChannelFilter(value);
+    setPage(1);
+    updateUrl({ search, status: statusFilter, channel: value });
+  }
+
+  function handleClearAll() {
+    setSearch("");
+    setStatusFilter("all");
+    setChannelFilter("all");
+    setPage(1);
+    router.replace(pathname, { scroll: false });
+  }
+
   const filtered = useMemo(() => {
     let result = orders;
-
     if (statusFilter !== "all") {
       result = result.filter((o) => o.status === statusFilter);
     }
-
     if (channelFilter !== "all") {
       result = result.filter((o) => o.platform === channelFilter);
     }
-
     if (search.length >= 1) {
       const q = search.toLowerCase();
       result = result.filter(
@@ -91,7 +131,6 @@ export function OrdersTable({ orders }: OrdersTableProps) {
           String(o.total_amount ?? "").includes(q)
       );
     }
-
     return result;
   }, [orders, search, statusFilter, channelFilter]);
 
@@ -99,8 +138,8 @@ export function OrdersTable({ orders }: OrdersTableProps) {
   const safePage = Math.min(page, totalPages);
   const start = (safePage - 1) * pageSize;
   const paged = filtered.slice(start, start + pageSize);
-
   const totalRevenue = filtered.reduce((s, o) => s + Number(o.total_amount ?? 0), 0);
+  const hasFilters = search.length > 0 || statusFilter !== "all" || channelFilter !== "all";
 
   function highlightMatch(text: string): React.ReactNode {
     if (!search || search.length < 1) return text;
@@ -125,13 +164,21 @@ export function OrdersTable({ orders }: OrdersTableProps) {
           <Input
             placeholder="Search by order #, customer name..."
             value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-            className="pl-8 h-9"
+            onChange={(e) => handleSearchChange(e.target.value)}
+            className="pl-8 pr-8 h-9"
           />
+          {search && (
+            <button
+              onClick={() => handleSearchChange("")}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {platforms.length > 1 && (
-            <Select value={channelFilter} onValueChange={(v: string | null) => { setChannelFilter(v ?? "all"); setPage(1); }}>
+            <Select value={channelFilter} onValueChange={(v: string | null) => handleChannelChange(v ?? "all")}>
               <SelectTrigger className="w-[130px] h-9">
                 <SelectValue placeholder="Channel" />
               </SelectTrigger>
@@ -143,7 +190,7 @@ export function OrdersTable({ orders }: OrdersTableProps) {
               </SelectContent>
             </Select>
           )}
-          <Select value={statusFilter} onValueChange={(v: string | null) => { setStatusFilter(v ?? "all"); setPage(1); }}>
+          <Select value={statusFilter} onValueChange={(v: string | null) => handleStatusChange(v ?? "all")}>
             <SelectTrigger className="w-[130px] h-9">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
@@ -156,6 +203,11 @@ export function OrdersTable({ orders }: OrdersTableProps) {
               <SelectItem value="refunded">Refunded</SelectItem>
             </SelectContent>
           </Select>
+          {hasFilters && (
+            <Button variant="ghost" size="sm" className="h-9 text-xs gap-1" onClick={handleClearAll}>
+              <X className="h-3 w-3" /> Clear
+            </Button>
+          )}
           <div className="text-xs text-muted-foreground whitespace-nowrap">
             {filtered.length} order{filtered.length !== 1 ? "s" : ""} · {formatCurrency(totalRevenue)}
           </div>
@@ -188,12 +240,8 @@ export function OrdersTable({ orders }: OrdersTableProps) {
               paged.map((order) => {
                 const statusStyle = STATUS_STYLES[order.status ?? "pending"] ?? STATUS_STYLES.pending;
                 const isHighlighted = highlightId === order.id;
-
                 return (
-                  <TableRow
-                    key={order.id}
-                    className={isHighlighted ? "bg-amber-50 dark:bg-amber-950/30" : ""}
-                  >
+                  <TableRow key={order.id} className={isHighlighted ? "bg-amber-50 dark:bg-amber-950/30" : ""}>
                     <TableCell className="font-medium tabular-nums">
                       {highlightMatch(order.order_number ?? order.id.slice(0, 8))}
                     </TableCell>
@@ -215,9 +263,7 @@ export function OrdersTable({ orders }: OrdersTableProps) {
                       </span>
                     </TableCell>
                     <TableCell className="hidden md:table-cell">
-                      <Badge variant={statusStyle.variant} className="text-[10px]">
-                        {statusStyle.label}
-                      </Badge>
+                      <Badge variant={statusStyle.variant} className="text-[10px]">{statusStyle.label}</Badge>
                     </TableCell>
                     <TableCell className="hidden lg:table-cell tabular-nums text-muted-foreground">
                       {order.item_count ?? 0}
@@ -249,9 +295,7 @@ export function OrdersTable({ orders }: OrdersTableProps) {
             </Select>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">
-              Page {safePage} of {totalPages}
-            </span>
+            <span className="text-xs text-muted-foreground">Page {safePage} of {totalPages}</span>
             <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={safePage <= 1}>
               <ChevronLeft className="h-4 w-4" />
             </Button>

@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { useSearchParams } from "next/navigation";
-import { Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { useState, useMemo, useCallback } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import { Search, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -41,20 +41,54 @@ const PAGE_SIZES = [10, 20, 50];
 
 export function ProductsTable({ products }: ProductsTableProps) {
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
   const initialSearch = searchParams.get("search") ?? "";
+  const initialStatus = searchParams.get("status") ?? "all";
+  const initialPage = parseInt(searchParams.get("page") ?? "1", 10);
 
   const [search, setSearch] = useState(initialSearch);
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(initialPage);
   const [pageSize, setPageSize] = useState(10);
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState(initialStatus);
+
+  const updateUrl = useCallback(
+    (params: Record<string, string>) => {
+      const sp = new URLSearchParams();
+      for (const [k, v] of Object.entries(params)) {
+        if (v && v !== "all" && v !== "1") sp.set(k, v);
+      }
+      const qs = sp.toString();
+      router.replace(`${pathname}${qs ? `?${qs}` : ""}`, { scroll: false });
+    },
+    [router, pathname]
+  );
+
+  function handleSearchChange(value: string) {
+    setSearch(value);
+    setPage(1);
+    updateUrl({ search: value, status: statusFilter, page: "1" });
+  }
+
+  function handleStatusChange(value: string) {
+    setStatusFilter(value);
+    setPage(1);
+    updateUrl({ search, status: value, page: "1" });
+  }
+
+  function handleClearAll() {
+    setSearch("");
+    setStatusFilter("all");
+    setPage(1);
+    router.replace(pathname, { scroll: false });
+  }
 
   const filtered = useMemo(() => {
     let result = products;
-
     if (statusFilter !== "all") {
       result = result.filter((p) => p.status === statusFilter);
     }
-
     if (search.length >= 1) {
       const q = search.toLowerCase();
       result = result.filter(
@@ -64,7 +98,6 @@ export function ProductsTable({ products }: ProductsTableProps) {
           (p.category && p.category.toLowerCase().includes(q))
       );
     }
-
     return result;
   }, [products, search, statusFilter]);
 
@@ -72,8 +105,7 @@ export function ProductsTable({ products }: ProductsTableProps) {
   const safePage = Math.min(page, totalPages);
   const start = (safePage - 1) * pageSize;
   const paged = filtered.slice(start, start + pageSize);
-
-  const categories = [...new Set(products.map((p) => p.category).filter(Boolean))];
+  const hasFilters = search.length > 0 || statusFilter !== "all";
 
   function highlightMatch(text: string): React.ReactNode {
     if (!search || search.length < 1) return text;
@@ -98,21 +130,20 @@ export function ProductsTable({ products }: ProductsTableProps) {
           <Input
             placeholder="Search products by name, SKU, category..."
             value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
-            className="pl-8 h-9"
+            onChange={(e) => handleSearchChange(e.target.value)}
+            className="pl-8 pr-8 h-9"
           />
+          {search && (
+            <button
+              onClick={() => handleSearchChange("")}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
         </div>
         <div className="flex items-center gap-2">
-          <Select
-            value={statusFilter}
-            onValueChange={(v: string | null) => {
-              setStatusFilter(v ?? "all");
-              setPage(1);
-            }}
-          >
+          <Select value={statusFilter} onValueChange={(v: string | null) => handleStatusChange(v ?? "all")}>
             <SelectTrigger className="w-[130px] h-9">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
@@ -123,6 +154,11 @@ export function ProductsTable({ products }: ProductsTableProps) {
               <SelectItem value="archived">Archived</SelectItem>
             </SelectContent>
           </Select>
+          {hasFilters && (
+            <Button variant="ghost" size="sm" className="h-9 text-xs gap-1" onClick={handleClearAll}>
+              <X className="h-3 w-3" /> Clear
+            </Button>
+          )}
           <span className="text-xs text-muted-foreground whitespace-nowrap">
             {filtered.length} product{filtered.length !== 1 ? "s" : ""}
           </span>
@@ -144,9 +180,7 @@ export function ProductsTable({ products }: ProductsTableProps) {
             {paged.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                  {search
-                    ? `No products matching "${search}"`
-                    : "No products found"}
+                  {search ? `No products matching "${search}"` : "No products found"}
                 </TableCell>
               </TableRow>
             ) : (
@@ -155,17 +189,11 @@ export function ProductsTable({ products }: ProductsTableProps) {
                   <TableCell className="font-medium max-w-[250px]">
                     <div className="flex items-center gap-3">
                       {product.image_url ? (
-                        <img
-                          src={product.image_url}
-                          alt=""
-                          className="h-8 w-8 rounded object-cover flex-shrink-0"
-                        />
+                        <img src={product.image_url} alt="" className="h-8 w-8 rounded object-cover flex-shrink-0" />
                       ) : (
                         <div className="h-8 w-8 rounded bg-muted flex-shrink-0" />
                       )}
-                      <span className="truncate">
-                        {highlightMatch(product.title)}
-                      </span>
+                      <span className="truncate">{highlightMatch(product.title)}</span>
                     </div>
                   </TableCell>
                   <TableCell className="text-muted-foreground font-mono text-xs">
@@ -179,13 +207,7 @@ export function ProductsTable({ products }: ProductsTableProps) {
                   </TableCell>
                   <TableCell>
                     <Badge
-                      variant={
-                        product.status === "active"
-                          ? "secondary"
-                          : product.status === "draft"
-                            ? "outline"
-                            : "destructive"
-                      }
+                      variant={product.status === "active" ? "secondary" : product.status === "draft" ? "outline" : "destructive"}
                       className="text-[10px]"
                     >
                       {product.status}
@@ -202,46 +224,23 @@ export function ProductsTable({ products }: ProductsTableProps) {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground">Rows per page</span>
-            <Select
-              value={String(pageSize)}
-              onValueChange={(v: string | null) => {
-                setPageSize(Number(v ?? 10));
-                setPage(1);
-              }}
-            >
+            <Select value={String(pageSize)} onValueChange={(v: string | null) => { setPageSize(Number(v ?? 10)); setPage(1); }}>
               <SelectTrigger className="h-8 w-[70px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 {PAGE_SIZES.map((s) => (
-                  <SelectItem key={s} value={String(s)}>
-                    {s}
-                  </SelectItem>
+                  <SelectItem key={s} value={String(s)}>{s}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
-
           <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">
-              Page {safePage} of {totalPages}
-            </span>
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-8 w-8"
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={safePage <= 1}
-            >
+            <span className="text-xs text-muted-foreground">Page {safePage} of {totalPages}</span>
+            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={safePage <= 1}>
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-8 w-8"
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={safePage >= totalPages}
-            >
+            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={safePage >= totalPages}>
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
