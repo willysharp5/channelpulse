@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ProductsTable } from "@/components/products/products-table";
+import { CogsImport } from "@/components/products/cogs-import";
 import { getProducts } from "@/lib/queries";
 import { getSession } from "@/lib/auth/actions";
 import { formatCurrency } from "@/lib/formatters";
@@ -72,8 +73,9 @@ export default async function ProductsPage() {
         </div>
 
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-base font-semibold">All Products</CardTitle>
+            <CogsImport products={products} />
           </CardHeader>
           <CardContent>
             <Suspense
