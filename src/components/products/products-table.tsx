@@ -2,7 +2,8 @@
 
 import { useState, useMemo, useCallback } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { Search, ChevronLeft, ChevronRight, X, Check, Loader2 } from "lucide-react";
+import { Search, ChevronLeft, ChevronRight, X, Check, Loader2, Download } from "lucide-react";
+import { downloadCSV } from "@/lib/csv-export";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -160,6 +161,23 @@ export function ProductsTable({ products, onCogsUpdate }: ProductsTableProps) {
               <X className="h-3 w-3" /> Clear
             </Button>
           )}
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-9 text-xs gap-1"
+            onClick={() => {
+              downloadCSV(
+                `channelpulse-products-${new Date().toISOString().split("T")[0]}.csv`,
+                ["Product", "SKU", "Category", "COGS", "Status"],
+                filtered.map((p) => [
+                  p.title, p.sku ?? "", p.category ?? "",
+                  String(Number(p.cogs ?? 0).toFixed(2)), p.status ?? "",
+                ])
+              );
+            }}
+          >
+            <Download className="h-3 w-3" /> Export
+          </Button>
           <span className="text-xs text-muted-foreground whitespace-nowrap">
             {filtered.length} product{filtered.length !== 1 ? "s" : ""}
           </span>

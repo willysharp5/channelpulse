@@ -2,7 +2,8 @@
 
 import { useState, useMemo, useCallback } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { Search, ChevronLeft, ChevronRight, X, Info } from "lucide-react";
+import { Search, ChevronLeft, ChevronRight, X, Info, Download } from "lucide-react";
+import { downloadCSV } from "@/lib/csv-export";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -221,6 +222,26 @@ export function OrdersTable({ orders }: OrdersTableProps) {
               <X className="h-3 w-3" /> Clear
             </Button>
           )}
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-9 text-xs gap-1"
+            onClick={() => {
+              downloadCSV(
+                `channelpulse-orders-${new Date().toISOString().split("T")[0]}.csv`,
+                ["Order #", "Channel", "Customer", "Amount", "Fees", "Profit", "Status", "Items", "Date"],
+                filtered.map((o) => [
+                  o.order_number ?? "", o.platform, o.customer_name ?? "",
+                  String(Number(o.total_amount ?? 0).toFixed(2)),
+                  String(Number(o.platform_fees ?? 0).toFixed(2)),
+                  String(Number(o.net_profit ?? 0).toFixed(2)),
+                  o.status ?? "", String(o.item_count ?? 0), o.ordered_at,
+                ])
+              );
+            }}
+          >
+            <Download className="h-3 w-3" /> Export
+          </Button>
           <div className="text-xs text-muted-foreground whitespace-nowrap">
             {filtered.length} order{filtered.length !== 1 ? "s" : ""} · {formatCurrency(totalRevenue)}
           </div>

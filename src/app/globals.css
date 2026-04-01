@@ -148,3 +148,22 @@
     @apply font-sans;
   }
 }
+
+/* Mobile table scroll */
+@media (max-width: 640px) {
+  [data-slot="table"] {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Tighter padding on mobile */
+  .p-6 {
+    padding: 1rem;
+  }
+
+  /* Stack filter bars vertically */
+  .flex-wrap {
+    gap: 0.5rem;
+  }
+}

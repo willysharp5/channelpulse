@@ -7,6 +7,8 @@ import { RecentOrders } from "@/components/dashboard/recent-orders";
 import { getDashboardStats, getRevenueSeries, getChannelRevenue, getRecentOrders, getProducts } from "@/lib/queries";
 import { getSession } from "@/lib/auth/actions";
 import { CHANNEL_CONFIG, rangeToDays, DATE_RANGE_PRESETS } from "@/lib/constants";
+import { NoChannelsEmpty } from "@/components/dashboard/empty-state";
+import { getChannels } from "@/lib/queries";
 import type { Platform } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -20,8 +22,20 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
     ? `${params.from} to ${params.to}`
     : DATE_RANGE_PRESETS.find((p) => p.value === (params.range ?? "30d"))?.label ?? "Last 30 days";
 
-  const [user, stats, revenueResult, channelData, recentOrders, products] = await Promise.all([
-    getSession(),
+  const [user, channels] = await Promise.all([getSession(), getChannels()]);
+
+  if (channels.length === 0) {
+    return (
+      <>
+        <Header title="Overview" userEmail={user?.email ?? undefined} />
+        <div className="flex-1 p-6">
+          <NoChannelsEmpty />
+        </div>
+      </>
+    );
+  }
+
+  const [stats, revenueResult, channelData, recentOrders, products] = await Promise.all([
     getDashboardStats(dateParams),
     getRevenueSeries(dateParams),
     getChannelRevenue(dateParams),
