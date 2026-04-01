@@ -101,7 +101,10 @@ export function PnLContent({ pnl }: { pnl: PnLData }) {
   const refunds = rev * (settings.refund_rate_percent / 100);
   const otherExpenses = settings.other_expenses_monthly;
   const totalExpenses = marketplaceFees + shippingCost + processingFees + advertising + refunds + otherExpenses;
-  const grossProfit = rev - pnl.cogs;
+  // Recalculate COGS: use per-product total if set, otherwise use default % of revenue
+  const cogsFromPercent = settings.default_cogs_percent > 0 ? (rev * settings.default_cogs_percent / 100) : 0;
+  const effectiveCogs = pnl.cogs > 0 ? pnl.cogs : cogsFromPercent;
+  const grossProfit = rev - effectiveCogs;
   const netProfit = grossProfit - totalExpenses;
   const grossMargin = rev > 0 ? (grossProfit / rev) * 100 : 0;
   const netMargin = rev > 0 ? (netProfit / rev) * 100 : 0;
@@ -138,7 +141,7 @@ export function PnLContent({ pnl }: { pnl: PnLData }) {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
               Gross Margin
-              <KpiTip tip={`(Revenue - COGS) ÷ Revenue × 100 = (${formatCurrency(rev)} - ${formatCurrency(pnl.cogs)}) ÷ ${formatCurrency(rev)} = ${grossMargin.toFixed(1)}%.`} />
+              <KpiTip tip={`(Revenue - COGS) ÷ Revenue × 100 = (${formatCurrency(rev)} - ${formatCurrency(effectiveCogs)}) ÷ ${formatCurrency(rev)} = ${grossMargin.toFixed(1)}%.${pnl.cogs === 0 && settings.default_cogs_percent > 0 ? ` Using default COGS rate of ${settings.default_cogs_percent}%.` : ""}`} />
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -198,9 +201,20 @@ export function PnLContent({ pnl }: { pnl: PnLData }) {
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
               COGS (Cost of Goods Sold)
             </p>
-            <PnLRow label="Product Costs" value={pnl.cogs} indent negative tooltip="Sum of COGS values for all products. Set per-product costs on the Products page." />
+            <PnLRow
+              label={pnl.cogs > 0 ? "Product Costs (per-product)" : settings.default_cogs_percent > 0 ? `Product Costs (${settings.default_cogs_percent}% of revenue)` : "Product Costs"}
+              value={effectiveCogs}
+              indent
+              negative
+              tooltip={pnl.cogs > 0
+                ? "Sum of individual COGS values you entered for each product on the Products page."
+                : settings.default_cogs_percent > 0
+                  ? `Using default COGS rate: ${settings.default_cogs_percent}% × ${formatCurrency(rev)} = ${formatCurrency(effectiveCogs)}. Set per-product costs on the Products page for more accuracy.`
+                  : "No COGS set. Enter per-product costs on the Products page, or set a default COGS % using Edit Rates."
+              }
+            />
             <Separator className="my-2" />
-            <PnLRow label="Gross Profit" value={grossProfit} bold tooltip={`Revenue - COGS = ${formatCurrency(rev)} - ${formatCurrency(pnl.cogs)} = ${formatCurrency(grossProfit)}.`} />
+            <PnLRow label="Gross Profit" value={grossProfit} bold tooltip={`Revenue - COGS = ${formatCurrency(rev)} - ${formatCurrency(effectiveCogs)} = ${formatCurrency(grossProfit)}.`} />
             <p className="text-xs text-muted-foreground text-right">{grossMargin.toFixed(1)}% margin</p>
 
             <div className="h-4" />
@@ -209,6 +223,17 @@ export function PnLContent({ pnl }: { pnl: PnLData }) {
             {editing ? (
               <div className="space-y-4 rounded-lg border p-4 bg-muted/30 mb-4">
                 <p className="text-sm font-medium">Edit your cost rates</p>
+
+                <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20 p-3 space-y-1.5">
+                  <Label className="text-xs font-medium">Default COGS — Cost of Goods Sold (%)</Label>
+                  <Input type="number" step="0.1" value={settings.default_cogs_percent} onChange={(e) => setSettings({ ...settings, default_cogs_percent: parseFloat(e.target.value) || 0 })} className="h-8" />
+                  <p className="text-[10px] text-muted-foreground">
+                    Applied to total revenue when per-product costs aren&apos;t set. E.g. 35% means your products cost ~35% of what you sell them for. Per-product COGS (set on the Products page) override this.
+                  </p>
+                </div>
+
+                <Separator />
+                <p className="text-xs font-medium text-muted-foreground">Fees & Expenses</p>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-1.5">
                     <Label className="text-xs">Marketplace Fee (%)</Label>

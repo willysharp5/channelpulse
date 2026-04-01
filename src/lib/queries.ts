@@ -299,6 +299,7 @@ export interface CostSettings {
   advertising_monthly: number;
   refund_rate_percent: number;
   other_expenses_monthly: number;
+  default_cogs_percent: number;
 }
 
 const DEFAULT_COST_SETTINGS: CostSettings = {
@@ -309,6 +310,7 @@ const DEFAULT_COST_SETTINGS: CostSettings = {
   advertising_monthly: 0,
   refund_rate_percent: 2.0,
   other_expenses_monthly: 0,
+  default_cogs_percent: 0,
 };
 
 export async function getCostSettings(): Promise<CostSettings> {
@@ -332,6 +334,7 @@ export async function getCostSettings(): Promise<CostSettings> {
     advertising_monthly: Number(data.advertising_monthly ?? 0),
     refund_rate_percent: Number(data.refund_rate_percent ?? 2.0),
     other_expenses_monthly: Number(data.other_expenses_monthly ?? 0),
+    default_cogs_percent: Number(data.default_cogs_percent ?? 0),
   };
 }
 
@@ -370,7 +373,7 @@ export async function getPnLData(params: DateParams = { days: 30 }) {
     .select("cogs")
     .eq("org_id", orgId);
 
-  const actualProductCogs = (products ?? []).reduce((s, p) => s + Number(p.cogs ?? 0), 0);
+  const perProductCogs = (products ?? []).reduce((s, p) => s + Number(p.cogs ?? 0), 0);
 
   const revenueByPlatform: Record<string, number> = {};
   let totalRevenue = 0;
@@ -386,10 +389,13 @@ export async function getPnLData(params: DateParams = { days: 30 }) {
     totalOrders += Number(row.total_orders);
   }
 
-  // Use actual product COGS if available, otherwise fall back to daily_stats estimated_cogs
-  const totalCogs = actualProductCogs > 0 ? actualProductCogs : 0;
-
   const costSettings = await getCostSettings();
+
+  // Hybrid COGS: per-product costs where set + default % of revenue for the rest
+  const defaultCogsPct = costSettings.default_cogs_percent;
+  const cogsFromPercent = defaultCogsPct > 0 ? (totalRevenue * defaultCogsPct / 100) : 0;
+  // Use per-product COGS if any are set, otherwise use the global percentage
+  const totalCogs = perProductCogs > 0 ? perProductCogs : cogsFromPercent;
 
   const grossProfit = totalRevenue - totalCogs;
   const marketplaceFees = totalFees > 0
