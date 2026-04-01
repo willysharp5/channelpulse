@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { Search, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { Search, ChevronLeft, ChevronRight, X, Info } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -22,8 +22,21 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ChannelBadge } from "@/components/layout/channel-badge";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatCurrency, formatDate } from "@/lib/formatters";
 import type { Platform } from "@/types";
+
+function HeaderWithTip({ children, tip, className }: { children: React.ReactNode; tip: string; className?: string }) {
+  return (
+    <span className={`inline-flex items-center gap-1 ${className ?? ""}`}>
+      {children}
+      <Tooltip>
+        <TooltipTrigger render={<Info className="h-3 w-3 text-muted-foreground/40 cursor-help" />} />
+        <TooltipContent side="top" className="max-w-[220px] text-xs">{tip}</TooltipContent>
+      </Tooltip>
+    </span>
+  );
+}
 
 interface Order {
   id: string;
@@ -221,9 +234,9 @@ export function OrdersTable({ orders }: OrdersTableProps) {
               <TableHead>Order</TableHead>
               <TableHead>Channel</TableHead>
               <TableHead className="hidden sm:table-cell">Customer</TableHead>
-              <TableHead className="text-right">Amount</TableHead>
-              <TableHead className="hidden md:table-cell text-right">Fees</TableHead>
-              <TableHead className="hidden lg:table-cell text-right">Profit</TableHead>
+              <TableHead className="text-right"><HeaderWithTip tip="Total order amount including tax and shipping.">Amount</HeaderWithTip></TableHead>
+              <TableHead className="hidden md:table-cell text-right"><HeaderWithTip tip="Estimated marketplace/payment processing fees. Shopify: 2.9% + $0.30 per order.">Fees</HeaderWithTip></TableHead>
+              <TableHead className="hidden lg:table-cell text-right"><HeaderWithTip tip="Order amount minus platform fees. Calculated as: Amount - Fees.">Profit</HeaderWithTip></TableHead>
               <TableHead className="hidden md:table-cell">Status</TableHead>
               <TableHead className="hidden lg:table-cell">Items</TableHead>
               <TableHead className="text-right">Date</TableHead>

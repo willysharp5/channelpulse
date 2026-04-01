@@ -1,6 +1,8 @@
+import { Info } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getPnLData } from "@/lib/queries";
 import { getSession } from "@/lib/auth/actions";
 import { formatCurrency } from "@/lib/formatters";
@@ -17,6 +19,7 @@ function PnLRow({
   negative = false,
   highlight = false,
   color,
+  tooltip,
 }: {
   label: string;
   value: number;
@@ -25,6 +28,7 @@ function PnLRow({
   negative?: boolean;
   highlight?: boolean;
   color?: string;
+  tooltip?: string;
 }) {
   return (
     <div
@@ -37,6 +41,14 @@ function PnLRow({
           <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: color }} />
         )}
         {label}
+        {tooltip && (
+          <Tooltip>
+            <TooltipTrigger render={<Info className="h-3 w-3 text-muted-foreground/50 cursor-help" />} />
+            <TooltipContent side="top" className="max-w-[260px] text-xs">
+              {tooltip}
+            </TooltipContent>
+          </Tooltip>
+        )}
       </span>
       <span className={`tabular-nums ${negative ? "text-red-500" : ""}`}>
         {negative ? "-" : ""}
@@ -124,15 +136,15 @@ export default async function PnLPage() {
                 ) : null;
               })}
               <Separator className="my-2" />
-              <PnLRow label="Total Revenue" value={pnl.totalRevenue} bold />
+              <PnLRow label="Total Revenue" value={pnl.totalRevenue} bold tooltip="Sum of all order amounts across all connected channels for this period." />
 
               <div className="h-4" />
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
                 Cost of Goods Sold
               </p>
-              <PnLRow label="Product Costs" value={pnl.cogs} indent negative />
+              <PnLRow label="Product Costs" value={pnl.cogs} indent negative tooltip="Sum of COGS values you've entered for each product. Set per-product COGS in Settings." />
               <Separator className="my-2" />
-              <PnLRow label="Gross Profit" value={pnl.grossProfit} bold />
+              <PnLRow label="Gross Profit" value={pnl.grossProfit} bold tooltip="Revenue minus Cost of Goods Sold. Calculated as: Total Revenue - Product Costs." />
               <p className="text-xs text-muted-foreground text-right">
                 {pnl.grossMargin.toFixed(1)}% margin
               </p>
@@ -141,17 +153,17 @@ export default async function PnLPage() {
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
                 Fees & Expenses
               </p>
-              <PnLRow label="Marketplace Fees" value={pnl.fees.marketplace} indent negative />
-              <PnLRow label="Shipping Costs" value={pnl.fees.shipping} indent negative />
-              <PnLRow label="Payment Processing" value={pnl.fees.processing} indent negative />
-              <PnLRow label="Advertising" value={pnl.fees.advertising} indent negative />
-              <PnLRow label="Returns & Refunds" value={pnl.fees.refunds} indent negative />
+              <PnLRow label="Marketplace Fees" value={pnl.fees.marketplace} indent negative tooltip="Fees charged by the marketplace (Shopify, Amazon, etc.) per transaction. Pulled from order data." />
+              <PnLRow label="Shipping Costs" value={pnl.fees.shipping} indent negative tooltip="Estimated shipping costs. Calculated as: Total Revenue × 3.5%." />
+              <PnLRow label="Payment Processing" value={pnl.fees.processing} indent negative tooltip="Payment gateway fees. Estimated as: Total Revenue × 2.9%." />
+              <PnLRow label="Advertising" value={pnl.fees.advertising} indent negative tooltip="Monthly advertising spend. Currently set to a flat $2,500/month estimate." />
+              <PnLRow label="Returns & Refunds" value={pnl.fees.refunds} indent negative tooltip="Estimated returns and refunds. Calculated as: Total Revenue × 2%." />
               <Separator className="my-2" />
-              <PnLRow label="Total Expenses" value={pnl.fees.total} bold negative />
+              <PnLRow label="Total Expenses" value={pnl.fees.total} bold negative tooltip="Sum of all fees and expenses: Marketplace Fees + Shipping + Processing + Advertising + Returns." />
 
               <div className="h-2" />
               <Separator className="my-2 border-2" />
-              <PnLRow label="NET PROFIT" value={pnl.netProfit} bold highlight />
+              <PnLRow label="NET PROFIT" value={pnl.netProfit} bold highlight tooltip="Your bottom line. Calculated as: Gross Profit - Total Expenses. This is what you actually take home after all costs." />
               <p className="text-xs text-muted-foreground text-right">
                 {pnl.netMargin.toFixed(1)}% net margin
               </p>

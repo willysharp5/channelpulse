@@ -4,7 +4,7 @@ import { RevenueChart } from "@/components/charts/revenue-chart";
 import { ChannelBreakdown } from "@/components/charts/channel-breakdown";
 import { TopProducts } from "@/components/dashboard/top-products";
 import { RecentOrders } from "@/components/dashboard/recent-orders";
-import { getDashboardStats, getRevenueSeries, getChannelRevenue, getRecentOrders } from "@/lib/queries";
+import { getDashboardStats, getRevenueSeries, getChannelRevenue, getRecentOrders, getProducts } from "@/lib/queries";
 import { getSession } from "@/lib/auth/actions";
 import { CHANNEL_CONFIG } from "@/lib/constants";
 import type { Platform } from "@/types";
@@ -12,12 +12,13 @@ import type { Platform } from "@/types";
 export const dynamic = "force-dynamic";
 
 export default async function OverviewPage() {
-  const [user, stats, revenueSeries, channelData, recentOrders] = await Promise.all([
+  const [user, stats, revenueSeries, channelData, recentOrders, products] = await Promise.all([
     getSession(),
     getDashboardStats(30),
     getRevenueSeries(30),
     getChannelRevenue(30),
     getRecentOrders(10),
+    getProducts(),
   ]);
 
   const kpis = [
@@ -77,7 +78,7 @@ export default async function OverviewPage() {
         <RevenueChart data={revenueSeries} />
         <div className="grid gap-6 lg:grid-cols-2">
           <ChannelBreakdown data={channelRevenue} />
-          <TopProducts />
+          <TopProducts products={products} />
         </div>
         <RecentOrders orders={recentOrders} />
       </div>

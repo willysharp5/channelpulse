@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Activity, Zap } from "lucide-react";
@@ -15,11 +16,27 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { NAV_ITEMS } from "@/lib/constants";
+import { NAV_ITEMS, CHANNEL_CONFIG } from "@/lib/constants";
 import { Badge } from "@/components/ui/badge";
+import type { Platform } from "@/types";
+
+interface SidebarChannel {
+  id: string;
+  platform: string;
+  name: string;
+  status: string | null;
+}
 
 export function AppSidebar() {
   const pathname = usePathname();
+  const [channels, setChannels] = useState<SidebarChannel[]>([]);
+
+  useEffect(() => {
+    fetch("/api/channels")
+      .then((r) => r.ok ? r.json() : [])
+      .then(setChannels)
+      .catch(() => {});
+  }, []);
 
   return (
     <Sidebar collapsible="icon" variant="inset">
@@ -64,37 +81,36 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <SidebarGroup>
-          <SidebarGroupLabel>Channels</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton>
-                  <span className="text-xs">🟢</span>
-                  <span>Shopify</span>
-                  <Badge
-                    variant="outline"
-                    className="ml-auto text-[10px] px-1.5 py-0"
-                  >
-                    Active
-                  </Badge>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton>
-                  <span className="text-xs">🟠</span>
-                  <span>Amazon</span>
-                  <Badge
-                    variant="outline"
-                    className="ml-auto text-[10px] px-1.5 py-0"
-                  >
-                    Active
-                  </Badge>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {channels.length > 0 && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Channels</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {channels.map((ch) => {
+                  const config = CHANNEL_CONFIG[ch.platform as Platform];
+                  return (
+                    <SidebarMenuItem key={ch.id}>
+                      <SidebarMenuButton>
+                        <span className="text-xs">{config?.icon ?? "⚪"}</span>
+                        <span className="truncate">{ch.name}</span>
+                        <Badge
+                          variant="outline"
+                          className={`ml-auto text-[10px] px-1.5 py-0 ${
+                            ch.status === "active"
+                              ? "border-emerald-200 text-emerald-700"
+                              : ""
+                          }`}
+                        >
+                          {ch.status === "active" ? "Active" : ch.status}
+                        </Badge>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
 
       <SidebarFooter>
