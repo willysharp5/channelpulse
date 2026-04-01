@@ -192,3 +192,135 @@ export async function getChannels() {
 
   return channels ?? [];
 }
+
+export async function getChannelsWithStats(days = 30) {
+  const supabase = await createClient();
+  const orgId = await getOrgId();
+
+  const fromDate = new Date();
+  fromDate.setDate(fromDate.getDate() - days);
+  const fromStr = fromDate.toISOString().split("T")[0];
+
+  const { data: channels } = await supabase
+    .from("channels")
+    .select("*")
+    .eq("org_id", orgId)
+    .order("created_at", { ascending: true });
+
+  const { data: stats } = await supabase
+    .from("daily_stats")
+    .select("channel_id, total_revenue, total_orders, total_units")
+    .eq("org_id", orgId)
+    .gte("date", fromStr);
+
+  const statsByChannel = new Map<string, { revenue: number; orders: number; units: number }>();
+  for (const row of stats ?? []) {
+    const existing = statsByChannel.get(row.channel_id) ?? { revenue: 0, orders: 0, units: 0 };
+    existing.revenue += Number(row.total_revenue);
+    existing.orders += Number(row.total_orders);
+    existing.units += Number(row.total_units);
+    statsByChannel.set(row.channel_id, existing);
+  }
+
+  return (channels ?? []).map((ch) => {
+    const s = statsByChannel.get(ch.id) ?? { revenue: 0, orders: 0, units: 0 };
+    return { ...ch, revenue: s.revenue, ordersCount: s.orders, units: s.units };
+  });
+}
+
+export async function getProducts() {
+  const supabase = await createClient();
+  const orgId = await getOrgId();
+
+  const { data: products } = await supabase
+    .from("products")
+    .select("*")
+    .eq("org_id", orgId)
+    .order("title", { ascending: true });
+
+  return products ?? [];
+}
+
+export async function getPnLData(days = 30) {
+  const supabase = await createClient();
+  const orgId = await getOrgId();
+
+  const fromDate = new Date();
+  fromDate.setDate(fromDate.getDate() - days);
+  const fromStr = fromDate.toISOString().split("T")[0];
+
+  const { data: stats } = await supabase
+    .from("daily_stats")
+    .select("channel_id, total_revenue, total_orders, platform_fees, estimated_cogs, estimated_profit")
+    .eq("org_id", orgId)
+    .gte("date", fromStr);
+
+  const { data: channels } = await supabase
+    .from("channels")
+    .select("id, platform, name")
+    .eq("org_id", orgId);
+
+  const channelMap = new Map(channels?.map((c) => [c.id, c.platform]) ?? []);
+
+  const revenueByPlatform: Record<string, number> = {};
+  let totalRevenue = 0;
+  let totalFees = 0;
+  let totalCogs = 0;
+  let totalProfit = 0;
+  let totalOrders = 0;
+
+  for (const row of stats ?? []) {
+    const platform = channelMap.get(row.channel_id) ?? "other";
+    revenueByPlatform[platform] = (revenueByPlatform[platform] ?? 0) + Number(row.total_revenue);
+    totalRevenue += Number(row.total_revenue);
+    totalFees += Number(row.platform_fees);
+    totalCogs += Number(row.estimated_cogs);
+    totalProfit += Number(row.estimated_profit);
+    totalOrders += Number(row.total_orders);
+  }
+
+  const grossProfit = totalRevenue - totalCogs;
+  const marketplaceFees = totalFees;
+  const shippingCost = totalRevenue * 0.035;
+  const processingFees = totalRevenue * 0.029;
+  const advertising = 2500;
+  const refunds = totalRevenue * 0.02;
+  const totalExpenses = marketplaceFees + shippingCost + processingFees + advertising + refunds;
+  const netProfit = grossProfit - totalExpenses;
+
+  return {
+    totalRevenue,
+    totalOrders,
+    revenueByPlatform,
+    cogs: totalCogs,
+    grossProfit,
+    grossMargin: totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0,
+    fees: {
+      marketplace: marketplaceFees,
+      shipping: shippingCost,
+      processing: processingFees,
+      advertising,
+      refunds,
+      total: totalExpenses,
+    },
+    netProfit,
+    netMargin: totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0,
+  };
+}
+
+export async function getUserOrg() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return null;
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("*, organizations(*)")
+    .eq("id", user.id)
+    .single();
+
+  return { user, profile };
+}

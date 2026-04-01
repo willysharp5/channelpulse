@@ -1,12 +1,5 @@
-"use client";
-
-import { useState } from "react";
-import { Search, TrendingUp, TrendingDown } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { ChannelBadge } from "@/components/layout/channel-badge";
 import {
   Table,
   TableBody,
@@ -15,21 +8,25 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { mockProducts } from "@/lib/mock-data";
-import { formatCurrency, formatPercent, formatNumber } from "@/lib/formatters";
+import { Badge } from "@/components/ui/badge";
+import { getProducts } from "@/lib/queries";
+import { getSession } from "@/lib/auth/actions";
+import { formatCurrency } from "@/lib/formatters";
 
-export default function ProductsPage() {
-  const [search, setSearch] = useState("");
+export const dynamic = "force-dynamic";
 
-  const filtered = mockProducts.filter(
-    (p) =>
-      p.title.toLowerCase().includes(search.toLowerCase()) ||
-      p.sku.toLowerCase().includes(search.toLowerCase())
-  );
+export default async function ProductsPage() {
+  const [user, products] = await Promise.all([
+    getSession(),
+    getProducts(),
+  ]);
+
+  const totalProducts = products.length;
+  const totalCogs = products.reduce((s, p) => s + Number(p.cogs ?? 0), 0);
 
   return (
     <>
-      <Header title="Products" />
+      <Header title="Products" userEmail={user?.email ?? undefined} />
       <div className="flex-1 space-y-6 p-6">
         <div className="grid gap-4 md:grid-cols-3">
           <Card>
@@ -39,125 +36,86 @@ export default function ProductsPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{mockProducts.length}</div>
+              <div className="text-2xl font-bold">{totalProducts}</div>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
-                Total Revenue
+                Active Products
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold tabular-nums">
-                {formatCurrency(
-                  mockProducts.reduce((s, p) => s + p.totalRevenue, 0)
-                )}
+              <div className="text-2xl font-bold">
+                {products.filter((p) => p.status === "active").length}
               </div>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
-                Avg Profit Margin
+                Total COGS Value
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold tabular-nums">
-                {Math.round(
-                  mockProducts.reduce((s, p) => s + p.profitMargin, 0) /
-                    mockProducts.length
-                )}
-                %
+                {formatCurrency(totalCogs)}
               </div>
             </CardContent>
           </Card>
         </div>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-base font-semibold">
-              All Products
-            </CardTitle>
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Search products..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="h-8 w-[200px] pl-8 text-sm"
-              />
-            </div>
+          <CardHeader>
+            <CardTitle className="text-base font-semibold">All Products</CardTitle>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Product</TableHead>
-                  <TableHead>SKU</TableHead>
-                  <TableHead>Channels</TableHead>
-                  <TableHead className="text-right">Revenue</TableHead>
-                  <TableHead className="text-right">Units Sold</TableHead>
-                  <TableHead className="text-right">Avg Price</TableHead>
-                  <TableHead className="text-right">Margin</TableHead>
-                  <TableHead className="text-right">Trend</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.map((product) => {
-                  const isPositive = product.trend >= 0;
-                  return (
+            {products.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-muted-foreground">No products yet.</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Products will appear once you connect a channel and sync data.
+                </p>
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Product</TableHead>
+                    <TableHead>SKU</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead className="text-right">COGS</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {products.map((product) => (
                     <TableRow key={product.id}>
-                      <TableCell className="font-medium max-w-[200px] truncate">
+                      <TableCell className="font-medium max-w-[250px] truncate">
                         {product.title}
                       </TableCell>
                       <TableCell className="text-muted-foreground font-mono text-xs">
-                        {product.sku}
+                        {product.sku ?? "—"}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {product.category ?? "—"}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {formatCurrency(Number(product.cogs ?? 0))}
                       </TableCell>
                       <TableCell>
-                        <div className="flex gap-1">
-                          {product.channels.map((ch) => (
-                            <ChannelBadge
-                              key={ch}
-                              platform={ch}
-                              className="text-[10px] px-1.5 py-0"
-                            />
-                          ))}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums font-medium">
-                        {formatCurrency(product.totalRevenue)}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {formatNumber(product.totalUnitsSold)}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {formatCurrency(product.avgPrice)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Badge variant="outline" className="tabular-nums">
-                          {product.profitMargin}%
+                        <Badge
+                          variant={product.status === "active" ? "secondary" : "outline"}
+                          className="text-[10px]"
+                        >
+                          {product.status}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-right">
-                        <span
-                          className={`inline-flex items-center gap-1 text-xs font-medium ${
-                            isPositive ? "text-emerald-500" : "text-red-500"
-                          }`}
-                        >
-                          {isPositive ? (
-                            <TrendingUp className="h-3 w-3" />
-                          ) : (
-                            <TrendingDown className="h-3 w-3" />
-                          )}
-                          {formatPercent(product.trend)}
-                        </span>
-                      </TableCell>
                     </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
           </CardContent>
         </Card>
       </div>
