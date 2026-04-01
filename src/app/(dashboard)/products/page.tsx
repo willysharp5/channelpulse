@@ -1,14 +1,8 @@
+import { Suspense } from "react";
 import { Header } from "@/components/layout/header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ProductsTable } from "@/components/products/products-table";
 import { getProducts } from "@/lib/queries";
 import { getSession } from "@/lib/auth/actions";
 import { formatCurrency } from "@/lib/formatters";
@@ -16,12 +10,10 @@ import { formatCurrency } from "@/lib/formatters";
 export const dynamic = "force-dynamic";
 
 export default async function ProductsPage() {
-  const [user, products] = await Promise.all([
-    getSession(),
-    getProducts(),
-  ]);
+  const [user, products] = await Promise.all([getSession(), getProducts()]);
 
   const totalProducts = products.length;
+  const activeProducts = products.filter((p) => p.status === "active").length;
   const totalCogs = products.reduce((s, p) => s + Number(p.cogs ?? 0), 0);
 
   return (
@@ -46,9 +38,7 @@ export default async function ProductsPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
-                {products.filter((p) => p.status === "active").length}
-              </div>
+              <div className="text-2xl font-bold">{activeProducts}</div>
             </CardContent>
           </Card>
           <Card>
@@ -70,52 +60,16 @@ export default async function ProductsPage() {
             <CardTitle className="text-base font-semibold">All Products</CardTitle>
           </CardHeader>
           <CardContent>
-            {products.length === 0 ? (
-              <div className="text-center py-12">
-                <p className="text-muted-foreground">No products yet.</p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Products will appear once you connect a channel and sync data.
-                </p>
-              </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Product</TableHead>
-                    <TableHead>SKU</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead className="text-right">COGS</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {products.map((product) => (
-                    <TableRow key={product.id}>
-                      <TableCell className="font-medium max-w-[250px] truncate">
-                        {product.title}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground font-mono text-xs">
-                        {product.sku ?? "—"}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {product.category ?? "—"}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {formatCurrency(Number(product.cogs ?? 0))}
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={product.status === "active" ? "secondary" : "outline"}
-                          className="text-[10px]"
-                        >
-                          {product.status}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
+            <Suspense
+              fallback={
+                <div className="space-y-3">
+                  <Skeleton className="h-9 w-full max-w-sm" />
+                  <Skeleton className="h-[300px] w-full" />
+                </div>
+              }
+            >
+              <ProductsTable products={products} />
+            </Suspense>
           </CardContent>
         </Card>
       </div>

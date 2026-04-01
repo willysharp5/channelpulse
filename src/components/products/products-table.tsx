@@ -1,0 +1,252 @@
+"use client";
+
+import { useState, useMemo } from "react";
+import { useSearchParams } from "next/navigation";
+import { Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { formatCurrency } from "@/lib/formatters";
+
+interface Product {
+  id: string;
+  title: string;
+  sku: string | null;
+  image_url: string | null;
+  cogs: number | null;
+  category: string | null;
+  status: string | null;
+}
+
+interface ProductsTableProps {
+  products: Product[];
+}
+
+const PAGE_SIZES = [10, 20, 50];
+
+export function ProductsTable({ products }: ProductsTableProps) {
+  const searchParams = useSearchParams();
+  const initialSearch = searchParams.get("search") ?? "";
+
+  const [search, setSearch] = useState(initialSearch);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+
+  const filtered = useMemo(() => {
+    let result = products;
+
+    if (statusFilter !== "all") {
+      result = result.filter((p) => p.status === statusFilter);
+    }
+
+    if (search.length >= 1) {
+      const q = search.toLowerCase();
+      result = result.filter(
+        (p) =>
+          p.title.toLowerCase().includes(q) ||
+          (p.sku && p.sku.toLowerCase().includes(q)) ||
+          (p.category && p.category.toLowerCase().includes(q))
+      );
+    }
+
+    return result;
+  }, [products, search, statusFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const start = (safePage - 1) * pageSize;
+  const paged = filtered.slice(start, start + pageSize);
+
+  const categories = [...new Set(products.map((p) => p.category).filter(Boolean))];
+
+  function highlightMatch(text: string): React.ReactNode {
+    if (!search || search.length < 1) return text;
+    const idx = text.toLowerCase().indexOf(search.toLowerCase());
+    if (idx === -1) return text;
+    return (
+      <>
+        {text.slice(0, idx)}
+        <mark className="bg-amber-200 dark:bg-amber-800 text-inherit rounded-sm px-0.5">
+          {text.slice(idx, idx + search.length)}
+        </mark>
+        {text.slice(idx + search.length)}
+      </>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search products by name, SKU, category..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            className="pl-8 h-9"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <Select
+            value={statusFilter}
+            onValueChange={(v: string | null) => {
+              setStatusFilter(v ?? "all");
+              setPage(1);
+            }}
+          >
+            <SelectTrigger className="w-[130px] h-9">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="draft">Draft</SelectItem>
+              <SelectItem value="archived">Archived</SelectItem>
+            </SelectContent>
+          </Select>
+          <span className="text-xs text-muted-foreground whitespace-nowrap">
+            {filtered.length} product{filtered.length !== 1 ? "s" : ""}
+          </span>
+        </div>
+      </div>
+
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Product</TableHead>
+              <TableHead>SKU</TableHead>
+              <TableHead>Category</TableHead>
+              <TableHead className="text-right">COGS</TableHead>
+              <TableHead>Status</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {paged.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                  {search
+                    ? `No products matching "${search}"`
+                    : "No products found"}
+                </TableCell>
+              </TableRow>
+            ) : (
+              paged.map((product) => (
+                <TableRow key={product.id}>
+                  <TableCell className="font-medium max-w-[250px]">
+                    <div className="flex items-center gap-3">
+                      {product.image_url ? (
+                        <img
+                          src={product.image_url}
+                          alt=""
+                          className="h-8 w-8 rounded object-cover flex-shrink-0"
+                        />
+                      ) : (
+                        <div className="h-8 w-8 rounded bg-muted flex-shrink-0" />
+                      )}
+                      <span className="truncate">
+                        {highlightMatch(product.title)}
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground font-mono text-xs">
+                    {product.sku ? highlightMatch(product.sku) : "—"}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {product.category ? highlightMatch(product.category) : "—"}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {formatCurrency(Number(product.cogs ?? 0))}
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      variant={
+                        product.status === "active"
+                          ? "secondary"
+                          : product.status === "draft"
+                            ? "outline"
+                            : "destructive"
+                      }
+                      className="text-[10px]"
+                    >
+                      {product.status}
+                    </Badge>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
+
+      {filtered.length > PAGE_SIZES[0] && (
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">Rows per page</span>
+            <Select
+              value={String(pageSize)}
+              onValueChange={(v: string | null) => {
+                setPageSize(Number(v ?? 10));
+                setPage(1);
+              }}
+            >
+              <SelectTrigger className="h-8 w-[70px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PAGE_SIZES.map((s) => (
+                  <SelectItem key={s} value={String(s)}>
+                    {s}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">
+              Page {safePage} of {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={safePage <= 1}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={safePage >= totalPages}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

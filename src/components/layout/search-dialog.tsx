@@ -185,7 +185,7 @@ export function SearchDialog() {
                 <CommandItem
                   key={order.id}
                   value={`order-${order.id}`}
-                  onSelect={() => handleSelect("/channels")}
+                  onSelect={() => handleSelect(`/?order=${order.id}`)}
                   className="cursor-pointer"
                 >
                   <ShoppingCart className="mr-2 h-4 w-4 text-muted-foreground flex-shrink-0" />
@@ -228,7 +228,7 @@ export function SearchDialog() {
                 <CommandItem
                   key={product.id}
                   value={`product-${product.id}`}
-                  onSelect={() => handleSelect("/products")}
+                  onSelect={() => handleSelect(`/products?search=${encodeURIComponent(product.title)}`)}
                   className="cursor-pointer"
                 >
                   <Package className="mr-2 h-4 w-4 text-muted-foreground flex-shrink-0" />
