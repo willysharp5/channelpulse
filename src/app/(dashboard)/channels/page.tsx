@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ChannelBadge } from "@/components/layout/channel-badge";
-import { CHANNEL_CONFIG } from "@/lib/constants";
+import { CHANNEL_CONFIG, rangeToDays } from "@/lib/constants";
 import { formatCurrency, formatNumber, formatDate } from "@/lib/formatters";
 import { getChannelsWithStats } from "@/lib/queries";
 import { getSession } from "@/lib/auth/actions";
@@ -12,10 +12,13 @@ import type { Platform } from "@/types";
 
 export const dynamic = "force-dynamic";
 
-export default async function ChannelsPage() {
+export default async function ChannelsPage({ searchParams }: { searchParams: Promise<{ range?: string }> }) {
+  const params = await searchParams;
+  const days = rangeToDays(params.range ?? null);
+
   const [user, channels] = await Promise.all([
     getSession(),
-    getChannelsWithStats(30),
+    getChannelsWithStats(days),
   ]);
 
   return (

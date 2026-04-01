@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/table";
 import { getDashboardStats, getRevenueSeries, getChannelRevenue } from "@/lib/queries";
 import { getSession } from "@/lib/auth/actions";
-import { CHANNEL_CONFIG } from "@/lib/constants";
+import { CHANNEL_CONFIG, rangeToDays } from "@/lib/constants";
 import { formatCurrency } from "@/lib/formatters";
 import type { Platform } from "@/types";
 
@@ -23,12 +23,15 @@ function formatDateLabel(dateStr: string): string {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-export default async function RevenuePage() {
+export default async function RevenuePage({ searchParams }: { searchParams: Promise<{ range?: string }> }) {
+  const params = await searchParams;
+  const days = rangeToDays(params.range ?? null);
+
   const [user, stats, revenueSeries, channelData] = await Promise.all([
     getSession(),
-    getDashboardStats(30),
-    getRevenueSeries(30),
-    getChannelRevenue(30),
+    getDashboardStats(days),
+    getRevenueSeries(days),
+    getChannelRevenue(days),
   ]);
 
   const chartData = revenueSeries.map((point) => ({

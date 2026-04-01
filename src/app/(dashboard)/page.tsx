@@ -6,17 +6,21 @@ import { TopProducts } from "@/components/dashboard/top-products";
 import { RecentOrders } from "@/components/dashboard/recent-orders";
 import { getDashboardStats, getRevenueSeries, getChannelRevenue, getRecentOrders, getProducts } from "@/lib/queries";
 import { getSession } from "@/lib/auth/actions";
-import { CHANNEL_CONFIG } from "@/lib/constants";
+import { CHANNEL_CONFIG, rangeToDays, DATE_RANGE_PRESETS } from "@/lib/constants";
 import type { Platform } from "@/types";
 
 export const dynamic = "force-dynamic";
 
-export default async function OverviewPage() {
+export default async function OverviewPage({ searchParams }: { searchParams: Promise<{ range?: string }> }) {
+  const params = await searchParams;
+  const days = rangeToDays(params.range ?? null);
+  const rangeLabel = DATE_RANGE_PRESETS.find((p) => p.value === (params.range ?? "30d"))?.label ?? "Last 30 days";
+
   const [user, stats, revenueSeries, channelData, recentOrders, products] = await Promise.all([
     getSession(),
-    getDashboardStats(30),
-    getRevenueSeries(30),
-    getChannelRevenue(30),
+    getDashboardStats(days),
+    getRevenueSeries(days),
+    getChannelRevenue(days),
     getRecentOrders(10),
     getProducts(),
   ]);
@@ -25,9 +29,9 @@ export default async function OverviewPage() {
     {
       title: "Total Revenue",
       value: stats.revenue.value,
-      formattedValue: `$${(stats.revenue.value / 1000).toFixed(1)}k`,
+      formattedValue: stats.revenue.value >= 1000 ? `$${(stats.revenue.value / 1000).toFixed(1)}k` : `$${stats.revenue.value.toFixed(2)}`,
       change: stats.revenue.change,
-      changeLabel: "vs last 30 days",
+      changeLabel: `vs previous ${rangeLabel.toLowerCase()}`,
       sparklineData: revenueSeries.slice(-14).map((p) => p.total),
     },
     {
@@ -35,7 +39,7 @@ export default async function OverviewPage() {
       value: stats.orders.value,
       formattedValue: stats.orders.value.toLocaleString(),
       change: stats.orders.change,
-      changeLabel: "vs last 30 days",
+      changeLabel: `vs previous ${rangeLabel.toLowerCase()}`,
       sparklineData: revenueSeries.slice(-14).map((p) =>
         stats.aov.value > 0 ? Math.round(p.total / stats.aov.value) : 0
       ),
@@ -43,9 +47,9 @@ export default async function OverviewPage() {
     {
       title: "Net Profit",
       value: stats.profit.value,
-      formattedValue: `$${(stats.profit.value / 1000).toFixed(1)}k`,
+      formattedValue: stats.profit.value >= 1000 ? `$${(stats.profit.value / 1000).toFixed(1)}k` : `$${stats.profit.value.toFixed(2)}`,
       change: stats.profit.change,
-      changeLabel: "vs last 30 days",
+      changeLabel: `vs previous ${rangeLabel.toLowerCase()}`,
       sparklineData: revenueSeries.slice(-14).map((p) => p.total * 0.5),
     },
     {
@@ -53,7 +57,7 @@ export default async function OverviewPage() {
       value: stats.aov.value,
       formattedValue: `$${stats.aov.value.toFixed(2)}`,
       change: stats.aov.change,
-      changeLabel: "vs last 30 days",
+      changeLabel: `vs previous ${rangeLabel.toLowerCase()}`,
       sparklineData: [],
     },
   ];

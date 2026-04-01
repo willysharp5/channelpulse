@@ -48,6 +48,27 @@ export const DATE_RANGE_PRESETS = [
   { label: "This year", value: "thisYear" as const },
 ];
 
+export function rangeToDays(range: string | null): number {
+  const now = new Date();
+  switch (range) {
+    case "today": return 1;
+    case "7d": return 7;
+    case "30d": return 30;
+    case "90d": return 90;
+    case "thisMonth": return now.getDate();
+    case "lastMonth": {
+      const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+      return Math.ceil((endOfLastMonth.getTime() - lastMonth.getTime()) / 86400000) + now.getDate();
+    }
+    case "thisYear": {
+      const startOfYear = new Date(now.getFullYear(), 0, 1);
+      return Math.ceil((now.getTime() - startOfYear.getTime()) / 86400000);
+    }
+    default: return 30;
+  }
+}
+
 export const PLAN_LIMITS = {
   free: { channels: 1, ordersPerMonth: 100 },
   starter: { channels: 3, ordersPerMonth: 5000 },
