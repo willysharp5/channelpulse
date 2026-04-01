@@ -1,7 +1,14 @@
 import { NextResponse } from "next/server";
+import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { verifyHmac } from "@/lib/shopify/verify";
 import { SHOPIFY_CONFIG } from "@/lib/shopify/config";
-import { createClient } from "@/lib/supabase/server";
+
+function getServiceClient() {
+  return createServiceClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
+}
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -11,6 +18,7 @@ export async function GET(request: Request) {
   const hmac = searchParams.get("hmac");
 
   if (!code || !shop || !state || !hmac) {
+    console.error("Shopify callback: missing params", { code: !!code, shop: !!shop, state: !!state, hmac: !!hmac });
     return NextResponse.redirect(`${origin}/settings?error=missing_params`);
   }
 
@@ -21,12 +29,14 @@ export async function GET(request: Request) {
   });
 
   if (!verifyHmac(queryObj, SHOPIFY_CONFIG.apiSecret)) {
+    console.error("Shopify callback: HMAC verification failed");
     return NextResponse.redirect(`${origin}/settings?error=invalid_hmac`);
   }
 
   // Extract user ID from state
   const userId = state.split(":")[1];
   if (!userId) {
+    console.error("Shopify callback: no userId in state");
     return NextResponse.redirect(`${origin}/settings?error=invalid_state`);
   }
 
@@ -51,96 +61,77 @@ export async function GET(request: Request) {
   }
 
   const { access_token, scope } = await tokenResponse.json();
+  console.log("Shopify: got access token for", shop);
+
+  // Use service client to bypass RLS
+  const supabase = getServiceClient();
 
   // Get user's org
-  const supabase = await createClient();
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from("profiles")
     .select("org_id")
     .eq("id", userId)
     .single();
 
-  if (!profile?.org_id) {
+  if (profileError || !profile?.org_id) {
+    console.error("Shopify callback: no profile/org found", profileError);
     return NextResponse.redirect(`${origin}/settings?error=no_org`);
   }
 
-  // Fetch shop info for display name
-  const shopInfoResponse = await fetch(
-    `https://${shop}/admin/api/2024-10/shop.json`,
-    {
-      headers: { "X-Shopify-Access-Token": access_token },
-    }
-  );
-  const shopInfo = shopInfoResponse.ok
-    ? (await shopInfoResponse.json()).shop
-    : { name: shop };
+  console.log("Shopify: saving channel for org", profile.org_id);
 
-  // Upsert channel
-  const { error: channelError } = await supabase
-    .from("channels")
-    .upsert(
-      {
-        org_id: profile.org_id,
-        platform: "shopify",
-        name: shopInfo.name || shop,
-        platform_store_id: shop,
-        credentials: { access_token, scope },
-        status: "active",
-        last_sync_at: new Date().toISOString(),
-        metadata: {
-          shop_domain: shop,
-          shop_name: shopInfo.name,
-          shop_email: shopInfo.email,
-          currency: shopInfo.currency,
-        },
-      },
-      { onConflict: "org_id,platform,platform_store_id" }
+  // Fetch shop info
+  let shopName = shop;
+  let shopEmail = "";
+  let shopCurrency = "USD";
+  try {
+    const shopInfoResponse = await fetch(
+      `https://${shop}/admin/api/2024-10/shop.json`,
+      { headers: { "X-Shopify-Access-Token": access_token } }
     );
-
-  if (channelError) {
-    console.error("Failed to save channel:", channelError);
-    // If upsert with onConflict fails, try finding existing and updating
-    const { data: existingChannel } = await supabase
-      .from("channels")
-      .select("id")
-      .eq("org_id", profile.org_id)
-      .eq("platform", "shopify")
-      .eq("platform_store_id", shop)
-      .single();
-
-    if (existingChannel) {
-      await supabase
-        .from("channels")
-        .update({
-          credentials: { access_token, scope },
-          status: "active",
-          name: shopInfo.name || shop,
-          last_sync_at: new Date().toISOString(),
-          metadata: {
-            shop_domain: shop,
-            shop_name: shopInfo.name,
-            shop_email: shopInfo.email,
-            currency: shopInfo.currency,
-          },
-        })
-        .eq("id", existingChannel.id);
-    } else {
-      await supabase.from("channels").insert({
-        org_id: profile.org_id,
-        platform: "shopify",
-        name: shopInfo.name || shop,
-        platform_store_id: shop,
-        credentials: { access_token, scope },
-        status: "active",
-        last_sync_at: new Date().toISOString(),
-        metadata: {
-          shop_domain: shop,
-          shop_name: shopInfo.name,
-          shop_email: shopInfo.email,
-          currency: shopInfo.currency,
-        },
-      });
+    if (shopInfoResponse.ok) {
+      const { shop: info } = await shopInfoResponse.json();
+      shopName = info.name || shop;
+      shopEmail = info.email || "";
+      shopCurrency = info.currency || "USD";
     }
+  } catch (e) {
+    console.warn("Could not fetch shop info:", e);
+  }
+
+  // Check if channel already exists
+  const { data: existing } = await supabase
+    .from("channels")
+    .select("id")
+    .eq("org_id", profile.org_id)
+    .eq("platform", "shopify")
+    .eq("platform_store_id", shop)
+    .maybeSingle();
+
+  const channelData = {
+    org_id: profile.org_id,
+    platform: "shopify" as const,
+    name: shopName,
+    platform_store_id: shop,
+    credentials: { access_token, scope },
+    status: "active" as const,
+    last_sync_at: new Date().toISOString(),
+    metadata: { shop_domain: shop, shop_name: shopName, shop_email: shopEmail, currency: shopCurrency },
+  };
+
+  if (existing) {
+    const { error } = await supabase
+      .from("channels")
+      .update(channelData)
+      .eq("id", existing.id);
+    if (error) console.error("Channel update error:", error);
+    else console.log("Shopify: updated existing channel", existing.id);
+  } else {
+    const { error } = await supabase
+      .from("channels")
+      .insert(channelData);
+    if (error) console.error("Channel insert error:", error);
+    else console.log("Shopify: inserted new channel for", shop);
   }
 
   return NextResponse.redirect(`${origin}/settings?success=shopify_connected`);
