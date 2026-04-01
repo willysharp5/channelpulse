@@ -35,11 +35,12 @@ interface Product {
 
 interface ProductsTableProps {
   products: Product[];
+  onCogsUpdate?: (productId: string, newCogs: number) => void;
 }
 
 const PAGE_SIZES = [10, 20, 50];
 
-export function ProductsTable({ products }: ProductsTableProps) {
+export function ProductsTable({ products, onCogsUpdate }: ProductsTableProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -208,7 +209,7 @@ export function ProductsTable({ products }: ProductsTableProps) {
                     {product.category ? highlightMatch(product.category) : "—"}
                   </TableCell>
                   <TableCell className="text-right">
-                    <EditableCogs productId={product.id} initialCogs={Number(product.cogs ?? 0)} />
+                    <EditableCogs productId={product.id} initialCogs={Number(product.cogs ?? 0)} onSave={onCogsUpdate} />
                   </TableCell>
                   <TableCell>
                     <Badge
@@ -255,7 +256,7 @@ export function ProductsTable({ products }: ProductsTableProps) {
   );
 }
 
-function EditableCogs({ productId, initialCogs }: { productId: string; initialCogs: number }) {
+function EditableCogs({ productId, initialCogs, onSave }: { productId: string; initialCogs: number; onSave?: (productId: string, newCogs: number) => void }) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(String(initialCogs || ""));
   const [saving, setSaving] = useState(false);
@@ -275,6 +276,7 @@ function EditableCogs({ productId, initialCogs }: { productId: string; initialCo
         setDisplayValue(numValue);
         setEditing(false);
         setSaved(true);
+        onSave?.(productId, numValue);
         setTimeout(() => setSaved(false), 2000);
       }
     } finally {

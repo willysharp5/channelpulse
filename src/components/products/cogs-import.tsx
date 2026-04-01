@@ -20,6 +20,7 @@ interface Product {
 
 interface CogsImportProps {
   products: Product[];
+  onImportComplete?: () => void;
 }
 
 interface ImportResult {
@@ -47,7 +48,7 @@ function parseCSV(text: string): Array<Record<string, string>> {
   return rows;
 }
 
-export function CogsImport({ products }: CogsImportProps) {
+export function CogsImport({ products, onImportComplete }: CogsImportProps) {
   const [open, setOpen] = useState(false);
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);
@@ -107,6 +108,7 @@ export function CogsImport({ products }: CogsImportProps) {
         updated: data.updated,
         errors: data.errors,
       });
+      if (data.success) onImportComplete?.();
     } catch (err) {
       setResult({ success: false, errors: ["Failed to process CSV file."] });
     } finally {

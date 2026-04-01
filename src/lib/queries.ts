@@ -341,22 +341,30 @@ export async function getPnLData(days = 30) {
 
   const channelMap = new Map(channels?.map((c) => [c.id, c.platform]) ?? []);
 
+  // Get actual COGS from products table (user-entered values)
+  const { data: products } = await supabase
+    .from("products")
+    .select("cogs")
+    .eq("org_id", orgId);
+
+  const actualProductCogs = (products ?? []).reduce((s, p) => s + Number(p.cogs ?? 0), 0);
+
   const revenueByPlatform: Record<string, number> = {};
   let totalRevenue = 0;
   let totalFees = 0;
-  let totalCogs = 0;
-  let totalProfit = 0;
   let totalOrders = 0;
+  let totalUnits = 0;
 
   for (const row of stats ?? []) {
     const platform = channelMap.get(row.channel_id) ?? "other";
     revenueByPlatform[platform] = (revenueByPlatform[platform] ?? 0) + Number(row.total_revenue);
     totalRevenue += Number(row.total_revenue);
     totalFees += Number(row.platform_fees);
-    totalCogs += Number(row.estimated_cogs);
-    totalProfit += Number(row.estimated_profit);
     totalOrders += Number(row.total_orders);
   }
+
+  // Use actual product COGS if available, otherwise fall back to daily_stats estimated_cogs
+  const totalCogs = actualProductCogs > 0 ? actualProductCogs : 0;
 
   const costSettings = await getCostSettings();
 
