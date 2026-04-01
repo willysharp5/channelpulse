@@ -7,7 +7,6 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  ResponsiveContainer,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -16,9 +15,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import { mockRevenueSeries } from "@/lib/mock-data";
 import { CHANNEL_CONFIG } from "@/lib/constants";
-import { formatShortDate } from "@/lib/formatters";
 
 const chartConfig = {
   shopify: { label: "Shopify", color: CHANNEL_CONFIG.shopify.color },
@@ -27,12 +24,27 @@ const chartConfig = {
 
 type Granularity = "day" | "week" | "month";
 
-export function RevenueChart() {
+interface RevenueChartProps {
+  data: Array<{
+    date: string;
+    shopify: number;
+    amazon: number;
+    total: number;
+    [key: string]: string | number;
+  }>;
+}
+
+function formatDateLabel(dateStr: string): string {
+  const d = new Date(dateStr + "T00:00:00");
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+export function RevenueChart({ data }: RevenueChartProps) {
   const [granularity, setGranularity] = useState<Granularity>("day");
 
-  const data = mockRevenueSeries.map((point) => ({
+  const chartData = data.map((point) => ({
     ...point,
-    dateLabel: formatShortDate(point.date),
+    dateLabel: formatDateLabel(point.date),
   }));
 
   return (
@@ -60,64 +72,23 @@ export function RevenueChart() {
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig} className="h-[300px] w-full">
-          <AreaChart data={data} margin={{ top: 5, right: 10, left: 10, bottom: 0 }}>
+          <AreaChart data={chartData} margin={{ top: 5, right: 10, left: 10, bottom: 0 }}>
             <defs>
               <linearGradient id="fillShopify" x1="0" y1="0" x2="0" y2="1">
-                <stop
-                  offset="0%"
-                  stopColor={CHANNEL_CONFIG.shopify.color}
-                  stopOpacity={0.4}
-                />
-                <stop
-                  offset="100%"
-                  stopColor={CHANNEL_CONFIG.shopify.color}
-                  stopOpacity={0.05}
-                />
+                <stop offset="0%" stopColor={CHANNEL_CONFIG.shopify.color} stopOpacity={0.4} />
+                <stop offset="100%" stopColor={CHANNEL_CONFIG.shopify.color} stopOpacity={0.05} />
               </linearGradient>
               <linearGradient id="fillAmazon" x1="0" y1="0" x2="0" y2="1">
-                <stop
-                  offset="0%"
-                  stopColor={CHANNEL_CONFIG.amazon.color}
-                  stopOpacity={0.4}
-                />
-                <stop
-                  offset="100%"
-                  stopColor={CHANNEL_CONFIG.amazon.color}
-                  stopOpacity={0.05}
-                />
+                <stop offset="0%" stopColor={CHANNEL_CONFIG.amazon.color} stopOpacity={0.4} />
+                <stop offset="100%" stopColor={CHANNEL_CONFIG.amazon.color} stopOpacity={0.05} />
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-            <XAxis
-              dataKey="dateLabel"
-              tickLine={false}
-              axisLine={false}
-              className="text-xs"
-              interval="preserveStartEnd"
-            />
-            <YAxis
-              tickLine={false}
-              axisLine={false}
-              className="text-xs"
-              tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
-            />
+            <XAxis dataKey="dateLabel" tickLine={false} axisLine={false} className="text-xs" interval="preserveStartEnd" />
+            <YAxis tickLine={false} axisLine={false} className="text-xs" tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
             <ChartTooltip content={<ChartTooltipContent />} />
-            <Area
-              type="monotone"
-              dataKey="shopify"
-              stackId="1"
-              stroke={CHANNEL_CONFIG.shopify.color}
-              fill="url(#fillShopify)"
-              strokeWidth={2}
-            />
-            <Area
-              type="monotone"
-              dataKey="amazon"
-              stackId="1"
-              stroke={CHANNEL_CONFIG.amazon.color}
-              fill="url(#fillAmazon)"
-              strokeWidth={2}
-            />
+            <Area type="monotone" dataKey="shopify" stackId="1" stroke={CHANNEL_CONFIG.shopify.color} fill="url(#fillShopify)" strokeWidth={2} />
+            <Area type="monotone" dataKey="amazon" stackId="1" stroke={CHANNEL_CONFIG.amazon.color} fill="url(#fillAmazon)" strokeWidth={2} />
           </AreaChart>
         </ChartContainer>
       </CardContent>

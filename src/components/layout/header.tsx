@@ -13,13 +13,15 @@ import {
 } from "@/components/ui/breadcrumb";
 import { DateRangePicker } from "./date-range-picker";
 import { ThemeToggle } from "./theme-toggle";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { UserMenu } from "./user-menu";
 
 interface HeaderProps {
   title?: string;
+  userEmail?: string;
+  userName?: string;
 }
 
-export function Header({ title = "Overview" }: HeaderProps) {
+export function Header({ title = "Overview", userEmail, userName }: HeaderProps) {
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background/80 backdrop-blur-sm px-4">
       <SidebarTrigger className="-ml-1" />
@@ -56,11 +58,7 @@ export function Header({ title = "Overview" }: HeaderProps) {
 
         <ThemeToggle />
 
-        <Avatar className="h-8 w-8 cursor-pointer">
-          <AvatarFallback className="bg-amber-500/10 text-amber-700 text-xs font-medium">
-            CP
-          </AvatarFallback>
-        </Avatar>
+        <UserMenu email={userEmail} name={userName} />
       </div>
     </header>
   );

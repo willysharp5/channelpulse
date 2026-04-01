@@ -2,19 +2,34 @@
 
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { mockChannelRevenue } from "@/lib/mock-data";
 import { formatCurrency } from "@/lib/formatters";
 import { CHANNEL_CONFIG } from "@/lib/constants";
+import type { ChannelRevenue } from "@/types";
 
-export function ChannelBreakdown() {
-  const totalRevenue = mockChannelRevenue.reduce((s, c) => s + c.revenue, 0);
+interface ChannelBreakdownProps {
+  data: ChannelRevenue[];
+}
+
+export function ChannelBreakdown({ data }: ChannelBreakdownProps) {
+  const totalRevenue = data.reduce((s, c) => s + c.revenue, 0);
+
+  if (data.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base font-semibold">Revenue by Channel</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">No channel data yet.</p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base font-semibold">
-          Revenue by Channel
-        </CardTitle>
+        <CardTitle className="text-base font-semibold">Revenue by Channel</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="flex items-center gap-6">
@@ -22,7 +37,7 @@ export function ChannelBreakdown() {
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
-                  data={mockChannelRevenue}
+                  data={data}
                   dataKey="revenue"
                   nameKey="label"
                   cx="50%"
@@ -32,7 +47,7 @@ export function ChannelBreakdown() {
                   paddingAngle={3}
                   strokeWidth={0}
                 >
-                  {mockChannelRevenue.map((entry) => (
+                  {data.map((entry) => (
                     <Cell key={entry.channel} fill={entry.color} />
                   ))}
                 </Pie>
@@ -47,7 +62,7 @@ export function ChannelBreakdown() {
           </div>
 
           <div className="flex flex-col gap-3">
-            {mockChannelRevenue.map((entry) => (
+            {data.map((entry) => (
               <div key={entry.channel} className="flex items-center gap-3">
                 <div
                   className="h-3 w-3 rounded-full flex-shrink-0"
@@ -56,7 +71,7 @@ export function ChannelBreakdown() {
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium">
-                      {CHANNEL_CONFIG[entry.channel].icon}{" "}
+                      {CHANNEL_CONFIG[entry.channel]?.icon}{" "}
                       {entry.label}
                     </span>
                     <span className="text-xs text-muted-foreground">
