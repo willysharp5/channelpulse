@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Search, Package, ShoppingCart, Loader2 } from "lucide-react";
 import {
-  CommandDialog,
+  Command,
   CommandEmpty,
   CommandGroup,
   CommandInput,
@@ -12,6 +12,13 @@ import {
   CommandList,
   CommandSeparator,
 } from "@/components/ui/command";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { ChannelBadge } from "./channel-badge";
 import type { Platform } from "@/types";
 
@@ -141,13 +148,19 @@ export function SearchDialog() {
         </kbd>
       </button>
 
-      <CommandDialog open={open} onOpenChange={setOpen}>
-        <CommandInput
-          placeholder="Search orders, products, customers..."
-          value={query}
-          onValueChange={setQuery}
-        />
-        <CommandList>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogHeader className="sr-only">
+          <DialogTitle>Search</DialogTitle>
+          <DialogDescription>Search orders and products</DialogDescription>
+        </DialogHeader>
+        <DialogContent className="top-1/3 translate-y-0 overflow-hidden rounded-xl! p-0" showCloseButton={false}>
+          <Command shouldFilter={false}>
+            <CommandInput
+              placeholder="Search orders, products, customers..."
+              value={query}
+              onValueChange={setQuery}
+            />
+            <CommandList>
           {loading && (
             <div className="flex items-center justify-center py-6">
               <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
@@ -236,8 +249,10 @@ export function SearchDialog() {
               ))}
             </CommandGroup>
           )}
-        </CommandList>
-      </CommandDialog>
+            </CommandList>
+          </Command>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
