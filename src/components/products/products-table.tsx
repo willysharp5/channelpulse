@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { Search, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { Search, ChevronLeft, ChevronRight, X, Check, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -172,7 +172,12 @@ export function ProductsTable({ products }: ProductsTableProps) {
               <TableHead>Product</TableHead>
               <TableHead>SKU</TableHead>
               <TableHead>Category</TableHead>
-              <TableHead className="text-right">COGS</TableHead>
+              <TableHead className="text-right">
+                <span className="flex items-center justify-end gap-1">
+                  COGS
+                  <span className="text-[10px] text-muted-foreground font-normal">(Cost of Goods)</span>
+                </span>
+              </TableHead>
               <TableHead>Status</TableHead>
             </TableRow>
           </TableHeader>
@@ -202,8 +207,8 @@ export function ProductsTable({ products }: ProductsTableProps) {
                   <TableCell className="text-muted-foreground">
                     {product.category ? highlightMatch(product.category) : "—"}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {formatCurrency(Number(product.cogs ?? 0))}
+                  <TableCell className="text-right">
+                    <EditableCogs productId={product.id} initialCogs={Number(product.cogs ?? 0)} />
                   </TableCell>
                   <TableCell>
                     <Badge
@@ -247,5 +252,68 @@ export function ProductsTable({ products }: ProductsTableProps) {
         </div>
       )}
     </div>
+  );
+}
+
+function EditableCogs({ productId, initialCogs }: { productId: string; initialCogs: number }) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(String(initialCogs || ""));
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [displayValue, setDisplayValue] = useState(initialCogs);
+
+  async function handleSave() {
+    const numValue = parseFloat(value) || 0;
+    setSaving(true);
+    try {
+      const res = await fetch("/api/products/cogs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ productId, cogs: numValue }),
+      });
+      if (res.ok) {
+        setDisplayValue(numValue);
+        setEditing(false);
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2000);
+      }
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (editing) {
+    return (
+      <div className="flex items-center gap-1 justify-end">
+        <span className="text-muted-foreground text-xs">$</span>
+        <Input
+          type="number"
+          step="0.01"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") handleSave(); if (e.key === "Escape") setEditing(false); }}
+          className="h-7 w-20 text-right text-xs tabular-nums"
+          autoFocus
+        />
+        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleSave} disabled={saving}>
+          {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3 text-emerald-500" />}
+        </Button>
+        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditing(false)}>
+          <X className="h-3 w-3" />
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      onClick={() => { setValue(String(displayValue || "")); setEditing(true); }}
+      className={`tabular-nums text-right w-full hover:bg-muted/50 rounded px-1 py-0.5 transition-colors ${
+        displayValue > 0 ? "" : "text-muted-foreground/50 italic"
+      } ${saved ? "text-emerald-500" : ""}`}
+      title="Click to edit COGS (Cost of Goods Sold)"
+    >
+      {displayValue > 0 ? formatCurrency(displayValue) : "Set cost"}
+    </button>
   );
 }

@@ -267,11 +267,56 @@ export async function getProducts() {
   return products ?? [];
 }
 
+export interface CostSettings {
+  platform_fee_percent: number;
+  platform_fee_flat: number;
+  shipping_cost_percent: number;
+  payment_processing_percent: number;
+  advertising_monthly: number;
+  refund_rate_percent: number;
+  other_expenses_monthly: number;
+}
+
+const DEFAULT_COST_SETTINGS: CostSettings = {
+  platform_fee_percent: 2.9,
+  platform_fee_flat: 0.3,
+  shipping_cost_percent: 3.5,
+  payment_processing_percent: 2.9,
+  advertising_monthly: 0,
+  refund_rate_percent: 2.0,
+  other_expenses_monthly: 0,
+};
+
+export async function getCostSettings(): Promise<CostSettings> {
+  const supabase = await createClient();
+  const orgId = await getOrgId();
+  if (!orgId) return DEFAULT_COST_SETTINGS;
+
+  const { data } = await supabase
+    .from("cost_settings")
+    .select("*")
+    .eq("org_id", orgId)
+    .single();
+
+  if (!data) return DEFAULT_COST_SETTINGS;
+
+  return {
+    platform_fee_percent: Number(data.platform_fee_percent ?? 2.9),
+    platform_fee_flat: Number(data.platform_fee_flat ?? 0.3),
+    shipping_cost_percent: Number(data.shipping_cost_percent ?? 3.5),
+    payment_processing_percent: Number(data.payment_processing_percent ?? 2.9),
+    advertising_monthly: Number(data.advertising_monthly ?? 0),
+    refund_rate_percent: Number(data.refund_rate_percent ?? 2.0),
+    other_expenses_monthly: Number(data.other_expenses_monthly ?? 0),
+  };
+}
+
 const EMPTY_PNL = {
   totalRevenue: 0, totalOrders: 0, revenueByPlatform: {} as Record<string, number>,
   cogs: 0, grossProfit: 0, grossMargin: 0,
-  fees: { marketplace: 0, shipping: 0, processing: 0, advertising: 0, refunds: 0, total: 0 },
+  fees: { marketplace: 0, shipping: 0, processing: 0, advertising: 0, refunds: 0, other: 0, total: 0 },
   netProfit: 0, netMargin: 0,
+  costSettings: DEFAULT_COST_SETTINGS,
 };
 
 export async function getPnLData(days = 30) {
@@ -313,13 +358,18 @@ export async function getPnLData(days = 30) {
     totalOrders += Number(row.total_orders);
   }
 
+  const costSettings = await getCostSettings();
+
   const grossProfit = totalRevenue - totalCogs;
-  const marketplaceFees = totalFees;
-  const shippingCost = totalRevenue * 0.035;
-  const processingFees = totalRevenue * 0.029;
-  const advertising = 2500;
-  const refunds = totalRevenue * 0.02;
-  const totalExpenses = marketplaceFees + shippingCost + processingFees + advertising + refunds;
+  const marketplaceFees = totalFees > 0
+    ? totalFees
+    : (totalRevenue * costSettings.platform_fee_percent / 100) + (totalOrders * costSettings.platform_fee_flat);
+  const shippingCost = totalRevenue * (costSettings.shipping_cost_percent / 100);
+  const processingFees = totalRevenue * (costSettings.payment_processing_percent / 100);
+  const advertising = costSettings.advertising_monthly;
+  const refunds = totalRevenue * (costSettings.refund_rate_percent / 100);
+  const otherExpenses = costSettings.other_expenses_monthly;
+  const totalExpenses = marketplaceFees + shippingCost + processingFees + advertising + refunds + otherExpenses;
   const netProfit = grossProfit - totalExpenses;
 
   return {
@@ -329,12 +379,14 @@ export async function getPnLData(days = 30) {
     cogs: totalCogs,
     grossProfit,
     grossMargin: totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0,
+    costSettings,
     fees: {
       marketplace: marketplaceFees,
       shipping: shippingCost,
       processing: processingFees,
       advertising,
       refunds,
+      other: otherExpenses,
       total: totalExpenses,
     },
     netProfit,
