@@ -4,11 +4,13 @@ import { RevenueChart } from "@/components/charts/revenue-chart";
 import { ChannelBreakdown } from "@/components/charts/channel-breakdown";
 import { TopProducts } from "@/components/dashboard/top-products";
 import { RecentOrders } from "@/components/dashboard/recent-orders";
+import { redirect } from "next/navigation";
 import { getDashboardStats, getRevenueSeries, getChannelRevenue, getRecentOrders, getProducts } from "@/lib/queries";
 import { getSession } from "@/lib/auth/actions";
 import { CHANNEL_CONFIG, rangeToDays, DATE_RANGE_PRESETS } from "@/lib/constants";
 import { NoChannelsEmpty } from "@/components/dashboard/empty-state";
 import { getChannels } from "@/lib/queries";
+import { createClient } from "@/lib/supabase/server";
 import type { Platform } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -22,7 +24,24 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
     ? `${params.from} to ${params.to}`
     : DATE_RANGE_PRESETS.find((p) => p.value === (params.range ?? "30d"))?.label ?? "Last 30 days";
 
-  const [user, channels] = await Promise.all([getSession(), getChannels()]);
+  const user = await getSession();
+
+  // Check if onboarding is complete
+  if (user) {
+    const supabase = await createClient();
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("org_id, organizations(onboarding_completed)")
+      .eq("id", user.id)
+      .single();
+    const orgRaw = profile?.organizations as unknown;
+    const org = (Array.isArray(orgRaw) ? orgRaw[0] : orgRaw) as { onboarding_completed: boolean } | null;
+    if (!org?.onboarding_completed) {
+      redirect("/onboarding");
+    }
+  }
+
+  const channels = await getChannels();
 
   if (channels.length === 0) {
     return (
