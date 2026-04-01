@@ -20,7 +20,10 @@ export function ChannelBadge({ platform, className }: ChannelBadgeProps) {
         backgroundColor: `${config.color}10`,
       }}
     >
-      <span className="mr-1 text-xs">{config.icon}</span>
+      <span
+        className="mr-1 inline-block h-2 w-2 rounded-full"
+        style={{ backgroundColor: config.color }}
+      />
       {config.label}
     </Badge>
   );

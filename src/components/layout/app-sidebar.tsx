@@ -91,7 +91,7 @@ export function AppSidebar() {
                   return (
                     <SidebarMenuItem key={ch.id}>
                       <SidebarMenuButton>
-                        <span className="text-xs">{config?.icon ?? "⚪"}</span>
+                        <span className="inline-block h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: config?.color ?? "#6B7280" }} />
                         <span className="truncate">{ch.name}</span>
                         <Badge
                           variant="outline"

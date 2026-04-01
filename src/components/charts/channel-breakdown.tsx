@@ -92,7 +92,6 @@ export function ChannelBreakdown({ data }: ChannelBreakdownProps) {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium truncate">
-                      {CHANNEL_CONFIG[entry.channel]?.icon}{" "}
                       {CHANNEL_CONFIG[entry.channel]?.label ?? entry.label}
                     </span>
                     <span className="text-sm font-semibold tabular-nums ml-2">

@@ -12,13 +12,13 @@ import {
 
 export const CHANNEL_CONFIG: Record<
   Platform,
-  { color: string; label: string; icon: string }
+  { color: string; label: string; abbr: string }
 > = {
-  shopify: { color: "#96BF48", label: "Shopify", icon: "🟢" },
-  amazon: { color: "#FF9900", label: "Amazon", icon: "🟠" },
-  ebay: { color: "#E53238", label: "eBay", icon: "🔴" },
-  etsy: { color: "#F16521", label: "Etsy", icon: "🟤" },
-  woocommerce: { color: "#7B2D8E", label: "WooCommerce", icon: "🟣" },
+  shopify: { color: "#96BF48", label: "Shopify", abbr: "S" },
+  amazon: { color: "#FF9900", label: "Amazon", abbr: "A" },
+  ebay: { color: "#E53238", label: "eBay", abbr: "E" },
+  etsy: { color: "#F16521", label: "Etsy", abbr: "Et" },
+  woocommerce: { color: "#7B2D8E", label: "WooCommerce", abbr: "W" },
 } as const;
 
 export interface NavItem {

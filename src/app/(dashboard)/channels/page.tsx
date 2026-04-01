@@ -64,10 +64,10 @@ export default async function ChannelsPage({ searchParams }: { searchParams: Pro
                   <CardHeader className="flex flex-row items-start justify-between pb-3">
                     <div className="flex items-center gap-3">
                       <div
-                        className="flex h-10 w-10 items-center justify-center rounded-lg text-lg"
-                        style={{ backgroundColor: `${config?.color}15` }}
+                        className="flex h-10 w-10 items-center justify-center rounded-lg text-sm font-semibold text-white"
+                        style={{ backgroundColor: config?.color }}
                       >
-                        {config?.icon}
+                        {config?.abbr}
                       </div>
                       <div>
                         <CardTitle className="text-sm font-semibold">

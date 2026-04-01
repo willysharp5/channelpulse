@@ -60,10 +60,10 @@ export function SettingsContent({ email, businessName, plan, channels }: Setting
                   <div key={ch.id} className="flex items-center justify-between rounded-lg border p-4">
                     <div className="flex items-center gap-3">
                       <div
-                        className="flex h-10 w-10 items-center justify-center rounded-lg text-lg"
-                        style={{ backgroundColor: `${config?.color}15` }}
+                        className="flex h-10 w-10 items-center justify-center rounded-lg text-sm font-semibold text-white"
+                        style={{ backgroundColor: config?.color }}
                       >
-                        {config?.icon}
+                        {config?.abbr}
                       </div>
                       <div>
                         <p className="font-medium">{ch.name}</p>
@@ -222,7 +222,7 @@ function ConnectShopifySection({ hasShopify }: { hasShopify: boolean }) {
       {!hasShopify && (
         <div className="mb-4 rounded-lg border p-4 space-y-3">
           <div className="flex items-center gap-2">
-            <span className="text-lg">{CHANNEL_CONFIG.shopify.icon}</span>
+            <span className="inline-flex h-6 w-6 items-center justify-center rounded-md text-xs font-semibold text-white" style={{ backgroundColor: CHANNEL_CONFIG.shopify.color }}>S</span>
             <span className="font-medium">Connect Shopify</span>
           </div>
           <p className="text-xs text-muted-foreground">
@@ -250,7 +250,7 @@ function ConnectShopifySection({ hasShopify }: { hasShopify: boolean }) {
       <div className="flex gap-2 flex-wrap">
         {(["amazon", "ebay", "etsy", "woocommerce"] as const).map((platform) => (
           <Button key={platform} variant="outline" className="gap-2" disabled>
-            <span>{CHANNEL_CONFIG[platform].icon}</span>
+            <span className="inline-block h-3 w-3 rounded-full" style={{ backgroundColor: CHANNEL_CONFIG[platform].color }} />
             {CHANNEL_CONFIG[platform].label}
             <Badge variant="secondary" className="text-[10px]">
               {platform === "amazon" ? "Soon" : "Soon"}

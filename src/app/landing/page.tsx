@@ -104,11 +104,11 @@ const PRICING = [
 ];
 
 const CHANNELS = [
-  { name: "Shopify", color: "#96BF48", icon: "🟢", status: "Live" },
-  { name: "Amazon", color: "#FF9900", icon: "🟠", status: "Live" },
-  { name: "eBay", color: "#E53238", icon: "🔴", status: "Coming Soon" },
-  { name: "Etsy", color: "#F16521", icon: "🟤", status: "Coming Soon" },
-  { name: "WooCommerce", color: "#7B2D8E", icon: "🟣", status: "Coming Soon" },
+  { name: "Shopify", color: "#96BF48", abbr: "S", status: "Live" },
+  { name: "Amazon", color: "#FF9900", abbr: "A", status: "Live" },
+  { name: "eBay", color: "#E53238", abbr: "E", status: "Coming Soon" },
+  { name: "Etsy", color: "#F16521", abbr: "Et", status: "Coming Soon" },
+  { name: "WooCommerce", color: "#7B2D8E", abbr: "W", status: "Coming Soon" },
 ];
 
 export default function LandingPage() {
@@ -170,7 +170,7 @@ export default function LandingPage() {
               key={ch.name}
               className="flex items-center gap-2 rounded-full border px-4 py-2 text-sm"
             >
-              <span>{ch.icon}</span>
+              <span className="inline-flex h-5 w-5 items-center justify-center rounded text-[10px] font-semibold text-white" style={{ backgroundColor: ch.color }}>{ch.abbr}</span>
               <span className="font-medium">{ch.name}</span>
               {ch.status === "Live" ? (
                 <Badge variant="secondary" className="text-[10px] px-1.5">Live</Badge>
