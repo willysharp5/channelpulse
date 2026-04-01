@@ -9,7 +9,6 @@ import {
   CartesianGrid,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   ChartContainer,
   ChartTooltip,
@@ -18,8 +17,6 @@ import {
 import { CHANNEL_CONFIG } from "@/lib/constants";
 import type { Platform } from "@/types";
 import type { RevenuePoint } from "@/lib/queries";
-
-type Granularity = "day" | "week" | "month";
 
 interface RevenueChartProps {
   data: RevenuePoint[];
@@ -33,8 +30,6 @@ function formatDateLabel(dateStr: string): string {
 
 export function RevenueChart({ data, platforms }: RevenueChartProps) {
   const [mounted, setMounted] = useState(false);
-  const [granularity, setGranularity] = useState<Granularity>("day");
-
   useEffect(() => { setMounted(true); }, []);
 
   const chartData = data.map((point) => ({
@@ -53,15 +48,8 @@ export function RevenueChart({ data, platforms }: RevenueChartProps) {
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
+      <CardHeader>
         <CardTitle className="text-base font-semibold">Revenue Over Time</CardTitle>
-        <Tabs value={granularity} onValueChange={(v) => setGranularity(v as Granularity)}>
-          <TabsList className="h-8">
-            <TabsTrigger value="day" className="text-xs px-2.5">Day</TabsTrigger>
-            <TabsTrigger value="week" className="text-xs px-2.5">Week</TabsTrigger>
-            <TabsTrigger value="month" className="text-xs px-2.5">Month</TabsTrigger>
-          </TabsList>
-        </Tabs>
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig} className="h-[300px] w-full">
