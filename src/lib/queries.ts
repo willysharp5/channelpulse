@@ -1,14 +1,12 @@
 import { createClient } from "@/lib/supabase/server";
 
-const DEMO_ORG_ID = "a0000000-0000-0000-0000-000000000001";
-
-async function getOrgId(): Promise<string> {
+async function getOrgId(): Promise<string | null> {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) return DEMO_ORG_ID;
+  if (!user) return null;
 
   const { data: profile } = await supabase
     .from("profiles")
@@ -16,12 +14,20 @@ async function getOrgId(): Promise<string> {
     .eq("id", user.id)
     .single();
 
-  return profile?.org_id ?? DEMO_ORG_ID;
+  return profile?.org_id ?? null;
 }
+
+const EMPTY_STATS = {
+  revenue: { value: 0, change: 0 },
+  orders: { value: 0, change: 0 },
+  profit: { value: 0, change: 0 },
+  aov: { value: 0, change: 0 },
+};
 
 export async function getDashboardStats(days = 30) {
   const supabase = await createClient();
   const orgId = await getOrgId();
+  if (!orgId) return EMPTY_STATS;
 
   const fromDate = new Date();
   fromDate.setDate(fromDate.getDate() - days);
@@ -83,6 +89,7 @@ export interface RevenuePoint {
 export async function getRevenueSeries(days = 30): Promise<RevenuePoint[]> {
   const supabase = await createClient();
   const orgId = await getOrgId();
+  if (!orgId) return [];
 
   const fromDate = new Date();
   fromDate.setDate(fromDate.getDate() - days);
@@ -120,6 +127,7 @@ export async function getRevenueSeries(days = 30): Promise<RevenuePoint[]> {
 export async function getChannelRevenue(days = 30) {
   const supabase = await createClient();
   const orgId = await getOrgId();
+  if (!orgId) return [];
 
   const fromDate = new Date();
   fromDate.setDate(fromDate.getDate() - days);
@@ -169,6 +177,7 @@ export async function getChannelRevenue(days = 30) {
 export async function getRecentOrders(limit = 10) {
   const supabase = await createClient();
   const orgId = await getOrgId();
+  if (!orgId) return [];
 
   const { data: orders } = await supabase
     .from("orders")
@@ -183,6 +192,7 @@ export async function getRecentOrders(limit = 10) {
 export async function getChannels() {
   const supabase = await createClient();
   const orgId = await getOrgId();
+  if (!orgId) return [];
 
   const { data: channels } = await supabase
     .from("channels")
@@ -196,6 +206,7 @@ export async function getChannels() {
 export async function getChannelsWithStats(days = 30) {
   const supabase = await createClient();
   const orgId = await getOrgId();
+  if (!orgId) return [];
 
   const fromDate = new Date();
   fromDate.setDate(fromDate.getDate() - days);
@@ -231,6 +242,7 @@ export async function getChannelsWithStats(days = 30) {
 export async function getProducts() {
   const supabase = await createClient();
   const orgId = await getOrgId();
+  if (!orgId) return [];
 
   const { data: products } = await supabase
     .from("products")
@@ -241,9 +253,17 @@ export async function getProducts() {
   return products ?? [];
 }
 
+const EMPTY_PNL = {
+  totalRevenue: 0, totalOrders: 0, revenueByPlatform: {} as Record<string, number>,
+  cogs: 0, grossProfit: 0, grossMargin: 0,
+  fees: { marketplace: 0, shipping: 0, processing: 0, advertising: 0, refunds: 0, total: 0 },
+  netProfit: 0, netMargin: 0,
+};
+
 export async function getPnLData(days = 30) {
   const supabase = await createClient();
   const orgId = await getOrgId();
+  if (!orgId) return EMPTY_PNL;
 
   const fromDate = new Date();
   fromDate.setDate(fromDate.getDate() - days);
