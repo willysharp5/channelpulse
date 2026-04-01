@@ -206,8 +206,11 @@ function ConnectShopifySection({ hasShopify }: { hasShopify: boolean }) {
   function handleConnectShopify() {
     let domain = shopDomain.trim();
     if (!domain) return;
+    // Strip protocol and trailing slashes
+    domain = domain.replace(/^https?:\/\//, "").split("/")[0];
+    // Add .myshopify.com if just the store name was entered
     if (!domain.includes(".myshopify.com")) {
-      domain = domain.replace(/\.myshopify\.com$/, "") + ".myshopify.com";
+      domain = domain + ".myshopify.com";
     }
     setConnecting(true);
     window.location.href = `/api/auth/shopify?shop=${encodeURIComponent(domain)}`;
