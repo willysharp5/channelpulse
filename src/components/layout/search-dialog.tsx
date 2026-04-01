@@ -185,7 +185,7 @@ export function SearchDialog() {
                 <CommandItem
                   key={order.id}
                   value={`order-${order.id}`}
-                  onSelect={() => handleSelect(`/?order=${order.id}`)}
+                  onSelect={() => handleSelect(`/orders?order=${order.id}&search=${encodeURIComponent(order.order_number ?? "")}`)}
                   className="cursor-pointer"
                 >
                   <ShoppingCart className="mr-2 h-4 w-4 text-muted-foreground flex-shrink-0" />

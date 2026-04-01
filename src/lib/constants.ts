@@ -6,6 +6,7 @@ import {
   Store,
   FileText,
   Settings,
+  ShoppingCart,
   type LucideIcon,
 } from "lucide-react";
 
@@ -29,6 +30,7 @@ export interface NavItem {
 
 export const NAV_ITEMS: NavItem[] = [
   { title: "Overview", href: "/", icon: LayoutDashboard },
+  { title: "Orders", href: "/orders", icon: ShoppingCart },
   { title: "Revenue", href: "/revenue", icon: TrendingUp },
   { title: "Products", href: "/products", icon: Package },
   { title: "Channels", href: "/channels", icon: Store },

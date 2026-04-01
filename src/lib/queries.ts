@@ -189,6 +189,20 @@ export async function getRecentOrders(limit = 10) {
   return orders ?? [];
 }
 
+export async function getAllOrders() {
+  const supabase = await createClient();
+  const orgId = await getOrgId();
+  if (!orgId) return [];
+
+  const { data: orders } = await supabase
+    .from("orders")
+    .select("id, platform, platform_order_id, order_number, status, financial_status, customer_name, customer_email, total_amount, subtotal, total_tax, total_shipping, total_discounts, platform_fees, net_profit, currency, item_count, ordered_at")
+    .eq("org_id", orgId)
+    .order("ordered_at", { ascending: false });
+
+  return orders ?? [];
+}
+
 export async function getChannels() {
   const supabase = await createClient();
   const orgId = await getOrgId();
