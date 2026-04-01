@@ -73,8 +73,7 @@ export function DateRangePicker() {
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger render={<Button variant="outline" size="sm" className="gap-2 text-sm" />}>
         <CalendarDays className="h-4 w-4" />
-        <span className="hidden sm:inline">{displayLabel}</span>
-        <span className="sm:hidden">Date</span>
+        <span className="truncate max-w-[160px]">{displayLabel}</span>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="end">
         {!showCalendar ? (
