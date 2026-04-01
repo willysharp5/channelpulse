@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import {
   AreaChart,
   Area,
@@ -15,23 +16,26 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 import { CHANNEL_CONFIG } from "@/lib/constants";
-
-const chartConfig = {
-  shopify: { label: "Shopify", color: CHANNEL_CONFIG.shopify.color },
-  amazon: { label: "Amazon", color: CHANNEL_CONFIG.amazon.color },
-};
+import type { Platform } from "@/types";
 
 interface RevenueTrendChartProps {
-  data: Array<{
-    dateLabel: string;
-    shopify: number;
-    amazon: number;
-    total: number;
-    [key: string]: string | number;
-  }>;
+  data: Array<{ dateLabel: string; [key: string]: string | number }>;
+  platforms: string[];
 }
 
-export function RevenueTrendChart({ data }: RevenueTrendChartProps) {
+export function RevenueTrendChart({ data, platforms }: RevenueTrendChartProps) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+
+  const chartConfig = Object.fromEntries(
+    platforms.map((p) => [p, {
+      label: CHANNEL_CONFIG[p as Platform]?.label ?? p,
+      color: CHANNEL_CONFIG[p as Platform]?.color ?? "#6B7280",
+    }])
+  );
+
+  if (!mounted) return <Card><CardContent className="h-[390px]" /></Card>;
+
   return (
     <Card>
       <CardHeader>
@@ -45,8 +49,16 @@ export function RevenueTrendChart({ data }: RevenueTrendChartProps) {
             <YAxis tickLine={false} axisLine={false} className="text-xs" tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
             <ChartTooltip content={<ChartTooltipContent />} />
             <Legend />
-            <Area type="monotone" dataKey="shopify" stroke={CHANNEL_CONFIG.shopify.color} fill="transparent" strokeWidth={2} />
-            <Area type="monotone" dataKey="amazon" stroke={CHANNEL_CONFIG.amazon.color} fill="transparent" strokeWidth={2} />
+            {platforms.map((p) => (
+              <Area
+                key={p}
+                type="monotone"
+                dataKey={p}
+                stroke={CHANNEL_CONFIG[p as Platform]?.color ?? "#6B7280"}
+                fill="transparent"
+                strokeWidth={2}
+              />
+            ))}
           </AreaChart>
         </ChartContainer>
       </CardContent>

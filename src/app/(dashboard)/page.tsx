@@ -20,7 +20,7 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
     ? `${params.from} to ${params.to}`
     : DATE_RANGE_PRESETS.find((p) => p.value === (params.range ?? "30d"))?.label ?? "Last 30 days";
 
-  const [user, stats, revenueSeries, channelData, recentOrders, products] = await Promise.all([
+  const [user, stats, revenueResult, channelData, recentOrders, products] = await Promise.all([
     getSession(),
     getDashboardStats(dateParams),
     getRevenueSeries(dateParams),
@@ -28,6 +28,9 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
     getRecentOrders(10),
     getProducts(),
   ]);
+
+  const revenueSeries = revenueResult.series;
+  const activePlatforms = revenueResult.platforms;
 
   const kpis = [
     {
@@ -83,7 +86,7 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
       />
       <div className="flex-1 space-y-6 p-6">
         <OverviewCards kpis={kpis} />
-        <RevenueChart data={revenueSeries} />
+        <RevenueChart data={revenueSeries} platforms={activePlatforms} />
         <div className="grid gap-6 lg:grid-cols-2">
           <ChannelBreakdown data={channelRevenue} />
           <TopProducts products={products} />

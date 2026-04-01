@@ -29,12 +29,15 @@ export default async function RevenuePage({ searchParams }: { searchParams: Prom
     ? { from: params.from, to: params.to }
     : { days: rangeToDays(params.range ?? null) };
 
-  const [user, stats, revenueSeries, channelData] = await Promise.all([
+  const [user, stats, revenueResult, channelData] = await Promise.all([
     getSession(),
     getDashboardStats(dateParams),
     getRevenueSeries(dateParams),
     getChannelRevenue(dateParams),
   ]);
+
+  const revenueSeries = revenueResult.series;
+  const activePlatforms = revenueResult.platforms;
 
   const chartData = revenueSeries.map((point) => ({
     ...point,
@@ -96,7 +99,7 @@ export default async function RevenuePage({ searchParams }: { searchParams: Prom
           />
         </div>
 
-        <RevenueTrendChart data={chartData} />
+        <RevenueTrendChart data={chartData} platforms={activePlatforms} />
 
         <Card>
           <CardHeader>

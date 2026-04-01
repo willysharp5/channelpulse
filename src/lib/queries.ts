@@ -105,18 +105,14 @@ export async function getDashboardStats(params: DateParams = { days: 30 }) {
 
 export interface RevenuePoint {
   date: string;
-  shopify: number;
-  amazon: number;
-  ebay: number;
-  etsy: number;
   total: number;
   [key: string]: string | number;
 }
 
-export async function getRevenueSeries(params: DateParams = { days: 30 }): Promise<RevenuePoint[]> {
+export async function getRevenueSeries(params: DateParams = { days: 30 }): Promise<{ series: RevenuePoint[]; platforms: string[] }> {
   const supabase = await createClient();
   const orgId = await getOrgId();
-  if (!orgId) return [];
+  if (!orgId) return { series: [], platforms: [] };
 
   const { fromStr, toStr } = getDateRange(params);
 
@@ -139,15 +135,19 @@ export async function getRevenueSeries(params: DateParams = { days: 30 }): Promi
   const byDate = new Map<string, Record<string, number>>();
   for (const row of stats ?? []) {
     const platform = channelMap.get(row.channel_id) ?? "other";
-    const existing = byDate.get(row.date) ?? { shopify: 0, amazon: 0, ebay: 0, etsy: 0, total: 0 };
+    const existing = byDate.get(row.date) ?? { total: 0 };
     existing[platform] = (existing[platform] ?? 0) + Number(row.total_revenue);
     existing.total += Number(row.total_revenue);
     byDate.set(row.date, existing);
   }
 
-  return Array.from(byDate.entries())
+  const activePlatforms = [...new Set(Array.from(channelMap.values()))];
+
+  const series = Array.from(byDate.entries())
     .map(([date, values]) => ({ date, ...values } as RevenuePoint))
     .sort((a, b) => a.date.localeCompare(b.date));
+
+  return { series, platforms: activePlatforms };
 }
 
 export async function getChannelRevenue(params: DateParams = { days: 30 }) {
