@@ -291,6 +291,8 @@ export async function getProducts() {
   return products ?? [];
 }
 
+export type CogsMethod = "percentage" | "per_product";
+
 export interface CostSettings {
   platform_fee_percent: number;
   platform_fee_flat: number;
@@ -300,6 +302,7 @@ export interface CostSettings {
   refund_rate_percent: number;
   other_expenses_monthly: number;
   default_cogs_percent: number;
+  cogs_method: CogsMethod;
 }
 
 const DEFAULT_COST_SETTINGS: CostSettings = {
@@ -311,6 +314,7 @@ const DEFAULT_COST_SETTINGS: CostSettings = {
   refund_rate_percent: 2.0,
   other_expenses_monthly: 0,
   default_cogs_percent: 0,
+  cogs_method: "percentage",
 };
 
 export async function getCostSettings(): Promise<CostSettings> {
@@ -335,6 +339,7 @@ export async function getCostSettings(): Promise<CostSettings> {
     refund_rate_percent: Number(data.refund_rate_percent ?? 2.0),
     other_expenses_monthly: Number(data.other_expenses_monthly ?? 0),
     default_cogs_percent: Number(data.default_cogs_percent ?? 0),
+    cogs_method: (data.cogs_method as CogsMethod) ?? "percentage",
   };
 }
 
@@ -391,11 +396,9 @@ export async function getPnLData(params: DateParams = { days: 30 }) {
 
   const costSettings = await getCostSettings();
 
-  // Hybrid COGS: per-product costs where set + default % of revenue for the rest
-  const defaultCogsPct = costSettings.default_cogs_percent;
-  const cogsFromPercent = defaultCogsPct > 0 ? (totalRevenue * defaultCogsPct / 100) : 0;
-  // Use per-product COGS if any are set, otherwise use the global percentage
-  const totalCogs = perProductCogs > 0 ? perProductCogs : cogsFromPercent;
+  // COGS based on user's chosen method
+  const cogsFromPercent = costSettings.default_cogs_percent > 0 ? (totalRevenue * costSettings.default_cogs_percent / 100) : 0;
+  const totalCogs = costSettings.cogs_method === "per_product" ? perProductCogs : cogsFromPercent;
 
   const grossProfit = totalRevenue - totalCogs;
   const marketplaceFees = totalFees > 0
