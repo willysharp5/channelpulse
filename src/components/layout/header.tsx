@@ -1,7 +1,6 @@
 "use client";
 
-import { Search, Bell } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
@@ -14,6 +13,7 @@ import {
 import { DateRangePicker } from "./date-range-picker";
 import { ThemeToggle } from "./theme-toggle";
 import { UserMenu } from "./user-menu";
+import { SearchDialog } from "./search-dialog";
 
 interface HeaderProps {
   title?: string;
@@ -38,14 +38,7 @@ export function Header({ title = "Overview", userEmail, userName }: HeaderProps)
       </Breadcrumb>
 
       <div className="ml-auto flex items-center gap-2">
-        <div className="relative hidden md:block">
-          <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Search orders, products..."
-            className="h-8 w-[200px] pl-8 text-sm lg:w-[280px]"
-          />
-        </div>
+        <SearchDialog />
 
         <DateRangePicker />
 
