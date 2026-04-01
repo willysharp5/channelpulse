@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/formatters";
@@ -11,6 +12,8 @@ interface ChannelBreakdownProps {
 }
 
 export function ChannelBreakdown({ data }: ChannelBreakdownProps) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
   const totalRevenue = data.reduce((s, c) => s + c.revenue, 0);
 
   if (data.length === 0) {
@@ -34,7 +37,7 @@ export function ChannelBreakdown({ data }: ChannelBreakdownProps) {
       <CardContent>
         <div className="flex items-center gap-6">
           <div className="relative h-[160px] w-[160px] flex-shrink-0">
-            <ResponsiveContainer width="100%" height="100%">
+            {mounted ? <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
                   data={data}
@@ -52,7 +55,7 @@ export function ChannelBreakdown({ data }: ChannelBreakdownProps) {
                   ))}
                 </Pie>
               </PieChart>
-            </ResponsiveContainer>
+            </ResponsiveContainer> : null}
             <div className="absolute inset-0 flex flex-col items-center justify-center">
               <span className="text-lg font-bold tabular-nums">
                 {formatCurrency(totalRevenue)}
