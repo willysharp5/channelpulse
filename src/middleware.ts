@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 import { createServerClient } from "@supabase/ssr";
 
-const PUBLIC_ROUTES = ["/login", "/signup", "/auth/callback"];
+const PUBLIC_ROUTES = ["/login", "/signup", "/auth/callback", "/landing"];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -40,6 +40,14 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  // Root "/" is special: show landing if not logged in, dashboard if logged in
+  if (pathname === "/") {
+    if (!user) {
+      return NextResponse.rewrite(new URL("/landing", request.url));
+    }
+    return response;
+  }
+
   // If not authenticated and trying to access protected route, redirect to login
   if (!user) {
     const loginUrl = new URL("/login", request.url);
@@ -48,7 +56,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // If authenticated and trying to access login/signup, redirect to dashboard
-  if (user && PUBLIC_ROUTES.some((route) => pathname.startsWith(route))) {
+  if (user && (pathname === "/login" || pathname === "/signup")) {
     return NextResponse.redirect(new URL("/", request.url));
   }
 
