@@ -1,6 +1,14 @@
 import { Header } from "@/components/layout/header";
 import { OverviewDashboard } from "@/components/dashboard/overview-dashboard";
-import { getDashboardStats, getRevenueSeries, getChannelRevenue, getRecentOrders, getProducts, getUserPlan } from "@/lib/queries";
+import {
+  getDashboardStats,
+  getRevenueSeries,
+  getChannelRevenue,
+  getRecentOrders,
+  getTopProductsBySales,
+  getUserPlan,
+  getHasSeenDashboardTour,
+} from "@/lib/queries";
 import { getSession } from "@/lib/auth/actions";
 import { CHANNEL_CONFIG, rangeToDays, DATE_RANGE_PRESETS } from "@/lib/constants";
 import { NoChannelsEmpty } from "@/components/dashboard/empty-state";
@@ -32,12 +40,13 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
     );
   }
 
-  const [stats, revenueResult, channelData, recentOrders, products] = await Promise.all([
+  const [stats, revenueResult, channelData, recentOrders, topProducts, hasSeenTour] = await Promise.all([
     getDashboardStats(dateParams),
     getRevenueSeries(dateParams),
     getChannelRevenue(dateParams),
     getRecentOrders(10),
-    getProducts(),
+    getTopProductsBySales(dateParams, 10),
+    getHasSeenDashboardTour(),
   ]);
 
   const revenueSeries = revenueResult.series;
@@ -69,6 +78,14 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
         label: `${stats.orders.value.toLocaleString()} / ${limits.ordersPerMonth.toLocaleString()} orders`,
         color: stats.orders.value > limits.ordersPerMonth * 0.9 ? "#ef4444" : "#f59e0b",
       },
+    },
+    {
+      title: "Units Sold",
+      value: stats.units.value,
+      formattedValue: stats.units.value.toLocaleString(),
+      change: stats.units.change,
+      changeLabel: `vs previous ${rangeLabel.toLowerCase()}`,
+      sparklineData: [],
     },
     {
       title: "Net Profit",
@@ -109,8 +126,9 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
           revenueSeries={revenueSeries}
           platforms={activePlatforms}
           channelRevenue={channelRevenue}
-          products={products}
+          topProducts={topProducts}
           recentOrders={recentOrders}
+          showTour={!hasSeenTour}
         />
       </div>
     </>

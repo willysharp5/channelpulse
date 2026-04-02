@@ -1,5 +1,6 @@
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { ShopifyClient } from "./client";
+import { generateLowStockAlerts } from "@/lib/alerts";
 
 function getServiceClient() {
   return createSupabaseClient(
@@ -126,7 +127,15 @@ export async function syncShopifyOrders(channelId: string) {
     // Recompute daily stats
     await recomputeDailyStats(channel.org_id, channelId, sinceDate);
 
-    return { success: true, synced: totalSynced };
+    let productsSynced = 0;
+    try {
+      const pr = await syncShopifyProducts(channelId);
+      productsSynced = pr.synced;
+    } catch (e) {
+      console.warn("Product/inventory sync (non-fatal):", e instanceof Error ? e.message : e);
+    }
+
+    return { success: true, synced: totalSynced, productsSynced };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error("Sync failed:", errorMessage);
@@ -193,6 +202,106 @@ async function recomputeDailyStats(orgId: string, channelId: string, since: stri
       { onConflict: "channel_id,date" }
     );
   }
+}
+
+export async function syncShopifyProducts(channelId: string): Promise<{ synced: number }> {
+  const supabase = getServiceClient();
+
+  const { data: channel } = await supabase.from("channels").select("*").eq("id", channelId).single();
+
+  if (!channel || channel.platform !== "shopify" || channel.status === "disconnected") {
+    throw new Error(`Channel ${channelId} not found or not shopify`);
+  }
+
+  const accessToken = channel.credentials?.access_token;
+  if (!accessToken) throw new Error("No access token for channel");
+
+  const client = new ShopifyClient(channel.platform_store_id, accessToken);
+
+  let cursor: string | undefined;
+  let hasMore = true;
+  let total = 0;
+
+  const statusMap: Record<string, string> = {
+    ACTIVE: "active",
+    DRAFT: "draft",
+    ARCHIVED: "archived",
+  };
+
+  while (hasMore) {
+    const result = await client.fetchProducts(cursor);
+    const edges = result.products.edges;
+
+    for (const edge of edges) {
+      const p = edge.node;
+      const imageUrl = p.featuredImage?.url ?? null;
+      const productStatus = statusMap[String(p.status ?? "").toUpperCase()] ?? "draft";
+
+      for (const ve of p.variants.edges) {
+        const v = ve.node;
+        const variantId = extractGid(v.id);
+        const title =
+          v.title && v.title !== "Default Title" ? `${p.title} — ${v.title}` : p.title;
+        const sku = (v.sku ?? "").trim();
+        const inv = v.inventoryQuantity ?? 0;
+        const now = new Date().toISOString();
+
+        const { data: existing } = await supabase
+          .from("products")
+          .select("id")
+          .eq("org_id", channel.org_id)
+          .eq("channel_id", channelId)
+          .eq("platform", "shopify")
+          .eq("platform_product_id", variantId)
+          .maybeSingle();
+
+        if (existing?.id) {
+          const { error } = await supabase
+            .from("products")
+            .update({
+              title,
+              sku: sku || null,
+              image_url: imageUrl,
+              status: productStatus,
+              inventory_quantity: inv,
+              inventory_updated_at: now,
+            })
+            .eq("id", existing.id);
+          if (error) console.error("Product update error:", error.message);
+          else total++;
+        } else {
+          const { error } = await supabase.from("products").insert({
+            org_id: channel.org_id,
+            channel_id: channelId,
+            platform: "shopify",
+            platform_product_id: variantId,
+            title,
+            sku: sku || null,
+            image_url: imageUrl,
+            category: null,
+            cogs: 0,
+            status: productStatus,
+            inventory_quantity: inv,
+            inventory_updated_at: now,
+          });
+          if (error) console.error("Product insert error:", error.message);
+          else total++;
+        }
+      }
+    }
+
+    hasMore = result.products.pageInfo.hasNextPage;
+    cursor = edges.length > 0 ? edges[edges.length - 1].cursor : undefined;
+    await new Promise((r) => setTimeout(r, 400));
+  }
+
+  try {
+    await generateLowStockAlerts(channel.org_id, supabase);
+  } catch (e) {
+    console.warn("Low stock alerts:", e instanceof Error ? e.message : e);
+  }
+
+  return { synced: total };
 }
 
 function mapShopifyStatus(fulfillmentStatus: string): string {

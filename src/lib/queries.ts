@@ -1,6 +1,14 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getImpersonatedUserId } from "@/lib/admin/impersonate";
+import {
+  topProductsFromOrders,
+  rollupForProducts,
+  lookupProductSales,
+  type TopProductSale,
+} from "@/lib/sales-from-orders";
+
+export type { TopProductSale };
 
 async function getOrgId(): Promise<string | null> {
   const supabase = await createClient();
@@ -48,6 +56,7 @@ const EMPTY_STATS = {
   orders: { value: 0, change: 0 },
   profit: { value: 0, change: 0 },
   aov: { value: 0, change: 0 },
+  units: { value: 0, change: 0 },
 };
 
 export interface DateParams {
@@ -111,11 +120,13 @@ export async function getDashboardStats(params: DateParams = { days: 30 }) {
   const currentRevenue = sumField(currentStats, "total_revenue");
   const currentOrders = sumField(currentStats, "total_orders");
   const currentProfit = sumField(currentStats, "estimated_profit");
+  const currentUnits = sumField(currentStats, "total_units");
   const currentAOV = currentOrders > 0 ? currentRevenue / currentOrders : 0;
 
   const prevRevenue = sumField(prevStats, "total_revenue");
   const prevOrders = sumField(prevStats, "total_orders");
   const prevProfit = sumField(prevStats, "estimated_profit");
+  const prevUnits = sumField(prevStats, "total_units");
   const prevAOV = prevOrders > 0 ? prevRevenue / prevOrders : 0;
 
   const pctChange = (curr: number, prev: number) =>
@@ -126,6 +137,7 @@ export async function getDashboardStats(params: DateParams = { days: 30 }) {
     orders: { value: currentOrders, change: pctChange(currentOrders, prevOrders) },
     profit: { value: currentProfit, change: pctChange(currentProfit, prevProfit) },
     aov: { value: currentAOV, change: pctChange(currentAOV, prevAOV) },
+    units: { value: currentUnits, change: pctChange(currentUnits, prevUnits) },
   };
 }
 
@@ -308,13 +320,104 @@ export async function getProducts() {
   const orgId = await getOrgId();
   if (!orgId) return [];
 
-  const { data: products } = await supabase
-    .from("products")
-    .select("*")
-    .eq("org_id", orgId)
-    .order("title", { ascending: true });
+  const [{ data: products }, { data: channels }] = await Promise.all([
+    supabase.from("products").select("*").eq("org_id", orgId).order("title", { ascending: true }),
+    supabase.from("channels").select("id, platform, name").eq("org_id", orgId),
+  ]);
 
-  return products ?? [];
+  const chMap = new Map((channels ?? []).map((c) => [c.id, c]));
+
+  return (products ?? []).map((p) => {
+    const cid = (p as { channel_id?: string | null }).channel_id;
+    const ch = cid ? chMap.get(cid) : undefined;
+    return {
+      ...p,
+      channels: ch ? { platform: ch.platform, name: ch.name } : null,
+    };
+  });
+}
+
+export async function getTopProductsBySales(params: DateParams = { days: 30 }, limit = 10): Promise<TopProductSale[]> {
+  const supabase = await createClient();
+  const orgId = await getOrgId();
+  if (!orgId) return [];
+
+  const { fromStr, toStr } = getDateRange(params);
+  const fromIso = `${fromStr}T00:00:00.000Z`;
+  const toIso = `${toStr}T23:59:59.999Z`;
+
+  const { data: orders } = await supabase
+    .from("orders")
+    .select("id, platform, raw_data, total_amount, item_count")
+    .eq("org_id", orgId)
+    .gte("ordered_at", fromIso)
+    .lte("ordered_at", toIso)
+    .neq("status", "cancelled");
+
+  return topProductsFromOrders(orders ?? [], limit);
+}
+
+export type ProductWithSales = Awaited<ReturnType<typeof getProductsWithSales>>[number];
+
+export async function getProductsWithSales(params: DateParams = { days: 30 }) {
+  const supabase = await createClient();
+  const orgId = await getOrgId();
+  if (!orgId) return [];
+
+  const { fromStr, toStr } = getDateRange(params);
+  const fromIso = `${fromStr}T00:00:00.000Z`;
+  const toIso = `${toStr}T23:59:59.999Z`;
+
+  const [products, { data: orders }] = await Promise.all([
+    getProducts(),
+    supabase
+      .from("orders")
+      .select("id, platform, raw_data, total_amount, item_count")
+      .eq("org_id", orgId)
+      .gte("ordered_at", fromIso)
+      .lte("ordered_at", toIso)
+      .neq("status", "cancelled"),
+  ]);
+
+  const rollup = rollupForProducts(orders ?? []);
+
+  return products.map((p) => {
+    const sales = lookupProductSales(
+      { sku: p.sku as string | null, title: p.title as string },
+      rollup
+    );
+    const ch = p.channels as { platform?: string; name?: string } | null;
+    const channelPlatform = (ch?.platform as string) || "";
+    const channelName = ch?.name || "";
+    return {
+      ...p,
+      unitsSold: sales.unitsSold,
+      revenue: sales.revenue,
+      salesPlatform: sales.platform || channelPlatform,
+      channelLabel: channelName || channelPlatform || "—",
+    };
+  });
+}
+
+export async function getInventoryRows() {
+  const products = await getProducts();
+  return products.map((p) => {
+    const qty = Number((p as { inventory_quantity?: number }).inventory_quantity ?? 0);
+    const ch = p.channels as { platform?: string; name?: string } | null;
+    const platform = (ch?.platform as string) || "—";
+    const channelName = ch?.name || "—";
+    const updated = (p as { inventory_updated_at?: string | null }).inventory_updated_at;
+    return {
+      id: p.id as string,
+      title: p.title as string,
+      sku: (p.sku as string | null) ?? null,
+      inventory_quantity: qty,
+      platform,
+      channelName,
+      status: (p.status as string | null) ?? null,
+      updatedAt: updated,
+    };
+  });
 }
 
 export type CogsMethod = "percentage" | "per_product";
@@ -369,12 +472,24 @@ export async function getCostSettings(): Promise<CostSettings> {
   };
 }
 
+export interface PnLChannelRow {
+  channelId: string;
+  platform: string;
+  name: string;
+  revenue: number;
+  orders: number;
+  platformFees: number;
+  estimatedCogs: number;
+  estimatedProfit: number;
+}
+
 const EMPTY_PNL = {
   totalRevenue: 0, totalOrders: 0, revenueByPlatform: {} as Record<string, number>,
   cogs: 0, grossProfit: 0, grossMargin: 0,
   fees: { marketplace: 0, shipping: 0, processing: 0, advertising: 0, refunds: 0, other: 0, total: 0 },
   netProfit: 0, netMargin: 0,
   costSettings: DEFAULT_COST_SETTINGS,
+  channelBreakdown: [] as PnLChannelRow[],
 };
 
 export async function getPnLData(params: DateParams = { days: 30 }) {
@@ -396,7 +511,7 @@ export async function getPnLData(params: DateParams = { days: 30 }) {
     .select("id, platform, name")
     .eq("org_id", orgId);
 
-  const channelMap = new Map(channels?.map((c) => [c.id, c.platform]) ?? []);
+  const channelMap = new Map(channels?.map((c) => [c.id, { platform: c.platform, name: c.name }]) ?? []);
 
   // Get actual COGS from products table (user-entered values)
   const { data: products } = await supabase
@@ -410,15 +525,50 @@ export async function getPnLData(params: DateParams = { days: 30 }) {
   let totalRevenue = 0;
   let totalFees = 0;
   let totalOrders = 0;
-  let totalUnits = 0;
+
+  const byChannelAgg = new Map<
+    string,
+    { revenue: number; orders: number; platformFees: number; estimatedCogs: number; estimatedProfit: number }
+  >();
 
   for (const row of stats ?? []) {
-    const platform = channelMap.get(row.channel_id) ?? "other";
+    const ch = channelMap.get(row.channel_id);
+    const platform = ch?.platform ?? "other";
     revenueByPlatform[platform] = (revenueByPlatform[platform] ?? 0) + Number(row.total_revenue);
     totalRevenue += Number(row.total_revenue);
     totalFees += Number(row.platform_fees);
     totalOrders += Number(row.total_orders);
+
+    const cid = row.channel_id as string;
+    const ex = byChannelAgg.get(cid) ?? {
+      revenue: 0,
+      orders: 0,
+      platformFees: 0,
+      estimatedCogs: 0,
+      estimatedProfit: 0,
+    };
+    ex.revenue += Number(row.total_revenue);
+    ex.orders += Number(row.total_orders);
+    ex.platformFees += Number(row.platform_fees);
+    ex.estimatedCogs += Number(row.estimated_cogs);
+    ex.estimatedProfit += Number(row.estimated_profit);
+    byChannelAgg.set(cid, ex);
   }
+
+  const channelBreakdown: PnLChannelRow[] = Array.from(byChannelAgg.entries()).map(([channelId, agg]) => {
+    const ch = channelMap.get(channelId);
+    return {
+      channelId,
+      platform: ch?.platform ?? "other",
+      name: ch?.name ?? ch?.platform ?? "Channel",
+      revenue: agg.revenue,
+      orders: agg.orders,
+      platformFees: agg.platformFees,
+      estimatedCogs: agg.estimatedCogs,
+      estimatedProfit: agg.estimatedProfit,
+    };
+  });
+  channelBreakdown.sort((a, b) => b.revenue - a.revenue);
 
   const costSettings = await getCostSettings();
 
@@ -457,6 +607,7 @@ export async function getPnLData(params: DateParams = { days: 30 }) {
     },
     netProfit,
     netMargin: totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0,
+    channelBreakdown,
   };
 }
 
@@ -535,4 +686,20 @@ export async function getUserPlan(): Promise<{
   }
 
   return { plan: "free", limits: PLAN_LIMITS.free, status: "free", periodEnd: null };
+}
+
+export async function getHasSeenDashboardTour(): Promise<boolean> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return true;
+
+  const { data } = await supabase
+    .from("profiles")
+    .select("has_seen_dashboard_tour")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  return data?.has_seen_dashboard_tour === true;
 }

@@ -18,6 +18,10 @@ interface Product {
   cogs: number | null;
   category: string | null;
   status: string | null;
+  unitsSold: number;
+  revenue: number;
+  channelLabel: string;
+  salesPlatform: string;
 }
 
 interface ProductsPageContentProps {

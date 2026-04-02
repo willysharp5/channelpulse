@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Info, Pencil, Save, Loader2, X, Percent, DollarSign } from "lucide-react";
+import { Info, Pencil, Save, Loader2, X, Percent, DollarSign, Download } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
@@ -10,10 +10,11 @@ import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatCurrency } from "@/lib/formatters";
 import { CHANNEL_CONFIG } from "@/lib/constants";
+import { downloadCSV } from "@/lib/csv-export";
 import { KPICard } from "@/components/dashboard/kpi-card";
 import { CategoryBar } from "@/components/tremor/category-bar";
 import type { Platform } from "@/types";
-import type { CostSettings, CogsMethod } from "@/lib/queries";
+import type { CostSettings, CogsMethod, PnLChannelRow } from "@/lib/queries";
 
 interface PnLData {
   totalRevenue: number;
@@ -34,6 +35,7 @@ interface PnLData {
   };
   netProfit: number;
   netMargin: number;
+  channelBreakdown: PnLChannelRow[];
 }
 
 function Tip({ text }: { text: string }) {
@@ -78,7 +80,7 @@ function PnLRow({
   );
 }
 
-export function PnLContent({ pnl }: { pnl: PnLData }) {
+export function PnLContent({ pnl, rangeLabel }: { pnl: PnLData; rangeLabel: string }) {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [settings, setSettings] = useState(pnl.costSettings);
@@ -158,26 +160,115 @@ export function PnLContent({ pnl }: { pnl: PnLData }) {
 
       <CategoryBar data={categoryBarData} />
 
+      {pnl.channelBreakdown.length > 0 && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="text-base font-semibold">P&amp;L by channel</CardTitle>
+            <p className="text-xs text-muted-foreground">Fees from synced order data (daily_stats)</p>
+          </CardHeader>
+          <CardContent className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  <th className="pb-2 pr-4">Channel</th>
+                  <th className="pb-2 pr-4 text-right">Revenue</th>
+                  <th className="pb-2 pr-4 text-right">Platform fees</th>
+                  <th className="pb-2 pr-4 text-right">Orders</th>
+                  <th className="pb-2 pr-4 text-right">Est. COGS</th>
+                  <th className="pb-2 text-right">Est. profit</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pnl.channelBreakdown.map((row) => {
+                  const cfg = CHANNEL_CONFIG[row.platform as Platform];
+                  return (
+                    <tr key={row.channelId} className="border-b border-border/50">
+                      <td className="py-2.5 pr-4">
+                        <span className="flex items-center gap-2">
+                          {cfg?.color ? (
+                            <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: cfg.color }} />
+                          ) : null}
+                          <span className="font-medium">{row.name}</span>
+                          <span className="text-xs text-muted-foreground">({cfg?.label ?? row.platform})</span>
+                        </span>
+                      </td>
+                      <td className="py-2.5 pr-4 text-right tabular-nums">{formatCurrency(row.revenue)}</td>
+                      <td className="py-2.5 pr-4 text-right tabular-nums text-amber-700 dark:text-amber-400">
+                        {formatCurrency(row.platformFees)}
+                      </td>
+                      <td className="py-2.5 pr-4 text-right tabular-nums">{row.orders}</td>
+                      <td className="py-2.5 pr-4 text-right tabular-nums">{formatCurrency(row.estimatedCogs)}</td>
+                      <td className="py-2.5 text-right tabular-nums font-medium">{formatCurrency(row.estimatedProfit)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-row items-center justify-between gap-2 flex-wrap">
           <CardTitle className="text-base font-semibold">
-            Profit & Loss Statement — Last 30 Days
+            Profit &amp; Loss Statement — {rangeLabel}
           </CardTitle>
-          {!editing ? (
-            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setEditing(true)}>
-              <Pencil className="h-3.5 w-3.5" /> Edit Rates
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              onClick={() => {
+                const rows: string[][] = [
+                  ["Section", "Line item", "Amount (USD)"],
+                  ["Summary", "Total revenue", pnl.totalRevenue.toFixed(2)],
+                  ["Summary", "Total orders", String(pnl.totalOrders)],
+                  ["Summary", "Gross profit", pnl.grossProfit.toFixed(2)],
+                  ["Summary", "Net profit", pnl.netProfit.toFixed(2)],
+                  ...Object.entries(pnl.revenueByPlatform).map(([plat, rev]) => [
+                    "Revenue by platform",
+                    plat,
+                    rev.toFixed(2),
+                  ]),
+                  ...pnl.channelBreakdown.flatMap((ch) => [
+                    ["Channel", `${ch.name} — revenue`, ch.revenue.toFixed(2)],
+                    ["Channel", `${ch.name} — platform fees`, ch.platformFees.toFixed(2)],
+                    ["Channel", `${ch.name} — est. COGS`, ch.estimatedCogs.toFixed(2)],
+                    ["Channel", `${ch.name} — est. profit`, ch.estimatedProfit.toFixed(2)],
+                  ]),
+                  ["Expenses", "Marketplace (model)", marketplaceFees.toFixed(2)],
+                  ["Expenses", "Shipping (model)", shippingCost.toFixed(2)],
+                  ["Expenses", "Processing (model)", processingFees.toFixed(2)],
+                  ["Expenses", "Advertising", advertising.toFixed(2)],
+                  ["Expenses", "Refunds (model)", refunds.toFixed(2)],
+                  ["Expenses", "Other", otherExpenses.toFixed(2)],
+                ];
+                downloadCSV(
+                  `channelpulse-pnl-${new Date().toISOString().split("T")[0]}.csv`,
+                  rows[0],
+                  rows.slice(1)
+                );
+              }}
+            >
+              <Download className="h-3.5 w-3.5" /> Export CSV
             </Button>
-          ) : (
-            <div className="flex gap-2">
-              <Button variant="ghost" size="sm" className="gap-1" onClick={() => { setSettings(pnl.costSettings); setEditing(false); }}>
-                <X className="h-3.5 w-3.5" /> Cancel
+            {!editing ? (
+              <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setEditing(true)}>
+                <Pencil className="h-3.5 w-3.5" /> Edit Rates
               </Button>
-              <Button size="sm" className="gap-1 bg-amber-500 hover:bg-amber-600 text-white" onClick={handleSave} disabled={saving}>
-                {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-                Save
-              </Button>
-            </div>
-          )}
+            ) : null}
+            {editing ? (
+              <div className="flex gap-2">
+                <Button variant="ghost" size="sm" className="gap-1" onClick={() => { setSettings(pnl.costSettings); setEditing(false); }}>
+                  <X className="h-3.5 w-3.5" /> Cancel
+                </Button>
+                <Button size="sm" className="gap-1 bg-amber-500 hover:bg-amber-600 text-white" onClick={handleSave} disabled={saving}>
+                  {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                  Save
+                </Button>
+              </div>
+            ) : null}
+          </div>
         </CardHeader>
         <CardContent className="max-w-2xl">
           <div className="space-y-1">

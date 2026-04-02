@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, ArrowLeft, Check, Loader2 } from "lucide-react";
 import {
   RiPulseFill,
@@ -65,9 +65,69 @@ const READY_FEATURES = [
 
 export function OnboardingWizard({ userName, onComplete }: OnboardingWizardProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [step, setStep] = useState(0);
   const [shopDomain, setShopDomain] = useState("");
   const [connecting, setConnecting] = useState(false);
+  const [postConnectSync, setPostConnectSync] = useState<"idle" | "running" | "done" | "error">("idle");
+
+  const syncingParam = searchParams.get("syncing") === "true";
+  const syncChannelId = searchParams.get("channelId");
+
+  useEffect(() => {
+    if (!syncingParam || !syncChannelId) return;
+    setPostConnectSync("running");
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/sync/shopify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ channelId: syncChannelId }),
+        });
+        if (cancelled) return;
+        if (res.ok) {
+          setPostConnectSync("done");
+          router.replace("/onboarding");
+          setStep(2);
+        } else {
+          setPostConnectSync("error");
+          router.replace("/onboarding");
+        }
+      } catch {
+        if (!cancelled) {
+          setPostConnectSync("error");
+          router.replace("/onboarding");
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [syncingParam, syncChannelId, router]);
+
+  if (syncingParam && syncChannelId && postConnectSync === "running") {
+    return (
+      <div className="min-h-dvh flex items-center justify-center bg-background p-4">
+        <Card className="w-full max-w-md border-border/60 shadow-lg">
+          <CardContent className="pt-10 pb-10 text-center space-y-6">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-500/15 text-amber-600">
+              <Loader2 className="h-8 w-8 animate-spin" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold">Syncing your store</h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Pulling orders, line items, and inventory. This can take a minute for large catalogs.
+              </p>
+            </div>
+            <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+              <div className="h-full w-1/2 animate-pulse rounded-full bg-amber-500" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   function handleConnectShopify() {
     let domain = shopDomain.trim();

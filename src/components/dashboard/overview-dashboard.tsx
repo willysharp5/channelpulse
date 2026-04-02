@@ -6,15 +6,16 @@ import { RevenueChart } from "@/components/charts/revenue-chart";
 import { ChannelBreakdown } from "@/components/charts/channel-breakdown";
 import { TopProducts } from "@/components/dashboard/top-products";
 import { RecentOrders } from "@/components/dashboard/recent-orders";
+import { DashboardTour } from "@/components/onboarding/dashboard-tour";
 import type { KPIData, ChannelRevenue } from "@/types";
-import type { RevenuePoint } from "@/lib/queries";
+import type { RevenuePoint, TopProductSale } from "@/lib/queries";
 
 interface OverviewDashboardProps {
   kpis: KPIData[];
   revenueSeries: RevenuePoint[];
   platforms: string[];
   channelRevenue: ChannelRevenue[];
-  products: Array<{ id: string; title: string; sku: string | null; cogs: number | null; status: string | null }>;
+  topProducts: TopProductSale[];
   recentOrders: Array<{
     id: string;
     platform: string;
@@ -24,6 +25,7 @@ interface OverviewDashboardProps {
     total_amount: number | null;
     ordered_at: string;
   }>;
+  showTour?: boolean;
 }
 
 const TABS = [
@@ -39,13 +41,15 @@ export function OverviewDashboard({
   revenueSeries,
   platforms,
   channelRevenue,
-  products,
+  topProducts,
   recentOrders,
+  showTour = false,
 }: OverviewDashboardProps) {
   const [tab, setTab] = useState<Tab>("overview");
 
   return (
     <div className="space-y-6">
+      <DashboardTour initialShow={showTour} />
       {/* Tab bar */}
       <div className="flex items-center gap-1 rounded-lg border bg-muted/40 p-1 w-fit">
         {TABS.map((t) => (
@@ -64,7 +68,7 @@ export function OverviewDashboard({
       </div>
 
       {/* KPIs — always visible */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5" data-tour="kpis">
         {kpis.map((kpi) => (
           <KPICard key={kpi.title} data={kpi} />
         ))}
@@ -72,16 +76,22 @@ export function OverviewDashboard({
 
       {tab === "overview" && (
         <>
-          <RevenueChart data={revenueSeries} platforms={platforms} />
+          <div data-tour="revenue-chart">
+            <RevenueChart data={revenueSeries} platforms={platforms} />
+          </div>
           <div className="grid gap-6 lg:grid-cols-2">
-            <ChannelBreakdown data={channelRevenue} />
-            <TopProducts products={products} />
+            <div data-tour="channel-breakdown">
+              <ChannelBreakdown data={channelRevenue} />
+            </div>
+            <TopProducts products={topProducts} />
           </div>
         </>
       )}
 
       {tab === "channels" && (
-        <ChannelBreakdown data={channelRevenue} />
+        <div data-tour="channel-breakdown">
+          <ChannelBreakdown data={channelRevenue} />
+        </div>
       )}
 
       {tab === "activity" && (

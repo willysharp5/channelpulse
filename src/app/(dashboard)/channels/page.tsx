@@ -1,7 +1,8 @@
-import { Plus, RefreshCw, CheckCircle2, AlertCircle } from "lucide-react";
+import Link from "next/link";
+import { RefreshCw, CheckCircle2, AlertCircle } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { ChannelSyncButton } from "@/components/channels/channel-sync-button";
 import { Badge } from "@/components/ui/badge";
 import { ChannelBadge } from "@/components/layout/channel-badge";
 import { KPICard } from "@/components/dashboard/kpi-card";
@@ -107,10 +108,12 @@ export default async function ChannelsPage({
               Manage your marketplace connections and sync status.
             </p>
           </div>
-          <Button className="gap-2 bg-amber-500 hover:bg-amber-600 text-white">
-            <Plus className="h-4 w-4" />
+          <Link
+            href="/settings"
+            className="inline-flex h-8 items-center gap-2 rounded-lg bg-amber-500 px-3 text-sm font-medium text-white transition-colors hover:bg-amber-600"
+          >
             Connect Channel
-          </Button>
+          </Link>
         </div>
 
         {channels.length === 0 ? (
@@ -227,13 +230,11 @@ export default async function ChannelsPage({
                             ? formatDate(channel.last_sync_at, "MMM d, h:mm a")
                             : "never"}
                         </span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 text-xs"
-                        >
-                          Sync Now
-                        </Button>
+                        <ChannelSyncButton
+                          channelId={channel.id}
+                          platform={channel.platform}
+                          disabled={channel.status !== "active"}
+                        />
                       </div>
                     </CardContent>
                   </Card>

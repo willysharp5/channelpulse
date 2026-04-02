@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import {
   RiLink,
@@ -22,11 +23,15 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { CHANNEL_CONFIG, PLAN_LIMITS, PLAN_PRICES } from "@/lib/constants";
 import type { Platform } from "@/types";
+import { mergeNotificationPrefs } from "@/lib/alerts";
+
+type NotificationPrefsState = ReturnType<typeof mergeNotificationPrefs>;
 
 interface SettingsContentProps {
   email: string;
   businessName: string;
   plan: string;
+  notificationPrefs: NotificationPrefsState;
   channels: Array<{
     id: string;
     platform: string;
@@ -36,8 +41,45 @@ interface SettingsContentProps {
   }>;
 }
 
-export function SettingsContent({ email, businessName, plan, channels }: SettingsContentProps) {
-  const [tab, setTab] = useState("channels");
+export function SettingsContent({ email, businessName, plan, channels, notificationPrefs: initialPrefs }: SettingsContentProps) {
+  const searchParams = useSearchParams();
+  const tabFromUrl = searchParams.get("tab");
+
+  const [tab, setTab] = useState(() => {
+    if (tabFromUrl === "notifications" || tabFromUrl === "billing" || tabFromUrl === "account") {
+      return tabFromUrl;
+    }
+    return "channels";
+  });
+
+  useEffect(() => {
+    const t = searchParams.get("tab");
+    if (t === "notifications" || t === "billing" || t === "account") setTab(t);
+  }, [searchParams]);
+
+  const [notifPrefs, setNotifPrefs] = useState(initialPrefs);
+  const [savingNotif, setSavingNotif] = useState(false);
+
+  const saveNotif = useCallback((patch: Partial<NotificationPrefsState>) => {
+    setNotifPrefs((prev) => {
+      const next = { ...prev, ...patch };
+      void (async () => {
+        setSavingNotif(true);
+        try {
+          await fetch("/api/settings/notifications", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(next),
+          });
+        } catch {
+          /* ignore */
+        } finally {
+          setSavingNotif(false);
+        }
+      })();
+      return next;
+    });
+  }, []);
 
   const planLimits = PLAN_LIMITS[plan as keyof typeof PLAN_LIMITS];
   const planPrice = PLAN_PRICES[plan] ?? 0;
@@ -172,85 +214,174 @@ export function SettingsContent({ email, businessName, plan, channels }: Setting
         </TabsContent>
 
         <TabsContent value="notifications" className="mt-6 space-y-6">
-          {/* Alerts */}
+          {savingNotif && (
+            <p className="text-xs text-muted-foreground flex items-center gap-2">
+              <Loader2 className="h-3 w-3 animate-spin" /> Saving preferences…
+            </p>
+          )}
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Alerts</CardTitle>
               <CardDescription>Get notified about critical events in real time.</CardDescription>
             </CardHeader>
-            <CardContent className="p-0">
-              {[
-                { id: "sync-errors", label: "Sync Errors", desc: "Channel sync failures and connection issues", default: true, priority: "high" },
-                { id: "revenue-drops", label: "Revenue Drops", desc: "When daily revenue drops more than 20% vs previous day", default: true, priority: "high" },
-                { id: "low-stock", label: "Low Stock Alerts", desc: "When inventory falls below your configured threshold", default: true, priority: "medium" },
-                { id: "order-spikes", label: "Order Spikes", desc: "Unusual order volume that may indicate a sale or issue", default: false, priority: "medium" },
-              ].map((item, idx, arr) => (
-                <div
-                  key={item.id}
-                  className={`flex items-center justify-between px-6 py-4 ${idx < arr.length - 1 ? "border-b" : ""}`}
-                >
-                  <div className="flex items-start gap-3">
-                    <span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${item.priority === "high" ? "bg-red-500" : "bg-amber-500"}`} />
-                    <div>
-                      <Label htmlFor={item.id} className="text-sm font-medium">{item.label}</Label>
-                      <p className="text-xs text-muted-foreground mt-0.5">{item.desc}</p>
-                    </div>
+            <CardContent className="p-0 space-y-0">
+              <div className="flex items-center justify-between px-6 py-4 border-b">
+                <div className="flex items-start gap-3">
+                  <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-red-500" />
+                  <div>
+                    <Label htmlFor="sync_errors" className="text-sm font-medium">Sync errors</Label>
+                    <p className="text-xs text-muted-foreground mt-0.5">Channel sync failures and connection issues</p>
                   </div>
-                  <Switch id={item.id} defaultChecked={item.default} />
                 </div>
-              ))}
+                <Switch
+                  id="sync_errors"
+                  checked={notifPrefs.sync_errors}
+                  onCheckedChange={(v) => void saveNotif({ sync_errors: v })}
+                />
+              </div>
+              <div className="flex items-center justify-between px-6 py-4 border-b">
+                <div className="flex items-start gap-3">
+                  <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-red-500" />
+                  <div>
+                    <Label htmlFor="revenue_drops" className="text-sm font-medium">Revenue drops</Label>
+                    <p className="text-xs text-muted-foreground mt-0.5">When daily revenue drops sharply vs previous day</p>
+                  </div>
+                </div>
+                <Switch
+                  id="revenue_drops"
+                  checked={notifPrefs.revenue_drops}
+                  onCheckedChange={(v) => void saveNotif({ revenue_drops: v })}
+                />
+              </div>
+              <div className="flex items-center justify-between px-6 py-4 border-b">
+                <div className="flex items-start gap-3">
+                  <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-amber-500" />
+                  <div>
+                    <Label htmlFor="low_stock" className="text-sm font-medium">Low stock</Label>
+                    <p className="text-xs text-muted-foreground mt-0.5">When inventory is at or below your threshold</p>
+                  </div>
+                </div>
+                <Switch
+                  id="low_stock"
+                  checked={notifPrefs.low_stock}
+                  onCheckedChange={(v) => void saveNotif({ low_stock: v })}
+                />
+              </div>
+              <div className="px-6 py-4 border-b space-y-2">
+                <Label className="text-xs">Low stock threshold (units)</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  className="h-9 max-w-[120px]"
+                  value={notifPrefs.low_stock_threshold}
+                  onChange={(e) => {
+                    const n = Math.max(0, parseInt(e.target.value, 10) || 0);
+                    setNotifPrefs((p) => ({ ...p, low_stock_threshold: n }));
+                  }}
+                  onBlur={(e) => {
+                    const n = Math.max(0, parseInt(e.target.value, 10) || 0);
+                    void saveNotif({ low_stock_threshold: n });
+                  }}
+                />
+              </div>
+              <div className="flex items-center justify-between px-6 py-4">
+                <div className="flex items-start gap-3">
+                  <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-amber-500" />
+                  <div>
+                    <Label htmlFor="order_spikes" className="text-sm font-medium">Order spikes</Label>
+                    <p className="text-xs text-muted-foreground mt-0.5">Unusual order volume</p>
+                  </div>
+                </div>
+                <Switch
+                  id="order_spikes"
+                  checked={notifPrefs.order_spikes}
+                  onCheckedChange={(v) => void saveNotif({ order_spikes: v })}
+                />
+              </div>
             </CardContent>
           </Card>
 
-          {/* Reports */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Reports & Digests</CardTitle>
-              <CardDescription>Scheduled summaries sent to your email.</CardDescription>
+              <CardTitle className="text-base">Reports &amp; Digests</CardTitle>
+              <CardDescription>Scheduled summaries (email digest not yet wired).</CardDescription>
             </CardHeader>
             <CardContent className="p-0">
-              {[
-                { id: "weekly-digest", label: "Weekly Digest", desc: "Revenue, orders, and top products summary every Monday", default: false },
-                { id: "monthly-report", label: "Monthly Report", desc: "Full P&L and channel comparison on the 1st of each month", default: false },
-                { id: "channel-summary", label: "Channel Summary", desc: "Per-channel performance breakdown sent weekly", default: false },
-              ].map((item, idx, arr) => (
-                <div
-                  key={item.id}
-                  className={`flex items-center justify-between px-6 py-4 ${idx < arr.length - 1 ? "border-b" : ""}`}
-                >
-                  <div>
-                    <Label htmlFor={item.id} className="text-sm font-medium">{item.label}</Label>
-                    <p className="text-xs text-muted-foreground mt-0.5">{item.desc}</p>
-                  </div>
-                  <Switch id={item.id} defaultChecked={item.default} />
+              <div className="flex items-center justify-between px-6 py-4 border-b">
+                <div>
+                  <Label htmlFor="weekly_digest" className="text-sm font-medium">Weekly digest</Label>
+                  <p className="text-xs text-muted-foreground mt-0.5">Reserved for future email</p>
                 </div>
-              ))}
+                <Switch
+                  id="weekly_digest"
+                  checked={notifPrefs.weekly_digest}
+                  onCheckedChange={(v) => void saveNotif({ weekly_digest: v })}
+                />
+              </div>
+              <div className="flex items-center justify-between px-6 py-4 border-b">
+                <div>
+                  <Label htmlFor="monthly_report" className="text-sm font-medium">Monthly report</Label>
+                  <p className="text-xs text-muted-foreground mt-0.5">Reserved for future email</p>
+                </div>
+                <Switch
+                  id="monthly_report"
+                  checked={notifPrefs.monthly_report}
+                  onCheckedChange={(v) => void saveNotif({ monthly_report: v })}
+                />
+              </div>
+              <div className="flex items-center justify-between px-6 py-4">
+                <div>
+                  <Label htmlFor="channel_summary" className="text-sm font-medium">Channel summary</Label>
+                  <p className="text-xs text-muted-foreground mt-0.5">Reserved for future email</p>
+                </div>
+                <Switch
+                  id="channel_summary"
+                  checked={notifPrefs.channel_summary}
+                  onCheckedChange={(v) => void saveNotif({ channel_summary: v })}
+                />
+              </div>
             </CardContent>
           </Card>
 
-          {/* Delivery */}
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Delivery</CardTitle>
               <CardDescription>How you receive notifications.</CardDescription>
             </CardHeader>
             <CardContent className="p-0">
-              {[
-                { id: "email-notifs", label: "Email", desc: "Send notifications to your account email", default: true },
-                { id: "in-app-notifs", label: "In-App", desc: "Show notifications in the dashboard bell icon", default: true },
-                { id: "browser-push", label: "Browser Push", desc: "Desktop push notifications when the app is open", default: false },
-              ].map((item, idx, arr) => (
-                <div
-                  key={item.id}
-                  className={`flex items-center justify-between px-6 py-4 ${idx < arr.length - 1 ? "border-b" : ""}`}
-                >
-                  <div>
-                    <Label htmlFor={item.id} className="text-sm font-medium">{item.label}</Label>
-                    <p className="text-xs text-muted-foreground mt-0.5">{item.desc}</p>
-                  </div>
-                  <Switch id={item.id} defaultChecked={item.default} />
+              <div className="flex items-center justify-between px-6 py-4 border-b">
+                <div>
+                  <Label htmlFor="email" className="text-sm font-medium">Email</Label>
+                  <p className="text-xs text-muted-foreground mt-0.5">Future: send to your account email</p>
                 </div>
-              ))}
+                <Switch
+                  id="email"
+                  checked={notifPrefs.email}
+                  onCheckedChange={(v) => void saveNotif({ email: v })}
+                />
+              </div>
+              <div className="flex items-center justify-between px-6 py-4 border-b">
+                <div>
+                  <Label htmlFor="in_app" className="text-sm font-medium">In-app</Label>
+                  <p className="text-xs text-muted-foreground mt-0.5">Bell icon in the dashboard</p>
+                </div>
+                <Switch
+                  id="in_app"
+                  checked={notifPrefs.in_app}
+                  onCheckedChange={(v) => void saveNotif({ in_app: v })}
+                />
+              </div>
+              <div className="flex items-center justify-between px-6 py-4">
+                <div>
+                  <Label htmlFor="browser_push" className="text-sm font-medium">Browser push</Label>
+                  <p className="text-xs text-muted-foreground mt-0.5">Reserved</p>
+                </div>
+                <Switch
+                  id="browser_push"
+                  checked={notifPrefs.browser_push}
+                  onCheckedChange={(v) => void saveNotif({ browser_push: v })}
+                />
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

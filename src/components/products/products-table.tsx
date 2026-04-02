@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { Search, ChevronLeft, ChevronRight, X, Check, Loader2, Download } from "lucide-react";
+import { Search, ChevronLeft, ChevronRight, X, Check, Loader2, Download, ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { downloadCSV } from "@/lib/csv-export";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -22,7 +22,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { formatCurrency } from "@/lib/formatters";
+import { formatCurrency, formatNumber } from "@/lib/formatters";
+import { ChannelBadge } from "@/components/layout/channel-badge";
+import type { Platform } from "@/types";
 
 interface Product {
   id: string;
@@ -32,6 +34,10 @@ interface Product {
   cogs: number | null;
   category: string | null;
   status: string | null;
+  unitsSold: number;
+  revenue: number;
+  channelLabel: string;
+  salesPlatform: string;
 }
 
 interface ProductsTableProps {
@@ -54,6 +60,9 @@ export function ProductsTable({ products, onCogsUpdate }: ProductsTableProps) {
   const [page, setPage] = useState(initialPage);
   const [pageSize, setPageSize] = useState(10);
   const [statusFilter, setStatusFilter] = useState(initialStatus);
+  const [channelFilter, setChannelFilter] = useState<string>("all");
+  const [sortKey, setSortKey] = useState<"none" | "units" | "revenue">("none");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
   const updateUrl = useCallback(
     (params: Record<string, string>) => {
@@ -82,14 +91,30 @@ export function ProductsTable({ products, onCogsUpdate }: ProductsTableProps) {
   function handleClearAll() {
     setSearch("");
     setStatusFilter("all");
+    setChannelFilter("all");
+    setSortKey("none");
     setPage(1);
     router.replace(pathname, { scroll: false });
   }
+
+  const channelOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const p of products) {
+      if (p.salesPlatform) set.add(p.salesPlatform);
+      if (p.channelLabel && p.channelLabel !== "—") set.add(p.channelLabel);
+    }
+    return [...set].sort();
+  }, [products]);
 
   const filtered = useMemo(() => {
     let result = products;
     if (statusFilter !== "all") {
       result = result.filter((p) => p.status === statusFilter);
+    }
+    if (channelFilter !== "all") {
+      result = result.filter(
+        (p) => p.salesPlatform === channelFilter || p.channelLabel === channelFilter
+      );
     }
     if (search.length >= 1) {
       const q = search.toLowerCase();
@@ -100,14 +125,37 @@ export function ProductsTable({ products, onCogsUpdate }: ProductsTableProps) {
           (p.category && p.category.toLowerCase().includes(q))
       );
     }
+    if (sortKey === "units") {
+      result = [...result].sort((a, b) =>
+        sortDir === "desc" ? b.unitsSold - a.unitsSold : a.unitsSold - b.unitsSold
+      );
+    } else if (sortKey === "revenue") {
+      result = [...result].sort((a, b) =>
+        sortDir === "desc" ? b.revenue - a.revenue : a.revenue - b.revenue
+      );
+    }
     return result;
-  }, [products, search, statusFilter]);
+  }, [products, search, statusFilter, channelFilter, sortKey, sortDir]);
+
+  function toggleSort(key: "units" | "revenue") {
+    if (sortKey !== key) {
+      setSortKey(key);
+      setSortDir("desc");
+    } else {
+      setSortDir((d) => (d === "desc" ? "asc" : "desc"));
+    }
+  }
+
+  function SortIcon({ active, dir }: { active: boolean; dir: "asc" | "desc" }) {
+    if (!active) return <ArrowUpDown className="h-3 w-3 opacity-40" />;
+    return dir === "desc" ? <ArrowDown className="h-3 w-3" /> : <ArrowUp className="h-3 w-3" />;
+  }
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const safePage = Math.min(page, totalPages);
   const start = (safePage - 1) * pageSize;
   const paged = filtered.slice(start, start + pageSize);
-  const hasFilters = search.length > 0 || statusFilter !== "all";
+  const hasFilters = search.length > 0 || statusFilter !== "all" || channelFilter !== "all";
 
   function highlightMatch(text: string): React.ReactNode {
     if (!search || search.length < 1) return text;
@@ -144,7 +192,18 @@ export function ProductsTable({ products, onCogsUpdate }: ProductsTableProps) {
             </button>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Select value={channelFilter} onValueChange={(v: string | null) => { setChannelFilter(v ?? "all"); setPage(1); }}>
+            <SelectTrigger className="w-[140px] h-9">
+              <SelectValue placeholder="Channel" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All channels</SelectItem>
+              {channelOptions.map((c) => (
+                <SelectItem key={c} value={c}>{c}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Select value={statusFilter} onValueChange={(v: string | null) => handleStatusChange(v ?? "all")}>
             <SelectTrigger className="w-[130px] h-9">
               <SelectValue placeholder="Status" />
@@ -168,10 +227,16 @@ export function ProductsTable({ products, onCogsUpdate }: ProductsTableProps) {
             onClick={() => {
               downloadCSV(
                 `channelpulse-products-${new Date().toISOString().split("T")[0]}.csv`,
-                ["Product", "SKU", "Category", "COGS", "Status"],
+                ["Product", "SKU", "Channel", "Units sold", "Revenue", "Category", "COGS", "Status"],
                 filtered.map((p) => [
-                  p.title, p.sku ?? "", p.category ?? "",
-                  String(Number(p.cogs ?? 0).toFixed(2)), p.status ?? "",
+                  p.title,
+                  p.sku ?? "",
+                  p.channelLabel,
+                  String(p.unitsSold),
+                  String(p.revenue.toFixed(2)),
+                  p.category ?? "",
+                  String(Number(p.cogs ?? 0).toFixed(2)),
+                  p.status ?? "",
                 ])
               );
             }}
@@ -190,6 +255,27 @@ export function ProductsTable({ products, onCogsUpdate }: ProductsTableProps) {
             <TableRow>
               <TableHead>Product</TableHead>
               <TableHead>SKU</TableHead>
+              <TableHead>Channel</TableHead>
+              <TableHead className="text-right">
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1 font-medium hover:text-foreground"
+                  onClick={() => toggleSort("units")}
+                >
+                  Units sold
+                  <SortIcon active={sortKey === "units"} dir={sortDir} />
+                </button>
+              </TableHead>
+              <TableHead className="text-right">
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1 font-medium hover:text-foreground"
+                  onClick={() => toggleSort("revenue")}
+                >
+                  Revenue
+                  <SortIcon active={sortKey === "revenue"} dir={sortDir} />
+                </button>
+              </TableHead>
               <TableHead>Category</TableHead>
               <TableHead className="text-right">
                 <span className="flex items-center justify-end gap-1">
@@ -203,7 +289,7 @@ export function ProductsTable({ products, onCogsUpdate }: ProductsTableProps) {
           <TableBody>
             {paged.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                   {search ? `No products matching "${search}"` : "No products found"}
                 </TableCell>
               </TableRow>
@@ -222,6 +308,20 @@ export function ProductsTable({ products, onCogsUpdate }: ProductsTableProps) {
                   </TableCell>
                   <TableCell className="text-muted-foreground font-mono text-xs">
                     {product.sku ? highlightMatch(product.sku) : "—"}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-col gap-1">
+                      <span className="text-xs text-muted-foreground truncate max-w-[120px]">{product.channelLabel}</span>
+                      {product.salesPlatform ? (
+                        <ChannelBadge platform={product.salesPlatform as Platform} className="w-fit text-[10px]" />
+                      ) : null}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums text-sm">
+                    {formatNumber(product.unitsSold)}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums text-sm font-medium">
+                    {formatCurrency(product.revenue)}
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {product.category ? highlightMatch(product.category) : "—"}

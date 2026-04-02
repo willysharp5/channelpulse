@@ -38,7 +38,9 @@ export function Header({ title = "Overview", userEmail, userName }: HeaderProps)
 
       <div className="ml-auto flex items-center gap-2">
         <SearchDialog />
-        <DateRangePicker />
+        <span data-tour="date-range" className="inline-flex">
+          <DateRangePicker />
+        </span>
         <NotificationPanel />
         <ThemeToggle />
         <UserMenu email={userEmail} name={userName} />

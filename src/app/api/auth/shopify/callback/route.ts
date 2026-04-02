@@ -119,6 +119,8 @@ export async function GET(request: Request) {
     metadata: { shop_domain: shop, shop_name: shopName, shop_email: shopEmail, currency: shopCurrency },
   };
 
+  let channelId: string | null = existing?.id ?? null;
+
   if (existing) {
     const { error } = await supabase
       .from("channels")
@@ -127,11 +129,39 @@ export async function GET(request: Request) {
     if (error) console.error("Channel update error:", error);
     else console.log("Shopify: updated existing channel", existing.id);
   } else {
-    const { error } = await supabase
+    const { data: inserted, error } = await supabase
       .from("channels")
-      .insert(channelData);
+      .insert(channelData)
+      .select("id")
+      .single();
     if (error) console.error("Channel insert error:", error);
-    else console.log("Shopify: inserted new channel for", shop);
+    else {
+      channelId = inserted?.id ?? null;
+      console.log("Shopify: inserted new channel for", shop);
+    }
+  }
+
+  if (!channelId) {
+    const { data: ch } = await supabase
+      .from("channels")
+      .select("id")
+      .eq("org_id", profile.org_id)
+      .eq("platform", "shopify")
+      .eq("platform_store_id", shop)
+      .maybeSingle();
+    channelId = ch?.id ?? null;
+  }
+
+  const { data: orgRow } = await supabase
+    .from("organizations")
+    .select("onboarding_completed")
+    .eq("id", profile.org_id)
+    .single();
+
+  if (channelId && orgRow?.onboarding_completed !== true) {
+    return NextResponse.redirect(
+      `${origin}/onboarding?syncing=true&channelId=${encodeURIComponent(channelId)}`
+    );
   }
 
   return NextResponse.redirect(`${origin}/settings?success=shopify_connected`);
