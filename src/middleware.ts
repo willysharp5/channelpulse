@@ -2,17 +2,15 @@ import { type NextRequest, NextResponse } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 import { createServerClient } from "@supabase/ssr";
 
-const PUBLIC_ROUTES = ["/login", "/signup", "/auth/callback", "/landing", "/api/webhooks", "/api/gdpr"];
+const PUBLIC_ROUTES = ["/login", "/signup", "/auth/callback", "/landing", "/api/webhooks", "/api/gdpr", "/api/stripe/webhook"];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Allow public routes through without auth check
   if (PUBLIC_ROUTES.some((route) => pathname.startsWith(route))) {
     return await updateSession(request);
   }
 
-  // For all other routes, check if the user is authenticated
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -40,7 +38,6 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Root "/" is special: show landing if not logged in, dashboard if logged in
   if (pathname === "/") {
     if (!user) {
       return NextResponse.rewrite(new URL("/landing", request.url));
@@ -48,16 +45,26 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
-  // If not authenticated and trying to access protected route, redirect to login
   if (!user) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("redirect", pathname);
     return NextResponse.redirect(loginUrl);
   }
 
-  // If authenticated and trying to access login/signup, redirect to dashboard
   if (user && (pathname === "/login" || pathname === "/signup")) {
     return NextResponse.redirect(new URL("/", request.url));
+  }
+
+  if (pathname.startsWith("/admin")) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role, status")
+      .eq("id", user.id)
+      .single();
+
+    if (profile?.role !== "super_admin") {
+      return NextResponse.redirect(new URL("/", request.url));
+    }
   }
 
   return response;

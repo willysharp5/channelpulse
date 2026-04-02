@@ -2,17 +2,14 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { ArrowRight, ArrowLeft, Check, Loader2 } from "lucide-react";
 import {
-  Zap,
-  Store,
-  ArrowRight,
-  ArrowLeft,
-  Check,
-  Loader2,
-  BarChart3,
-  ShoppingCart,
-  TrendingUp,
-} from "lucide-react";
+  RiPulseFill,
+  RiStore2Fill,
+  RiShoppingCart2Fill,
+  RiBarChartBoxFill,
+  RiLineChartFill,
+} from "@remixicon/react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +25,42 @@ const STEPS = [
   { id: "welcome", title: "Welcome" },
   { id: "connect", title: "Connect Store" },
   { id: "ready", title: "You're Ready" },
+];
+
+const WELCOME_FEATURES = [
+  {
+    icon: RiStore2Fill,
+    title: "Connect your stores",
+    desc: "Link Shopify, Amazon, and more via secure OAuth",
+  },
+  {
+    icon: RiShoppingCart2Fill,
+    title: "Orders sync automatically",
+    desc: "We pull your orders, products, and revenue data",
+  },
+  {
+    icon: RiBarChartBoxFill,
+    title: "See everything in one dashboard",
+    desc: "Revenue, profit, trends — all channels combined",
+  },
+];
+
+const READY_FEATURES = [
+  {
+    icon: RiLineChartFill,
+    title: "Track revenue & orders",
+    desc: "See daily, weekly, and monthly trends across all channels",
+  },
+  {
+    icon: RiBarChartBoxFill,
+    title: "Analyze your P&L",
+    desc: "Set your costs and see real profit margins per channel",
+  },
+  {
+    icon: RiStore2Fill,
+    title: "Connect more channels anytime",
+    desc: "Add Amazon, eBay, Etsy from Settings when you're ready",
+  },
 ];
 
 export function OnboardingWizard({ userName, onComplete }: OnboardingWizardProps) {
@@ -69,31 +102,33 @@ export function OnboardingWizard({ userName, onComplete }: OnboardingWizardProps
   return (
     <div className="min-h-dvh flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-lg">
-        {/* Progress dots */}
-        <div className="flex items-center justify-center gap-2 mb-8">
+        <div className="flex items-center justify-center gap-2.5 mb-8">
           {STEPS.map((s, i) => (
             <div
               key={s.id}
-              className={`h-2 rounded-full transition-all ${
-                i === step
-                  ? "w-8 bg-amber-500"
-                  : i < step
-                    ? "w-2 bg-amber-500"
-                    : "w-2 bg-muted"
-              }`}
-            />
+              className="relative flex items-center justify-center"
+            >
+              <div
+                className={`h-2 rounded-full transition-all duration-300 ${
+                  i === step
+                    ? "w-8 bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]"
+                    : i < step
+                      ? "w-2 bg-amber-500"
+                      : "w-2 bg-muted"
+                }`}
+              />
+            </div>
           ))}
         </div>
 
-        {/* Step 1: Welcome */}
         {step === 0 && (
-          <Card>
+          <Card className="border-border/60 shadow-lg">
             <CardContent className="pt-8 pb-8 text-center space-y-6">
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-500 text-white">
-                <Zap className="h-8 w-8" />
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 text-white shadow-lg shadow-amber-500/20">
+                <RiPulseFill className="h-8 w-8" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold">
+                <h1 className="text-2xl font-bold tracking-tight">
                   Welcome{userName ? `, ${userName}` : ""}!
                 </h1>
                 <p className="mt-2 text-muted-foreground">
@@ -102,33 +137,33 @@ export function OnboardingWizard({ userName, onComplete }: OnboardingWizardProps
               </div>
 
               <div className="grid gap-3 text-left">
-                <div className="flex items-start gap-3 rounded-lg border p-3">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 flex-shrink-0">
-                    <Store className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">Connect your stores</p>
-                    <p className="text-xs text-muted-foreground">Link Shopify, Amazon, and more via secure OAuth</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3 rounded-lg border p-3">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 flex-shrink-0">
-                    <ShoppingCart className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">Orders sync automatically</p>
-                    <p className="text-xs text-muted-foreground">We pull your orders, products, and revenue data</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3 rounded-lg border p-3">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 flex-shrink-0">
-                    <BarChart3 className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">See everything in one dashboard</p>
-                    <p className="text-xs text-muted-foreground">Revenue, profit, trends — all channels combined</p>
-                  </div>
-                </div>
+                {WELCOME_FEATURES.map((feature, idx) => {
+                  const Icon = feature.icon;
+                  const isActive = idx === 0;
+                  return (
+                    <div
+                      key={feature.title}
+                      className={`flex items-start gap-3 rounded-xl border p-3.5 transition-colors ${
+                        isActive
+                          ? "border-amber-300/60 bg-amber-50/50 dark:border-amber-700/40 dark:bg-amber-950/30"
+                          : "border-border/60"
+                      }`}
+                      style={
+                        isActive
+                          ? { borderImage: "linear-gradient(135deg, rgb(251 191 36 / 0.5), rgb(245 158 11 / 0.3), rgb(217 119 6 / 0.5)) 1" }
+                          : undefined
+                      }
+                    >
+                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600 flex-shrink-0">
+                        <Icon className="h-4.5 w-4.5" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold">{feature.title}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">{feature.desc}</p>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
 
               <Button
@@ -142,33 +177,31 @@ export function OnboardingWizard({ userName, onComplete }: OnboardingWizardProps
           </Card>
         )}
 
-        {/* Step 2: Connect Store */}
         {step === 1 && (
-          <Card>
+          <Card className="border-border/60 shadow-lg">
             <CardContent className="pt-8 pb-8 space-y-6">
               <div className="text-center">
-                <h2 className="text-xl font-bold">Connect your first store</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
+                <h2 className="text-xl font-bold tracking-tight">Connect your first store</h2>
+                <p className="mt-1.5 text-sm text-muted-foreground">
                   Start with Shopify — it takes about 30 seconds. We only request read-only access.
                 </p>
               </div>
 
-              {/* Shopify connect */}
-              <div className="rounded-lg border p-4 space-y-3">
+              <div className="rounded-xl border border-border/60 bg-muted/30 p-4 space-y-3">
                 <div className="flex items-center gap-3">
                   <div
-                    className="flex h-10 w-10 items-center justify-center rounded-lg text-sm font-semibold text-white"
+                    className="flex h-10 w-10 items-center justify-center rounded-xl text-sm font-bold text-white shadow-sm"
                     style={{ backgroundColor: CHANNEL_CONFIG.shopify.color }}
                   >
                     S
                   </div>
                   <div>
-                    <p className="font-medium">Shopify</p>
+                    <p className="text-sm font-semibold">Shopify</p>
                     <p className="text-xs text-muted-foreground">Connect via secure OAuth — read-only access</p>
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-xs">Your Shopify store domain</Label>
+                  <Label className="text-xs font-medium">Your Shopify store domain</Label>
                   <div className="flex gap-2">
                     <Input
                       placeholder="your-store.myshopify.com"
@@ -188,14 +221,13 @@ export function OnboardingWizard({ userName, onComplete }: OnboardingWizardProps
                 </div>
               </div>
 
-              {/* Other channels */}
               <div className="space-y-2">
-                <p className="text-xs text-muted-foreground">More channels coming soon:</p>
+                <p className="text-xs text-muted-foreground font-medium">More channels coming soon:</p>
                 <div className="flex gap-2 flex-wrap">
                   {(["amazon", "ebay", "etsy"] as const).map((platform) => (
                     <div
                       key={platform}
-                      className="flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs text-muted-foreground"
+                      className="flex items-center gap-1.5 rounded-full border border-border/60 px-3 py-1 text-xs text-muted-foreground"
                     >
                       <span
                         className="inline-block h-2 w-2 rounded-full"
@@ -224,42 +256,37 @@ export function OnboardingWizard({ userName, onComplete }: OnboardingWizardProps
           </Card>
         )}
 
-        {/* Step 3: Ready */}
         {step === 2 && (
-          <Card>
+          <Card className="border-border/60 shadow-lg">
             <CardContent className="pt-8 pb-8 text-center space-y-6">
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-500 text-white">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-lg shadow-emerald-500/20">
                 <Check className="h-8 w-8" />
               </div>
               <div>
-                <h2 className="text-xl font-bold">You&apos;re all set!</h2>
+                <h2 className="text-xl font-bold tracking-tight">You&apos;re all set!</h2>
                 <p className="mt-2 text-muted-foreground">
                   Your dashboard is ready. Here&apos;s what you can do:
                 </p>
               </div>
 
               <div className="grid gap-3 text-left">
-                <div className="flex items-start gap-3 rounded-lg border p-3">
-                  <TrendingUp className="h-5 w-5 text-amber-500 mt-0.5 flex-shrink-0" />
-                  <div>
-                    <p className="text-sm font-medium">Track revenue & orders</p>
-                    <p className="text-xs text-muted-foreground">See daily, weekly, and monthly trends across all channels</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3 rounded-lg border p-3">
-                  <BarChart3 className="h-5 w-5 text-amber-500 mt-0.5 flex-shrink-0" />
-                  <div>
-                    <p className="text-sm font-medium">Analyze your P&L</p>
-                    <p className="text-xs text-muted-foreground">Set your costs and see real profit margins per channel</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3 rounded-lg border p-3">
-                  <Store className="h-5 w-5 text-amber-500 mt-0.5 flex-shrink-0" />
-                  <div>
-                    <p className="text-sm font-medium">Connect more channels anytime</p>
-                    <p className="text-xs text-muted-foreground">Add Amazon, eBay, Etsy from Settings when you&apos;re ready</p>
-                  </div>
-                </div>
+                {READY_FEATURES.map((feature) => {
+                  const Icon = feature.icon;
+                  return (
+                    <div
+                      key={feature.title}
+                      className="flex items-start gap-3 rounded-xl border border-border/60 p-3.5"
+                    >
+                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600 flex-shrink-0">
+                        <Icon className="h-4.5 w-4.5" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold">{feature.title}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">{feature.desc}</p>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
 
               <div className="flex items-center gap-3 pt-2">

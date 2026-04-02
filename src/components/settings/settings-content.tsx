@@ -1,7 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { CreditCard, User, Link2, Bell, Loader2 } from "lucide-react";
+import Link from "next/link";
+import { Loader2 } from "lucide-react";
+import {
+  RiLink,
+  RiBankCardFill,
+  RiNotification3Fill,
+  RiUserFill,
+  RiArrowRightUpLine,
+  RiShieldCheckFill,
+  RiSparklingFill,
+} from "@remixicon/react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -10,7 +20,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { CHANNEL_CONFIG } from "@/lib/constants";
+import { CHANNEL_CONFIG, PLAN_LIMITS, PLAN_PRICES } from "@/lib/constants";
 import type { Platform } from "@/types";
 
 interface SettingsContentProps {
@@ -29,21 +39,24 @@ interface SettingsContentProps {
 export function SettingsContent({ email, businessName, plan, channels }: SettingsContentProps) {
   const [tab, setTab] = useState("channels");
 
+  const planLimits = PLAN_LIMITS[plan as keyof typeof PLAN_LIMITS];
+  const planPrice = PLAN_PRICES[plan] ?? 0;
+
   return (
     <div className="flex-1 space-y-6 p-6">
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList>
+        <TabsList className="bg-muted/50">
           <TabsTrigger value="channels" className="gap-1.5">
-            <Link2 className="h-3.5 w-3.5" /> Channels
+            <RiLink className="h-3.5 w-3.5" /> Channels
           </TabsTrigger>
           <TabsTrigger value="billing" className="gap-1.5">
-            <CreditCard className="h-3.5 w-3.5" /> Billing
+            <RiBankCardFill className="h-3.5 w-3.5" /> Billing
           </TabsTrigger>
           <TabsTrigger value="notifications" className="gap-1.5">
-            <Bell className="h-3.5 w-3.5" /> Notifications
+            <RiNotification3Fill className="h-3.5 w-3.5" /> Notifications
           </TabsTrigger>
           <TabsTrigger value="account" className="gap-1.5">
-            <User className="h-3.5 w-3.5" /> Account
+            <RiUserFill className="h-3.5 w-3.5" /> Account
           </TabsTrigger>
         </TabsList>
 
@@ -53,20 +66,23 @@ export function SettingsContent({ email, businessName, plan, channels }: Setting
               <CardTitle>Connected Channels</CardTitle>
               <CardDescription>Manage your marketplace connections.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-3">
               {channels.map((ch) => {
                 const config = CHANNEL_CONFIG[ch.platform as Platform];
                 return (
-                  <div key={ch.id} className="flex items-center justify-between rounded-lg border p-4">
+                  <div
+                    key={ch.id}
+                    className="flex items-center justify-between rounded-xl border border-border/60 bg-muted/30 p-4 transition-colors hover:bg-muted/50"
+                  >
                     <div className="flex items-center gap-3">
                       <div
-                        className="flex h-10 w-10 items-center justify-center rounded-lg text-sm font-semibold text-white"
+                        className="flex h-10 w-10 items-center justify-center rounded-xl text-sm font-bold text-white shadow-sm"
                         style={{ backgroundColor: config?.color }}
                       >
                         {config?.abbr}
                       </div>
                       <div>
-                        <p className="font-medium">{ch.name}</p>
+                        <p className="text-sm font-semibold">{ch.name}</p>
                         <p className="text-xs text-muted-foreground">
                           Connected {ch.created_at ? new Date(ch.created_at).toLocaleDateString() : "—"}
                         </p>
@@ -77,13 +93,15 @@ export function SettingsContent({ email, businessName, plan, channels }: Setting
                         variant="outline"
                         className={
                           ch.status === "active"
-                            ? "border-emerald-200 text-emerald-700"
+                            ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-400"
                             : ""
                         }
                       >
                         {ch.status === "active" ? "Active" : ch.status}
                       </Badge>
-                      <Button variant="outline" size="sm">Disconnect</Button>
+                      <Button variant="outline" size="sm" className="text-xs">
+                        Disconnect
+                      </Button>
                     </div>
                   </div>
                 );
@@ -91,7 +109,7 @@ export function SettingsContent({ email, businessName, plan, channels }: Setting
               {channels.length === 0 && (
                 <p className="text-sm text-muted-foreground">No channels connected yet.</p>
               )}
-              <Separator />
+              <Separator className="my-4" />
               <ConnectShopifySection hasShopify={channels.some((ch) => ch.platform === "shopify")} />
             </CardContent>
           </Card>
@@ -100,50 +118,55 @@ export function SettingsContent({ email, businessName, plan, channels }: Setting
         <TabsContent value="billing" className="mt-6 space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Current Plan</CardTitle>
-              <CardDescription>
-                You&apos;re on the <span className="font-medium capitalize">{plan}</span> plan.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 md:grid-cols-4">
-                {[
-                  { name: "free", price: "$0", features: ["1 channel", "100 orders/mo"] },
-                  { name: "starter", price: "$19", features: ["3 channels", "5,000 orders/mo"] },
-                  { name: "growth", price: "$39", features: ["5 channels", "25,000 orders/mo"], highlight: true },
-                  { name: "scale", price: "$79", features: ["Unlimited", "Unlimited orders"] },
-                ].map((p) => (
-                  <div
-                    key={p.name}
-                    className={`rounded-lg border p-4 ${
-                      p.name === plan
-                        ? "border-amber-500 ring-1 ring-amber-500"
-                        : p.highlight && p.name !== plan
-                          ? "border-muted-foreground/20"
-                          : ""
-                    }`}
-                  >
-                    <p className="font-semibold capitalize">{p.name}</p>
-                    <p className="text-2xl font-bold mt-1">
-                      {p.price}
-                      <span className="text-sm font-normal text-muted-foreground">/mo</span>
-                    </p>
-                    <ul className="mt-3 space-y-1 text-sm text-muted-foreground">
-                      {p.features.map((f) => (
-                        <li key={f}>• {f}</li>
-                      ))}
-                    </ul>
-                    <Button
-                      variant={p.name === plan ? "outline" : "default"}
-                      className={`mt-4 w-full ${p.name !== plan ? "bg-amber-500 hover:bg-amber-600" : ""}`}
-                      size="sm"
-                      disabled={p.name === plan}
-                    >
-                      {p.name === plan ? "Current" : "Upgrade"}
-                    </Button>
-                  </div>
-                ))}
+              <div className="flex items-start justify-between">
+                <div>
+                  <CardTitle>Current Plan</CardTitle>
+                  <CardDescription className="mt-1">
+                    You&apos;re on the{" "}
+                    <span className="font-semibold capitalize text-foreground">{plan}</span> plan.
+                  </CardDescription>
+                </div>
+                <Badge
+                  variant="outline"
+                  className="border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-400"
+                >
+                  <RiSparklingFill className="mr-1 h-3 w-3" />
+                  {plan === "free" ? "Free Tier" : "Active"}
+                </Badge>
               </div>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="rounded-xl border border-border/60 bg-muted/30 p-5">
+                <div className="flex items-baseline gap-1">
+                  <span className="text-3xl font-bold tracking-tight">${planPrice}</span>
+                  <span className="text-sm text-muted-foreground">/month</span>
+                </div>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <div className="flex items-center gap-2.5 rounded-lg border border-border/40 bg-background p-3">
+                    <RiLink className="h-4 w-4 text-amber-500" />
+                    <div>
+                      <p className="text-xs text-muted-foreground">Channels</p>
+                      <p className="text-sm font-semibold">
+                        {planLimits?.channels === 999 ? "Unlimited" : `${planLimits?.channels ?? 1} channel${(planLimits?.channels ?? 1) > 1 ? "s" : ""}`}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2.5 rounded-lg border border-border/40 bg-background p-3">
+                    <RiShieldCheckFill className="h-4 w-4 text-amber-500" />
+                    <div>
+                      <p className="text-xs text-muted-foreground">Orders / month</p>
+                      <p className="text-sm font-semibold">
+                        {planLimits?.ordersPerMonth === 999999
+                          ? "Unlimited"
+                          : `${(planLimits?.ordersPerMonth ?? 100).toLocaleString()}`}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <Button className="w-full gap-2 bg-amber-500 hover:bg-amber-600 text-white" render={<Link href="/billing" />}>
+                Manage Billing <RiArrowRightUpLine className="h-4 w-4" />
+              </Button>
             </CardContent>
           </Card>
         </TabsContent>
@@ -154,19 +177,22 @@ export function SettingsContent({ email, businessName, plan, channels }: Setting
               <CardTitle>Notification Preferences</CardTitle>
               <CardDescription>Choose what alerts you want to receive.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-1">
               {[
                 { id: "sync-errors", label: "Sync Errors", desc: "Get notified when a channel sync fails", default: true },
                 { id: "revenue-drops", label: "Revenue Drops", desc: "Alert when daily revenue drops more than 20%", default: true },
                 { id: "weekly-digest", label: "Weekly Digest", desc: "Email summary of your weekly performance", default: false },
                 { id: "low-stock", label: "Low Stock Alerts", desc: "Notify when inventory falls below threshold", default: true },
-              ].map((item) => (
-                <div key={item.id} className="flex items-center justify-between">
-                  <div>
-                    <Label htmlFor={item.id} className="font-medium">{item.label}</Label>
-                    <p className="text-xs text-muted-foreground">{item.desc}</p>
+              ].map((item, idx, arr) => (
+                <div key={item.id}>
+                  <div className="flex items-center justify-between rounded-lg px-1 py-3.5">
+                    <div>
+                      <Label htmlFor={item.id} className="text-sm font-semibold">{item.label}</Label>
+                      <p className="text-xs text-muted-foreground mt-0.5">{item.desc}</p>
+                    </div>
+                    <Switch id={item.id} defaultChecked={item.default} />
                   </div>
-                  <Switch id={item.id} defaultChecked={item.default} />
+                  {idx < arr.length - 1 && <Separator />}
                 </div>
               ))}
             </CardContent>
@@ -179,14 +205,17 @@ export function SettingsContent({ email, businessName, plan, channels }: Setting
               <CardTitle>Account Details</CardTitle>
               <CardDescription>Manage your account information.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4 max-w-md">
+            <CardContent className="space-y-5 max-w-md">
               <div className="space-y-2">
-                <Label htmlFor="name">Business Name</Label>
-                <Input id="name" defaultValue={businessName} />
+                <Label htmlFor="name" className="text-sm font-medium">Business Name</Label>
+                <Input id="name" defaultValue={businessName} className="h-10" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" defaultValue={email} disabled />
+                <Label htmlFor="email" className="text-sm font-medium">Email</Label>
+                <Input id="email" type="email" defaultValue={email} disabled className="h-10" />
+                <p className="text-xs text-muted-foreground">
+                  Email is managed by your authentication provider.
+                </p>
               </div>
               <Button className="bg-amber-500 hover:bg-amber-600 text-white">
                 Save Changes
@@ -206,9 +235,7 @@ function ConnectShopifySection({ hasShopify }: { hasShopify: boolean }) {
   function handleConnectShopify() {
     let domain = shopDomain.trim();
     if (!domain) return;
-    // Strip protocol and trailing slashes
     domain = domain.replace(/^https?:\/\//, "").split("/")[0];
-    // Add .myshopify.com if just the store name was entered
     if (!domain.includes(".myshopify.com")) {
       domain = domain + ".myshopify.com";
     }
@@ -218,12 +245,17 @@ function ConnectShopifySection({ hasShopify }: { hasShopify: boolean }) {
 
   return (
     <div>
-      <p className="text-sm font-medium mb-2">Add a new channel</p>
+      <p className="text-sm font-semibold mb-3">Add a new channel</p>
       {!hasShopify && (
-        <div className="mb-4 rounded-lg border p-4 space-y-3">
-          <div className="flex items-center gap-2">
-            <span className="inline-flex h-6 w-6 items-center justify-center rounded-md text-xs font-semibold text-white" style={{ backgroundColor: CHANNEL_CONFIG.shopify.color }}>S</span>
-            <span className="font-medium">Connect Shopify</span>
+        <div className="mb-4 rounded-xl border border-border/60 bg-muted/30 p-4 space-y-3">
+          <div className="flex items-center gap-2.5">
+            <span
+              className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-xs font-bold text-white shadow-sm"
+              style={{ backgroundColor: CHANNEL_CONFIG.shopify.color }}
+            >
+              S
+            </span>
+            <span className="text-sm font-semibold">Connect Shopify</span>
           </div>
           <p className="text-xs text-muted-foreground">
             Enter your Shopify store domain to connect via OAuth.
@@ -234,12 +266,13 @@ function ConnectShopifySection({ hasShopify }: { hasShopify: boolean }) {
               value={shopDomain}
               onChange={(e) => setShopDomain(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleConnectShopify()}
-              className="flex-1"
+              className="flex-1 h-9"
             />
             <Button
               onClick={handleConnectShopify}
               disabled={!shopDomain.trim() || connecting}
               className="bg-[#96BF48] hover:bg-[#7ea03c] text-white"
+              size="sm"
             >
               {connecting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Connect
@@ -249,11 +282,14 @@ function ConnectShopifySection({ hasShopify }: { hasShopify: boolean }) {
       )}
       <div className="flex gap-2 flex-wrap">
         {(["amazon", "ebay", "etsy", "woocommerce"] as const).map((platform) => (
-          <Button key={platform} variant="outline" className="gap-2" disabled>
-            <span className="inline-block h-3 w-3 rounded-full" style={{ backgroundColor: CHANNEL_CONFIG[platform].color }} />
+          <Button key={platform} variant="outline" className="gap-2 rounded-lg" disabled>
+            <span
+              className="inline-block h-2.5 w-2.5 rounded-full"
+              style={{ backgroundColor: CHANNEL_CONFIG[platform].color }}
+            />
             {CHANNEL_CONFIG[platform].label}
-            <Badge variant="secondary" className="text-[10px]">
-              {platform === "amazon" ? "Soon" : "Soon"}
+            <Badge variant="secondary" className="text-[10px] px-1.5">
+              Soon
             </Badge>
           </Button>
         ))}

@@ -1,27 +1,101 @@
 import { Plus, RefreshCw, CheckCircle2, AlertCircle } from "lucide-react";
 import { Header } from "@/components/layout/header";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ChannelBadge } from "@/components/layout/channel-badge";
-import { CHANNEL_CONFIG, rangeToDays } from "@/lib/constants";
+import { KPICard } from "@/components/dashboard/kpi-card";
+import { CategoryBar } from "@/components/tremor/category-bar";
+import { CHANNEL_CONFIG, PLAN_LIMITS, rangeToDays } from "@/lib/constants";
 import { formatCurrency, formatNumber, formatDate } from "@/lib/formatters";
 import { getChannelsWithStats } from "@/lib/queries";
 import { getSession } from "@/lib/auth/actions";
 import type { Platform } from "@/types";
+import type { KPIData } from "@/types";
 
 export const dynamic = "force-dynamic";
 
-export default async function ChannelsPage({ searchParams }: { searchParams: Promise<{ range?: string; from?: string; to?: string }> }) {
+export default async function ChannelsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ range?: string; from?: string; to?: string }>;
+}) {
   const params = await searchParams;
-  const dateParams = params.from && params.to
-    ? { from: params.from, to: params.to }
-    : { days: rangeToDays(params.range ?? null) };
+  const dateParams =
+    params.from && params.to
+      ? { from: params.from, to: params.to }
+      : { days: rangeToDays(params.range ?? null) };
 
   const [user, channels] = await Promise.all([
     getSession(),
     getChannelsWithStats(dateParams),
   ]);
+
+  const totalRevenue = channels.reduce((s, c) => s + c.revenue, 0);
+  const totalOrders = channels.reduce((s, c) => s + c.ordersCount, 0);
+  const activeChannels = channels.filter((c) => c.status === "active").length;
+  const avgAov = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+
+  const plan = "free" as keyof typeof PLAN_LIMITS;
+  const limits = PLAN_LIMITS[plan];
+
+  const kpis: KPIData[] = [
+    {
+      title: "Total Revenue",
+      value: totalRevenue,
+      formattedValue: formatCurrency(totalRevenue),
+      change: 0,
+      changeLabel: "",
+      sparklineData: [],
+    },
+    {
+      title: "Total Orders",
+      value: totalOrders,
+      formattedValue: formatNumber(totalOrders),
+      change: 0,
+      changeLabel: "",
+      sparklineData: [],
+      progress: {
+        value: totalOrders,
+        max: limits.ordersPerMonth,
+        label: `${totalOrders.toLocaleString()} / ${limits.ordersPerMonth.toLocaleString()} plan limit`,
+        color: totalOrders > limits.ordersPerMonth * 0.9 ? "#ef4444" : "#f59e0b",
+      },
+    },
+    {
+      title: "Active Channels",
+      value: activeChannels,
+      formattedValue: String(activeChannels),
+      change: 0,
+      changeLabel: "",
+      sparklineData: [],
+      progress: {
+        value: activeChannels,
+        max: limits.channels,
+        label: `${activeChannels} / ${limits.channels >= 999 ? "∞" : limits.channels} channels`,
+        color: limits.channels < 999 && activeChannels >= limits.channels ? "#ef4444" : "#10b981",
+      },
+    },
+    {
+      title: "Avg Order Value",
+      value: avgAov,
+      formattedValue: formatCurrency(avgAov),
+      change: 0,
+      changeLabel: "",
+      sparklineData: [],
+    },
+  ];
+
+  const revenueByChannel = channels
+    .filter((c) => c.revenue > 0)
+    .map((c) => {
+      const config = CHANNEL_CONFIG[c.platform as Platform];
+      return {
+        label: config?.label ?? c.platform,
+        value: c.revenue,
+        color: config?.color ?? "#94a3b8",
+      };
+    });
 
   return (
     <>
@@ -43,97 +117,131 @@ export default async function ChannelsPage({ searchParams }: { searchParams: Pro
         {channels.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">
-              <p className="text-muted-foreground">No channels connected yet.</p>
+              <p className="text-muted-foreground">
+                No channels connected yet.
+              </p>
               <p className="text-sm text-muted-foreground mt-1">
                 Connect your first store to start tracking sales.
               </p>
             </CardContent>
           </Card>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2">
-            {channels.map((channel) => {
-              const config = CHANNEL_CONFIG[channel.platform as Platform];
-              const aov = channel.ordersCount > 0 ? channel.revenue / channel.ordersCount : 0;
+          <>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              {kpis.map((kpi) => (
+                <KPICard key={kpi.title} data={kpi} />
+              ))}
+            </div>
 
-              return (
-                <Card key={channel.id} className="relative overflow-hidden">
-                  <div
-                    className="absolute left-0 top-0 h-full w-1"
-                    style={{ backgroundColor: config?.color }}
-                  />
-                  <CardHeader className="flex flex-row items-start justify-between pb-3">
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="flex h-10 w-10 items-center justify-center rounded-lg text-sm font-semibold text-white"
-                        style={{ backgroundColor: config?.color }}
-                      >
-                        {config?.abbr}
+            {revenueByChannel.length > 0 && (
+              <Card>
+                <CardContent className="pt-5 pb-4">
+                  <p className="text-sm font-medium text-muted-foreground mb-3">
+                    Revenue by Channel
+                  </p>
+                  <CategoryBar data={revenueByChannel} />
+                </CardContent>
+              </Card>
+            )}
+
+            <div className="grid gap-4 md:grid-cols-2">
+              {channels.map((channel) => {
+                const config = CHANNEL_CONFIG[channel.platform as Platform];
+                const aov =
+                  channel.ordersCount > 0
+                    ? channel.revenue / channel.ordersCount
+                    : 0;
+
+                return (
+                  <Card key={channel.id}>
+                    <CardContent className="pt-5">
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className="flex h-10 w-10 items-center justify-center rounded-lg text-sm font-semibold text-white"
+                            style={{ backgroundColor: config?.color }}
+                          >
+                            {config?.abbr}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span
+                                className="size-2 rounded-full shrink-0"
+                                style={{ backgroundColor: config?.color }}
+                              />
+                              <span className="text-sm font-semibold">
+                                {channel.name}
+                              </span>
+                            </div>
+                            <ChannelBadge
+                              platform={channel.platform as Platform}
+                              className="mt-1 text-[10px] px-1.5 py-0"
+                            />
+                          </div>
+                        </div>
+                        {channel.status === "active" ? (
+                          <Badge
+                            variant="outline"
+                            className="gap-1 border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-400"
+                          >
+                            <CheckCircle2 className="h-3 w-3" />
+                            Connected
+                          </Badge>
+                        ) : (
+                          <Badge variant="destructive" className="gap-1">
+                            <AlertCircle className="h-3 w-3" />
+                            {channel.status}
+                          </Badge>
+                        )}
                       </div>
-                      <div>
-                        <CardTitle className="text-sm font-semibold">
-                          {channel.name}
-                        </CardTitle>
-                        <ChannelBadge
-                          platform={channel.platform as Platform}
-                          className="mt-1 text-[10px] px-1.5 py-0"
-                        />
+
+                      <div className="grid grid-cols-3 gap-4 text-center">
+                        <div>
+                          <p className="text-lg font-bold tabular-nums">
+                            {formatCurrency(channel.revenue)}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Revenue
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-lg font-bold tabular-nums">
+                            {formatNumber(channel.ordersCount)}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Orders
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-lg font-bold tabular-nums">
+                            {formatCurrency(aov)}
+                          </p>
+                          <p className="text-xs text-muted-foreground">AOV</p>
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {channel.status === "active" ? (
-                        <Badge
-                          variant="outline"
-                          className="gap-1 border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-400"
+
+                      <div className="mt-4 flex items-center justify-between border-t pt-3">
+                        <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <RefreshCw className="h-3 w-3" />
+                          Last synced{" "}
+                          {channel.last_sync_at
+                            ? formatDate(channel.last_sync_at, "MMM d, h:mm a")
+                            : "never"}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-xs"
                         >
-                          <CheckCircle2 className="h-3 w-3" />
-                          Connected
-                        </Badge>
-                      ) : (
-                        <Badge variant="destructive" className="gap-1">
-                          <AlertCircle className="h-3 w-3" />
-                          {channel.status}
-                        </Badge>
-                      )}
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-3 gap-4 text-center">
-                      <div>
-                        <p className="text-lg font-bold tabular-nums">
-                          {formatCurrency(channel.revenue)}
-                        </p>
-                        <p className="text-xs text-muted-foreground">Revenue (30d)</p>
+                          Sync Now
+                        </Button>
                       </div>
-                      <div>
-                        <p className="text-lg font-bold tabular-nums">
-                          {formatNumber(channel.ordersCount)}
-                        </p>
-                        <p className="text-xs text-muted-foreground">Orders (30d)</p>
-                      </div>
-                      <div>
-                        <p className="text-lg font-bold tabular-nums">
-                          {formatCurrency(aov)}
-                        </p>
-                        <p className="text-xs text-muted-foreground">AOV</p>
-                      </div>
-                    </div>
-                    <div className="mt-4 flex items-center justify-between border-t pt-3">
-                      <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <RefreshCw className="h-3 w-3" />
-                        Last synced{" "}
-                        {channel.last_sync_at
-                          ? formatDate(channel.last_sync_at, "MMM d, h:mm a")
-                          : "never"}
-                      </span>
-                      <Button variant="ghost" size="sm" className="h-7 text-xs">
-                        Sync Now
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          </>
         )}
       </div>
     </>

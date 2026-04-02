@@ -1,24 +1,16 @@
 import { Suspense } from "react";
-import { Info } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { KPICard } from "@/components/dashboard/kpi-card";
+import { CategoryBar } from "@/components/tremor/category-bar";
 import { OrdersTable } from "@/components/orders/orders-table";
 import { getAllOrders } from "@/lib/queries";
 import { getSession } from "@/lib/auth/actions";
 import { formatCurrency } from "@/lib/formatters";
+import { PLAN_LIMITS } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
-
-function KpiTip({ tip }: { tip: string }) {
-  return (
-    <Tooltip>
-      <TooltipTrigger render={<Info className="h-3.5 w-3.5 text-muted-foreground/50 cursor-help" />} />
-      <TooltipContent side="top" className="max-w-[260px] text-xs">{tip}</TooltipContent>
-    </Tooltip>
-  );
-}
 
 export default async function OrdersPage() {
   const [user, orders] = await Promise.all([getSession(), getAllOrders()]);
@@ -29,62 +21,90 @@ export default async function OrdersPage() {
   const totalFees = orders.reduce((s, o) => s + Number(o.platform_fees ?? 0), 0);
   const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
 
+  const plan = "free" as keyof typeof PLAN_LIMITS;
+  const limits = PLAN_LIMITS[plan];
+  const profitMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
+
+  const netRevenue = totalRevenue - totalFees;
+  const categoryData = [
+    { label: "Net Revenue", value: Math.max(netRevenue - totalProfit, 0), color: "#10b981" },
+    { label: "Platform Fees", value: totalFees, color: "#f97316" },
+    { label: "Net Profit", value: Math.max(totalProfit, 0), color: "#6366f1" },
+  ].filter((d) => d.value > 0);
+
   return (
     <>
       <Header title="Orders" userEmail={user?.email ?? undefined} />
       <div className="flex-1 space-y-6 p-6">
-        <div className="grid gap-4 md:grid-cols-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
-                Total Orders
-                <KpiTip tip="Count of all orders synced from connected channels. Includes all statuses (paid, shipped, delivered). Excludes cancelled orders from revenue calculations." />
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold tabular-nums">{totalOrders}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
-                Total Revenue
-                <KpiTip tip="Sum of all order amounts (total_amount) from connected channels. Includes tax and shipping charges." />
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold tabular-nums">
-                {formatCurrency(totalRevenue)}
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
-                Avg Order Value
-                <KpiTip tip={`Average revenue per order. Calculated as: Total Revenue (${formatCurrency(totalRevenue)}) ÷ Total Orders (${totalOrders}) = ${formatCurrency(avgOrderValue)}.`} />
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold tabular-nums">
-                {formatCurrency(avgOrderValue)}
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
-                Net Profit
-                <KpiTip tip={`Revenue minus estimated platform fees. Calculated as: Total Revenue (${formatCurrency(totalRevenue)}) - Platform Fees (${formatCurrency(totalFees)}) = ${formatCurrency(totalProfit)}. COGS not yet deducted — set product costs in Settings.`} />
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className={`text-2xl font-bold tabular-nums ${totalProfit >= 0 ? "text-emerald-500" : "text-red-500"}`}>
-                {formatCurrency(totalProfit)}
-              </div>
-            </CardContent>
-          </Card>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <KPICard
+            data={{
+              title: "Total Orders",
+              value: totalOrders,
+              formattedValue: totalOrders.toLocaleString(),
+              change: 0,
+              changeLabel: "",
+              sparklineData: [],
+              progress: {
+                value: totalOrders,
+                max: limits.ordersPerMonth,
+                label: `${totalOrders.toLocaleString()} / ${limits.ordersPerMonth.toLocaleString()} plan limit`,
+                color: totalOrders > limits.ordersPerMonth * 0.9 ? "#ef4444" : "#f59e0b",
+              },
+            }}
+          />
+          <KPICard
+            data={{
+              title: "Total Revenue",
+              value: totalRevenue,
+              formattedValue: formatCurrency(totalRevenue),
+              change: 0,
+              changeLabel: "",
+              sparklineData: [],
+            }}
+          />
+          <KPICard
+            data={{
+              title: "Avg Order Value",
+              value: avgOrderValue,
+              formattedValue: formatCurrency(avgOrderValue),
+              change: 0,
+              changeLabel: "",
+              sparklineData: [],
+            }}
+          />
+          <KPICard
+            data={{
+              title: "Net Profit",
+              value: totalProfit,
+              formattedValue: formatCurrency(totalProfit),
+              change: 0,
+              changeLabel: "",
+              sparklineData: [],
+              progress: {
+                value: Math.abs(profitMargin),
+                max: 100,
+                label: `${profitMargin.toFixed(1)}% profit margin`,
+                color: profitMargin >= 20 ? "#10b981" : profitMargin >= 0 ? "#f59e0b" : "#ef4444",
+              },
+            }}
+          />
         </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base font-semibold">Revenue Breakdown</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <div className="flex items-baseline justify-between text-sm">
+                <span className="text-muted-foreground">Total</span>
+                <span className="font-medium tabular-nums">{formatCurrency(totalRevenue)}</span>
+              </div>
+              <CategoryBar data={categoryData} />
+            </div>
+          </CardContent>
+        </Card>
 
         <Card>
           <CardHeader>

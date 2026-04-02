@@ -7,6 +7,12 @@ export interface KPIData {
   change: number;
   changeLabel: string;
   sparklineData: number[];
+  progress?: {
+    value: number;
+    max: number;
+    label?: string;
+    color?: string;
+  };
 }
 
 export interface RevenueTimeSeriesPoint {

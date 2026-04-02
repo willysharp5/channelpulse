@@ -7,6 +7,11 @@ import {
   FileText,
   Settings,
   ShoppingCart,
+  Users,
+  CreditCard,
+  ClipboardList,
+  Shield,
+  Receipt,
   type LucideIcon,
 } from "lucide-react";
 
@@ -35,7 +40,16 @@ export const NAV_ITEMS: NavItem[] = [
   { title: "Products", href: "/products", icon: Package },
   { title: "Channels", href: "/channels", icon: Store },
   { title: "P&L", href: "/pnl", icon: FileText },
+  { title: "Billing", href: "/billing", icon: Receipt },
   { title: "Settings", href: "/settings", icon: Settings },
+];
+
+export const ADMIN_NAV_ITEMS: NavItem[] = [
+  { title: "Dashboard", href: "/admin", icon: LayoutDashboard },
+  { title: "Users", href: "/admin/users", icon: Users },
+  { title: "Subscriptions", href: "/admin/subscriptions", icon: CreditCard },
+  { title: "Audit Log", href: "/admin/audit-log", icon: ClipboardList },
+  { title: "Settings", href: "/admin/settings", icon: Settings },
 ];
 
 export const DATE_RANGE_PRESETS = [
@@ -75,3 +89,10 @@ export const PLAN_LIMITS = {
   growth: { channels: 5, ordersPerMonth: 25000 },
   scale: { channels: 999, ordersPerMonth: 999999 },
 } as const;
+
+export const PLAN_PRICES: Record<string, number> = {
+  free: 0,
+  starter: 19,
+  growth: 39,
+  scale: 79,
+};

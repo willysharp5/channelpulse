@@ -10,6 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatCurrency } from "@/lib/formatters";
 import { CHANNEL_CONFIG } from "@/lib/constants";
+import { KPICard } from "@/components/dashboard/kpi-card";
+import { CategoryBar } from "@/components/tremor/category-bar";
 import type { Platform } from "@/types";
 import type { CostSettings, CogsMethod } from "@/lib/queries";
 
@@ -39,15 +41,6 @@ function Tip({ text }: { text: string }) {
     <Tooltip>
       <TooltipTrigger render={<Info className="h-3 w-3 text-muted-foreground/50 cursor-help" />} />
       <TooltipContent side="top" className="max-w-[280px] text-xs">{text}</TooltipContent>
-    </Tooltip>
-  );
-}
-
-function KpiTip({ tip }: { tip: string }) {
-  return (
-    <Tooltip>
-      <TooltipTrigger render={<Info className="h-3.5 w-3.5 text-muted-foreground/50 cursor-help" />} />
-      <TooltipContent side="top" className="max-w-[280px] text-xs">{tip}</TooltipContent>
     </Tooltip>
   );
 }
@@ -93,7 +86,6 @@ export function PnLContent({ pnl }: { pnl: PnLData }) {
   const rev = pnl.totalRevenue;
   const orders = pnl.totalOrders;
 
-  // Recalculate with current settings
   const marketplaceFees = (rev * settings.platform_fee_percent / 100) + (orders * settings.platform_fee_flat);
   const shippingCost = rev * (settings.shipping_cost_percent / 100);
   const processingFees = rev * (settings.payment_processing_percent / 100);
@@ -107,6 +99,13 @@ export function PnLContent({ pnl }: { pnl: PnLData }) {
   const netProfit = grossProfit - totalExpenses;
   const grossMargin = rev > 0 ? (grossProfit / rev) * 100 : 0;
   const netMargin = rev > 0 ? (netProfit / rev) * 100 : 0;
+
+  const categoryBarData = [
+    { label: "Revenue", value: Math.max(rev - effectiveCogs - totalExpenses, 0), color: "#10b981" },
+    { label: "COGS", value: effectiveCogs, color: "#f59e0b" },
+    { label: "Expenses", value: totalExpenses, color: "#ef4444" },
+    { label: "Profit", value: Math.max(netProfit, 0), color: "#3b82f6" },
+  ];
 
   async function handleSave() {
     setSaving(true);
@@ -125,43 +124,39 @@ export function PnLContent({ pnl }: { pnl: PnLData }) {
   return (
     <div className="flex-1 space-y-6 p-6">
       <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
-              Total Revenue
-              <KpiTip tip="Gross revenue from all connected channels. Sum of all order amounts including tax and shipping." />
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold tabular-nums">{formatCurrency(rev)}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
-              Gross Margin
-              <KpiTip tip={`(Revenue - COGS) ÷ Revenue × 100 = (${formatCurrency(rev)} - ${formatCurrency(effectiveCogs)}) ÷ ${formatCurrency(rev)} = ${grossMargin.toFixed(1)}%. COGS method: ${settings.cogs_method === "per_product" ? "per-product costs" : `${settings.default_cogs_percent}% of revenue`}.`} />
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold tabular-nums text-emerald-500">{grossMargin.toFixed(1)}%</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
-              Net Profit
-              <KpiTip tip={`Gross Profit (${formatCurrency(grossProfit)}) - Total Expenses (${formatCurrency(totalExpenses)}) = ${formatCurrency(netProfit)}. Margin: ${netMargin.toFixed(1)}%.`} />
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className={`text-2xl font-bold tabular-nums ${netProfit >= 0 ? "text-emerald-500" : "text-red-500"}`}>
-              {formatCurrency(netProfit)}
-            </div>
-            <p className="text-xs text-muted-foreground">{netMargin.toFixed(1)}% margin</p>
-          </CardContent>
-        </Card>
+        <KPICard
+          data={{
+            title: "Total Revenue (P&L)",
+            value: rev,
+            formattedValue: formatCurrency(rev),
+            change: 0,
+            changeLabel: `${orders} orders`,
+            sparklineData: [],
+          }}
+        />
+        <KPICard
+          data={{
+            title: "Gross Margin",
+            value: grossMargin,
+            formattedValue: `${grossMargin.toFixed(1)}%`,
+            change: grossMargin,
+            changeLabel: `${formatCurrency(grossProfit)} gross profit`,
+            sparklineData: [],
+          }}
+        />
+        <KPICard
+          data={{
+            title: "Net Profit",
+            value: netProfit,
+            formattedValue: formatCurrency(netProfit),
+            change: netMargin,
+            changeLabel: `${netMargin.toFixed(1)}% net margin`,
+            sparklineData: [],
+          }}
+        />
       </div>
+
+      <CategoryBar data={categoryBarData} />
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
@@ -338,8 +333,10 @@ export function PnLContent({ pnl }: { pnl: PnLData }) {
 
             <div className="h-2" />
             <Separator className="my-2 border-2" />
-            <PnLRow label="NET PROFIT" value={netProfit} bold highlight tooltip={`Gross Profit (${formatCurrency(grossProfit)}) - Total Expenses (${formatCurrency(totalExpenses)}) = ${formatCurrency(netProfit)}.`} />
-            <p className="text-xs text-muted-foreground text-right">{netMargin.toFixed(1)}% net margin</p>
+            <div className={`rounded-lg px-4 -mx-4 ${netProfit >= 0 ? "bg-emerald-50 dark:bg-emerald-950/20" : "bg-red-50 dark:bg-red-950/20"}`}>
+              <PnLRow label="NET PROFIT" value={netProfit} bold highlight tooltip={`Gross Profit (${formatCurrency(grossProfit)}) - Total Expenses (${formatCurrency(totalExpenses)}) = ${formatCurrency(netProfit)}.`} />
+              <p className={`text-xs text-right pb-3 ${netProfit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>{netMargin.toFixed(1)}% net margin</p>
+            </div>
           </div>
         </CardContent>
       </Card>

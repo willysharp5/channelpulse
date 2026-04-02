@@ -1,7 +1,33 @@
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { getImpersonatedUserId } from "@/lib/admin/impersonate";
 
 async function getOrgId(): Promise<string | null> {
   const supabase = await createClient();
+
+  const impersonatedUserId = await getImpersonatedUserId();
+
+  if (impersonatedUserId) {
+    const { data: adminProfile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq(
+        "id",
+        (await supabase.auth.getUser()).data.user?.id ?? ""
+      )
+      .single();
+
+    if (adminProfile?.role === "super_admin") {
+      const sb = createAdminClient();
+      const { data: targetProfile } = await sb
+        .from("profiles")
+        .select("org_id")
+        .eq("id", impersonatedUserId)
+        .single();
+      return targetProfile?.org_id ?? null;
+    }
+  }
+
   const {
     data: { user },
   } = await supabase.auth.getUser();

@@ -1,16 +1,10 @@
 import { Header } from "@/components/layout/header";
-import { OverviewCards } from "@/components/dashboard/overview-cards";
-import { RevenueChart } from "@/components/charts/revenue-chart";
-import { ChannelBreakdown } from "@/components/charts/channel-breakdown";
-import { TopProducts } from "@/components/dashboard/top-products";
-import { RecentOrders } from "@/components/dashboard/recent-orders";
-import { redirect } from "next/navigation";
+import { OverviewDashboard } from "@/components/dashboard/overview-dashboard";
 import { getDashboardStats, getRevenueSeries, getChannelRevenue, getRecentOrders, getProducts } from "@/lib/queries";
 import { getSession } from "@/lib/auth/actions";
-import { CHANNEL_CONFIG, rangeToDays, DATE_RANGE_PRESETS } from "@/lib/constants";
+import { CHANNEL_CONFIG, rangeToDays, DATE_RANGE_PRESETS, PLAN_LIMITS } from "@/lib/constants";
 import { NoChannelsEmpty } from "@/components/dashboard/empty-state";
 import { getChannels } from "@/lib/queries";
-import { createClient } from "@/lib/supabase/server";
 import type { Platform } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -25,22 +19,6 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
     : DATE_RANGE_PRESETS.find((p) => p.value === (params.range ?? "30d"))?.label ?? "Last 30 days";
 
   const user = await getSession();
-
-  // Check if onboarding is complete
-  if (user) {
-    const supabase = await createClient();
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("org_id, organizations(onboarding_completed)")
-      .eq("id", user.id)
-      .single();
-    const orgRaw = profile?.organizations as unknown;
-    const org = (Array.isArray(orgRaw) ? orgRaw[0] : orgRaw) as { onboarding_completed: boolean } | null;
-    if (!org?.onboarding_completed) {
-      redirect("/onboarding");
-    }
-  }
-
   const channels = await getChannels();
 
   if (channels.length === 0) {
@@ -65,6 +43,9 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
   const revenueSeries = revenueResult.series;
   const activePlatforms = revenueResult.platforms;
 
+  const plan = "free" as keyof typeof PLAN_LIMITS;
+  const limits = PLAN_LIMITS[plan];
+
   const kpis = [
     {
       title: "Total Revenue",
@@ -83,6 +64,12 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
       sparklineData: revenueSeries.slice(-14).map((p) =>
         stats.aov.value > 0 ? Math.round(p.total / stats.aov.value) : 0
       ),
+      progress: {
+        value: stats.orders.value,
+        max: limits.ordersPerMonth,
+        label: `${stats.orders.value.toLocaleString()} / ${limits.ordersPerMonth.toLocaleString()} orders`,
+        color: stats.orders.value > limits.ordersPerMonth * 0.9 ? "#ef4444" : "#f59e0b",
+      },
     },
     {
       title: "Net Profit",
@@ -117,14 +104,15 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
         userEmail={user?.email ?? undefined}
         userName={user?.user_metadata?.business_name}
       />
-      <div className="flex-1 space-y-6 p-6">
-        <OverviewCards kpis={kpis} />
-        <RevenueChart data={revenueSeries} platforms={activePlatforms} />
-        <div className="grid gap-6 lg:grid-cols-2">
-          <ChannelBreakdown data={channelRevenue} />
-          <TopProducts products={products} />
-        </div>
-        <RecentOrders orders={recentOrders} />
+      <div className="flex-1 p-6">
+        <OverviewDashboard
+          kpis={kpis}
+          revenueSeries={revenueSeries}
+          platforms={activePlatforms}
+          channelRevenue={channelRevenue}
+          products={products}
+          recentOrders={recentOrders}
+        />
       </div>
     </>
   );

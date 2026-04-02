@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useCallback, Suspense } from "react";
-import { Info } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { KPICard } from "@/components/dashboard/kpi-card";
+import { CategoryBar } from "@/components/tremor/category-bar";
 import { ProductsTable } from "./products-table";
 import { CogsImport } from "./cogs-import";
-import { formatCurrency } from "@/lib/formatters";
+import { formatCurrency, formatNumber } from "@/lib/formatters";
+import type { KPIData } from "@/types";
 
 interface Product {
   id: string;
@@ -17,15 +18,6 @@ interface Product {
   cogs: number | null;
   category: string | null;
   status: string | null;
-}
-
-function KpiTip({ tip }: { tip: string }) {
-  return (
-    <Tooltip>
-      <TooltipTrigger render={<Info className="h-3.5 w-3.5 text-muted-foreground/50 cursor-help" />} />
-      <TooltipContent side="top" className="max-w-[260px] text-xs">{tip}</TooltipContent>
-    </Tooltip>
-  );
 }
 
 interface ProductsPageContentProps {
@@ -39,7 +31,43 @@ export function ProductsPageContent({ initialProducts }: ProductsPageContentProp
   const activeProducts = products.filter((p) => p.status === "active").length;
   const draftProducts = products.filter((p) => p.status === "draft").length;
   const archivedProducts = products.filter((p) => p.status === "archived").length;
+  const inactiveProducts = totalProducts - activeProducts;
   const totalCogs = products.reduce((s, p) => s + Number(p.cogs ?? 0), 0);
+
+  const kpis: KPIData[] = [
+    {
+      title: "Total Products",
+      value: totalProducts,
+      formattedValue: formatNumber(totalProducts),
+      change: 0,
+      changeLabel: `${activeProducts} active, ${draftProducts} draft, ${archivedProducts} archived`,
+      sparklineData: [],
+    },
+    {
+      title: "Active Products",
+      value: activeProducts,
+      formattedValue: formatNumber(activeProducts),
+      change: 0,
+      changeLabel: totalProducts > 0
+        ? `${((activeProducts / totalProducts) * 100).toFixed(0)}% of catalog`
+        : "",
+      sparklineData: [],
+    },
+    {
+      title: "Total COGS Value",
+      value: totalCogs,
+      formattedValue: formatCurrency(totalCogs),
+      change: 0,
+      changeLabel: "",
+      sparklineData: [],
+    },
+  ];
+
+  const statusBreakdown = [
+    { label: "Active", value: activeProducts, color: "#10b981" },
+    { label: "Draft", value: draftProducts, color: "#f59e0b" },
+    { label: "Archived", value: archivedProducts, color: "#94a3b8" },
+  ].filter((d) => d.value > 0);
 
   const handleCogsUpdate = useCallback((productId: string, newCogs: number) => {
     setProducts((prev) =>
@@ -48,52 +76,32 @@ export function ProductsPageContent({ initialProducts }: ProductsPageContentProp
   }, []);
 
   const handleBatchImportComplete = useCallback(() => {
-    // Re-fetch products after CSV import
     fetch("/api/products/list")
-      .then((r) => r.ok ? r.json() : [])
-      .then((data) => { if (Array.isArray(data) && data.length > 0) setProducts(data); })
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) setProducts(data);
+      })
       .catch(() => {});
   }, []);
 
   return (
     <div className="flex-1 space-y-6 p-6">
       <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
-              Total Products
-              <KpiTip tip={`Total products synced from all channels. ${activeProducts} active, ${draftProducts} draft, ${archivedProducts} archived.`} />
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalProducts}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
-              Active Products
-              <KpiTip tip="Products with status 'active' — live and available for sale on your connected channels." />
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{activeProducts}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
-              Total COGS (Cost of Goods)
-              <KpiTip tip={`Sum of Cost of Goods Sold for all products. Updates in real-time as you edit. Currently ${formatCurrency(totalCogs)}.`} />
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold tabular-nums">
-              {formatCurrency(totalCogs)}
-            </div>
-          </CardContent>
-        </Card>
+        {kpis.map((kpi) => (
+          <KPICard key={kpi.title} data={kpi} />
+        ))}
       </div>
+
+      {statusBreakdown.length > 0 && (
+        <Card>
+          <CardContent className="pt-5 pb-4">
+            <p className="text-sm font-medium text-muted-foreground mb-3">
+              Product Status Breakdown
+            </p>
+            <CategoryBar data={statusBreakdown} />
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
