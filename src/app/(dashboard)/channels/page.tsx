@@ -6,9 +6,9 @@ import { Badge } from "@/components/ui/badge";
 import { ChannelBadge } from "@/components/layout/channel-badge";
 import { KPICard } from "@/components/dashboard/kpi-card";
 import { CategoryBar } from "@/components/tremor/category-bar";
-import { CHANNEL_CONFIG, PLAN_LIMITS, rangeToDays } from "@/lib/constants";
+import { CHANNEL_CONFIG, rangeToDays } from "@/lib/constants";
 import { formatCurrency, formatNumber, formatDate } from "@/lib/formatters";
-import { getChannelsWithStats } from "@/lib/queries";
+import { getChannelsWithStats, getUserPlan } from "@/lib/queries";
 import { getSession } from "@/lib/auth/actions";
 import type { Platform } from "@/types";
 import type { KPIData } from "@/types";
@@ -36,8 +36,7 @@ export default async function ChannelsPage({
   const activeChannels = channels.filter((c) => c.status === "active").length;
   const avgAov = totalOrders > 0 ? totalRevenue / totalOrders : 0;
 
-  const plan = "free" as keyof typeof PLAN_LIMITS;
-  const limits = PLAN_LIMITS[plan];
+  const { limits } = await getUserPlan();
 
   const kpis: KPIData[] = [
     {

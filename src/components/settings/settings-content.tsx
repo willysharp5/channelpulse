@@ -164,9 +164,9 @@ export function SettingsContent({ email, businessName, plan, channels }: Setting
                   </div>
                 </div>
               </div>
-              <Button className="w-full gap-2 bg-amber-500 hover:bg-amber-600 text-white" render={<Link href="/billing" />}>
+              <Link href="/billing" className="flex w-full items-center justify-center gap-2 rounded-md bg-amber-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-amber-600">
                 Manage Billing <RiArrowRightUpLine className="h-4 w-4" />
-              </Button>
+              </Link>
             </CardContent>
           </Card>
         </TabsContent>

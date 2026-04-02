@@ -37,13 +37,17 @@ export async function POST(request: Request) {
   const sb = createAdminClient();
 
   try {
+    console.log(`[Stripe Webhook] Event: ${event.type}`);
+
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
+        console.log(`[Stripe Webhook] Checkout completed, mode: ${session.mode}`);
         if (session.mode !== "subscription") break;
 
         const userId = session.metadata?.supabase_user_id;
         const planKey = session.metadata?.plan;
+        console.log(`[Stripe Webhook] userId: ${userId}, plan: ${planKey}`);
         if (!userId || !planKey) break;
 
         const subscription = await stripe.subscriptions.retrieve(
@@ -51,7 +55,7 @@ export async function POST(request: Request) {
         );
         const period = getSubPeriod(subscription);
 
-        await sb.from("subscriptions").upsert(
+        const { error: upsertError } = await sb.from("subscriptions").upsert(
           {
             user_id: userId,
             plan: planKey,
@@ -66,6 +70,11 @@ export async function POST(request: Request) {
           },
           { onConflict: "user_id" }
         );
+        if (upsertError) {
+          console.error("[Stripe Webhook] Upsert error:", upsertError);
+        } else {
+          console.log(`[Stripe Webhook] Subscription upserted for user ${userId}, plan: ${planKey}`);
+        }
         break;
       }
 

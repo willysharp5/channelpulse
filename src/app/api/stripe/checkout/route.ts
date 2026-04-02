@@ -27,17 +27,28 @@ export async function POST(request: Request) {
       .from("subscriptions")
       .select("stripe_customer_id")
       .eq("user_id", user.id)
-      .eq("status", "active")
+      .not("stripe_customer_id", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(1)
       .single();
 
     let customerId = existingSub?.stripe_customer_id;
 
     if (!customerId) {
-      const customer = await stripe.customers.create({
+      const existing = await stripe.customers.list({
         email: user.email,
-        metadata: { supabase_user_id: user.id },
+        limit: 1,
       });
-      customerId = customer.id;
+
+      if (existing.data.length > 0) {
+        customerId = existing.data[0].id;
+      } else {
+        const customer = await stripe.customers.create({
+          email: user.email,
+          metadata: { supabase_user_id: user.id },
+        });
+        customerId = customer.id;
+      }
     }
 
     const session = await stripe.checkout.sessions.create({
@@ -45,8 +56,8 @@ export async function POST(request: Request) {
       mode: "subscription",
       payment_method_types: ["card"],
       line_items: [{ price: planConfig.priceId, quantity: 1 }],
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/settings?billing=success`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/settings?billing=cancelled`,
+      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/billing?checkout=success`,
+      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/billing?checkout=cancelled`,
       metadata: {
         supabase_user_id: user.id,
         plan,

@@ -38,6 +38,47 @@ const ACTION_LABELS: Record<string, { label: string; color: string }> = {
   manual_sync: { label: "Manual Sync", color: "bg-zinc-100 text-zinc-800" },
 };
 
+function formatDetails(action: string, details: Record<string, unknown>): string {
+  if (Object.keys(details).length === 0) return "—";
+
+  switch (action) {
+    case "change_plan": {
+      const from = details.from as string | undefined;
+      const to = details.to as string | undefined;
+      if (from && to) return `${capitalize(from)} → ${capitalize(to)}`;
+      return to ? `Changed to ${capitalize(to)}` : "Plan changed";
+    }
+    case "ban_user":
+      return details.reason ? `Reason: ${details.reason}` : "No reason given";
+    case "update_plan": {
+      const plan = details.plan as string | undefined;
+      const changes = details.changes as Record<string, unknown> | undefined;
+      const parts: string[] = [];
+      if (plan) parts.push(capitalize(plan));
+      if (changes) {
+        const keys = Object.keys(changes);
+        if (keys.length > 0) parts.push(keys.map((k) => k.replace(/_/g, " ")).join(", "));
+      }
+      return parts.length > 0 ? parts.join(" — ") : "Plan updated";
+    }
+    case "manual_sync":
+      return details.channel ? `Channel: ${details.channel}` : "Manual sync triggered";
+    default: {
+      const entries = Object.entries(details);
+      if (entries.length <= 2) {
+        return entries
+          .map(([k, v]) => `${k.replace(/_/g, " ")}: ${v}`)
+          .join(", ");
+      }
+      return `${entries.length} fields`;
+    }
+  }
+}
+
+function capitalize(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
 export function AuditLogClient({
   entries,
   currentPage,
@@ -121,10 +162,8 @@ export function AuditLogClient({
                       <TableCell className="text-sm">
                         {entry.target_email ?? (entry.target_user_id ? entry.target_user_id.slice(0, 8) : "—")}
                       </TableCell>
-                      <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">
-                        {Object.keys(entry.details).length > 0
-                          ? JSON.stringify(entry.details)
-                          : "—"}
+                      <TableCell className="text-xs text-muted-foreground max-w-[250px]">
+                        {formatDetails(entry.action, entry.details)}
                       </TableCell>
                     </TableRow>
                   );

@@ -5,10 +5,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { KPICard } from "@/components/dashboard/kpi-card";
 import { CategoryBar } from "@/components/tremor/category-bar";
 import { OrdersTable } from "@/components/orders/orders-table";
-import { getAllOrders } from "@/lib/queries";
+import { getAllOrders, getUserPlan } from "@/lib/queries";
 import { getSession } from "@/lib/auth/actions";
 import { formatCurrency } from "@/lib/formatters";
-import { PLAN_LIMITS } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
 
@@ -21,8 +20,7 @@ export default async function OrdersPage() {
   const totalFees = orders.reduce((s, o) => s + Number(o.platform_fees ?? 0), 0);
   const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
 
-  const plan = "free" as keyof typeof PLAN_LIMITS;
-  const limits = PLAN_LIMITS[plan];
+  const { limits } = await getUserPlan();
   const profitMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
 
   const netRevenue = totalRevenue - totalFees;

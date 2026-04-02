@@ -1,8 +1,8 @@
 import { Header } from "@/components/layout/header";
 import { OverviewDashboard } from "@/components/dashboard/overview-dashboard";
-import { getDashboardStats, getRevenueSeries, getChannelRevenue, getRecentOrders, getProducts } from "@/lib/queries";
+import { getDashboardStats, getRevenueSeries, getChannelRevenue, getRecentOrders, getProducts, getUserPlan } from "@/lib/queries";
 import { getSession } from "@/lib/auth/actions";
-import { CHANNEL_CONFIG, rangeToDays, DATE_RANGE_PRESETS, PLAN_LIMITS } from "@/lib/constants";
+import { CHANNEL_CONFIG, rangeToDays, DATE_RANGE_PRESETS } from "@/lib/constants";
 import { NoChannelsEmpty } from "@/components/dashboard/empty-state";
 import { getChannels } from "@/lib/queries";
 import type { Platform } from "@/types";
@@ -43,8 +43,7 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
   const revenueSeries = revenueResult.series;
   const activePlatforms = revenueResult.platforms;
 
-  const plan = "free" as keyof typeof PLAN_LIMITS;
-  const limits = PLAN_LIMITS[plan];
+  const { limits } = await getUserPlan();
 
   const kpis = [
     {

@@ -169,13 +169,15 @@ export function BillingClient({ plans, currentPlan, subscription, freeFeatures }
                     ` · Renews ${new Date(subscription.current_period_end).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}`}
                 </p>
               </div>
-              <Button
-                variant="outline"
-                onClick={handleManageBilling}
-                disabled={loading === "portal"}
-              >
-                {loading === "portal" ? "Loading..." : "Manage Billing"}
-              </Button>
+              {subscription?.stripe_customer_id && (
+                <Button
+                  variant="outline"
+                  onClick={handleManageBilling}
+                  disabled={loading === "portal"}
+                >
+                  {loading === "portal" ? "Loading..." : "Manage Billing"}
+                </Button>
+              )}
             </div>
 
             <div className="space-y-3 rounded-lg border border-border/50 bg-muted/30 p-4">
@@ -213,24 +215,20 @@ export function BillingClient({ plans, currentPlan, subscription, freeFeatures }
       )}
 
       {currentPlan === "free" && !subscription && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <CardTitle className="text-base">Current Plan</CardTitle>
-              <Badge variant="outline">Free</Badge>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-5">
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <p className="font-medium">Free Plan</p>
-                <p className="text-sm text-muted-foreground">
-                  {freeFeatures.join(" · ")}
-                </p>
-              </div>
+        <div className="rounded-xl border border-amber-200 bg-amber-50/30 p-6 dark:border-amber-900 dark:bg-amber-950/20">
+          <div className="flex items-center gap-3 mb-5">
+            <p className="text-base font-semibold">Current Plan</p>
+            <Badge variant="outline">Free</Badge>
+          </div>
+          <div className="space-y-5">
+            <div className="space-y-1">
+              <p className="font-medium">You&apos;re on the Free plan</p>
+              <p className="text-sm text-muted-foreground">
+                {freeFeatures.join(" · ")}
+              </p>
             </div>
 
-            <div className="space-y-3 rounded-lg border border-border/50 bg-muted/30 p-4">
+            <div className="space-y-3 rounded-lg border border-border/50 bg-white p-4 dark:bg-gray-900">
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 Usage
               </p>
@@ -253,8 +251,17 @@ export function BillingClient({ plans, currentPlan, subscription, freeFeatures }
                 <CategoryBar values={[0, 100]} />
               </div>
             </div>
-          </CardContent>
-        </Card>
+
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950/40">
+              <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                Upgrade to unlock more channels, higher order limits, and advanced analytics.
+              </p>
+              <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                Choose a plan below to get started — plans start at $19/mo.
+              </p>
+            </div>
+          </div>
+        </div>
       )}
 
       <div>

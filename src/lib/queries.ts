@@ -476,3 +476,28 @@ export async function getUserOrg() {
 
   return { user, profile };
 }
+
+export async function getUserPlan(): Promise<{ plan: string; limits: { channels: number; ordersPerMonth: number } }> {
+  const { PLAN_LIMITS } = await import("@/lib/constants");
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { plan: "free", limits: PLAN_LIMITS.free };
+
+  const sb = createAdminClient();
+  const { data: sub } = await sb
+    .from("subscriptions")
+    .select("plan")
+    .eq("user_id", user.id)
+    .eq("status", "active")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .single();
+
+  const plan = (sub?.plan ?? "free") as keyof typeof PLAN_LIMITS;
+  const limits = PLAN_LIMITS[plan] ?? PLAN_LIMITS.free;
+
+  return { plan, limits };
+}
