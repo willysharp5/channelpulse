@@ -20,19 +20,39 @@ export default async function BillingPage({
 
   let currentPlan = "free";
   let subscription = null;
+  let cancelledSub = null;
 
   if (user) {
     const sb = createAdminClient();
-    const { data: sub } = await sb
+
+    const { data: activeSub } = await sb
       .from("subscriptions")
       .select("*")
       .eq("user_id", user.id)
       .eq("status", "active")
       .single();
 
-    if (sub) {
-      currentPlan = sub.plan;
-      subscription = sub;
+    if (activeSub) {
+      currentPlan = activeSub.plan;
+      subscription = activeSub;
+    } else {
+      const { data: cancelled } = await sb
+        .from("subscriptions")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("status", "cancelled")
+        .order("cancelled_at", { ascending: false })
+        .limit(1)
+        .single();
+
+      if (cancelled) {
+        const { data: planData } = await sb
+          .from("plan_config")
+          .select("features")
+          .eq("id", cancelled.plan)
+          .single();
+        cancelledSub = { ...cancelled, features: planData?.features ?? [] };
+      }
     }
   }
 
@@ -68,6 +88,7 @@ export default async function BillingPage({
           plans={paidPlans}
           currentPlan={currentPlan}
           subscription={subscription}
+          cancelledSubscription={cancelledSub}
           freeFeatures={freePlan?.features ?? []}
         />
       </div>

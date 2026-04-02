@@ -23,10 +23,19 @@ interface Subscription {
   current_period_end: string | null;
 }
 
+interface CancelledSubscription {
+  plan: string;
+  cancelled_at: string | null;
+  current_period_end: string | null;
+  stripe_customer_id: string | null;
+  features: string[];
+}
+
 interface Props {
   plans: Plan[];
   currentPlan: string;
   subscription: Subscription | null;
+  cancelledSubscription?: CancelledSubscription | null;
   freeFeatures: string[];
 }
 
@@ -86,7 +95,7 @@ function CategoryBar({ values, className }: { values: number[]; className?: stri
   );
 }
 
-export function BillingClient({ plans, currentPlan, subscription, freeFeatures }: Props) {
+export function BillingClient({ plans, currentPlan, subscription, cancelledSubscription, freeFeatures }: Props) {
   const [loading, setLoading] = useState<string | null>(null);
 
   async function handleSubscribe(planKey: string) {
@@ -214,7 +223,43 @@ export function BillingClient({ plans, currentPlan, subscription, freeFeatures }
         </Card>
       )}
 
-      {currentPlan === "free" && !subscription && (
+      {cancelledSubscription && !subscription && (
+        <div className="rounded-xl border border-red-200 bg-red-50/30 p-6 dark:border-red-900 dark:bg-red-950/20">
+          <div className="flex items-center gap-3 mb-4">
+            <p className="text-base font-semibold">Subscription Cancelled</p>
+            <Badge variant="destructive" className="text-[11px]">Cancelled</Badge>
+          </div>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Your <span className="font-medium capitalize text-foreground">{cancelledSubscription.plan}</span> plan was cancelled
+              {cancelledSubscription.cancelled_at && (
+                <> on {new Date(cancelledSubscription.cancelled_at).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</>
+              )}.
+              {cancelledSubscription.current_period_end && (
+                <> Access ended {new Date(cancelledSubscription.current_period_end).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}.</>
+              )}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              You&apos;re now on the Free plan with limited features. Resubscribe below to restore your access.
+            </p>
+            {cancelledSubscription.features?.length > 0 && (
+              <div className="rounded-lg border border-red-200 bg-white p-4 dark:border-red-800 dark:bg-gray-900">
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">What you lost</p>
+                <div className="grid grid-cols-2 gap-2 text-sm text-muted-foreground">
+                  {cancelledSubscription.features.map((feature) => (
+                    <div key={feature} className="flex items-center gap-2">
+                      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-red-400" />
+                      {feature}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {currentPlan === "free" && !subscription && !cancelledSubscription && (
         <div className="rounded-xl border border-amber-200 bg-amber-50/30 p-6 dark:border-amber-900 dark:bg-amber-950/20">
           <div className="flex items-center gap-3 mb-5">
             <p className="text-base font-semibold">Current Plan</p>

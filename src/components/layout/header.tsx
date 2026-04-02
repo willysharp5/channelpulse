@@ -1,7 +1,5 @@
 "use client";
 
-import { Bell } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -14,6 +12,7 @@ import { DateRangePicker } from "./date-range-picker";
 import { ThemeToggle } from "./theme-toggle";
 import { UserMenu } from "./user-menu";
 import { SearchDialog } from "./search-dialog";
+import { NotificationPanel } from "./notification-panel";
 
 interface HeaderProps {
   title?: string;
@@ -39,18 +38,9 @@ export function Header({ title = "Overview", userEmail, userName }: HeaderProps)
 
       <div className="ml-auto flex items-center gap-2">
         <SearchDialog />
-
         <DateRangePicker />
-
-        <Button variant="ghost" size="icon" className="relative h-8 w-8">
-          <Bell className="h-4 w-4" />
-          <span className="absolute -right-0.5 -top-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-amber-500 text-[9px] font-medium text-white">
-            3
-          </span>
-        </Button>
-
+        <NotificationPanel />
         <ThemeToggle />
-
         <UserMenu email={userEmail} name={userName} />
       </div>
     </header>

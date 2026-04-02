@@ -171,28 +171,84 @@ export function SettingsContent({ email, businessName, plan, channels }: Setting
           </Card>
         </TabsContent>
 
-        <TabsContent value="notifications" className="mt-6 space-y-4">
+        <TabsContent value="notifications" className="mt-6 space-y-6">
+          {/* Alerts */}
           <Card>
             <CardHeader>
-              <CardTitle>Notification Preferences</CardTitle>
-              <CardDescription>Choose what alerts you want to receive.</CardDescription>
+              <CardTitle className="text-base">Alerts</CardTitle>
+              <CardDescription>Get notified about critical events in real time.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-1">
+            <CardContent className="p-0">
               {[
-                { id: "sync-errors", label: "Sync Errors", desc: "Get notified when a channel sync fails", default: true },
-                { id: "revenue-drops", label: "Revenue Drops", desc: "Alert when daily revenue drops more than 20%", default: true },
-                { id: "weekly-digest", label: "Weekly Digest", desc: "Email summary of your weekly performance", default: false },
-                { id: "low-stock", label: "Low Stock Alerts", desc: "Notify when inventory falls below threshold", default: true },
+                { id: "sync-errors", label: "Sync Errors", desc: "Channel sync failures and connection issues", default: true, priority: "high" },
+                { id: "revenue-drops", label: "Revenue Drops", desc: "When daily revenue drops more than 20% vs previous day", default: true, priority: "high" },
+                { id: "low-stock", label: "Low Stock Alerts", desc: "When inventory falls below your configured threshold", default: true, priority: "medium" },
+                { id: "order-spikes", label: "Order Spikes", desc: "Unusual order volume that may indicate a sale or issue", default: false, priority: "medium" },
               ].map((item, idx, arr) => (
-                <div key={item.id}>
-                  <div className="flex items-center justify-between rounded-lg px-1 py-3.5">
+                <div
+                  key={item.id}
+                  className={`flex items-center justify-between px-6 py-4 ${idx < arr.length - 1 ? "border-b" : ""}`}
+                >
+                  <div className="flex items-start gap-3">
+                    <span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${item.priority === "high" ? "bg-red-500" : "bg-amber-500"}`} />
                     <div>
-                      <Label htmlFor={item.id} className="text-sm font-semibold">{item.label}</Label>
+                      <Label htmlFor={item.id} className="text-sm font-medium">{item.label}</Label>
                       <p className="text-xs text-muted-foreground mt-0.5">{item.desc}</p>
                     </div>
-                    <Switch id={item.id} defaultChecked={item.default} />
                   </div>
-                  {idx < arr.length - 1 && <Separator />}
+                  <Switch id={item.id} defaultChecked={item.default} />
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+
+          {/* Reports */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Reports & Digests</CardTitle>
+              <CardDescription>Scheduled summaries sent to your email.</CardDescription>
+            </CardHeader>
+            <CardContent className="p-0">
+              {[
+                { id: "weekly-digest", label: "Weekly Digest", desc: "Revenue, orders, and top products summary every Monday", default: false },
+                { id: "monthly-report", label: "Monthly Report", desc: "Full P&L and channel comparison on the 1st of each month", default: false },
+                { id: "channel-summary", label: "Channel Summary", desc: "Per-channel performance breakdown sent weekly", default: false },
+              ].map((item, idx, arr) => (
+                <div
+                  key={item.id}
+                  className={`flex items-center justify-between px-6 py-4 ${idx < arr.length - 1 ? "border-b" : ""}`}
+                >
+                  <div>
+                    <Label htmlFor={item.id} className="text-sm font-medium">{item.label}</Label>
+                    <p className="text-xs text-muted-foreground mt-0.5">{item.desc}</p>
+                  </div>
+                  <Switch id={item.id} defaultChecked={item.default} />
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+
+          {/* Delivery */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Delivery</CardTitle>
+              <CardDescription>How you receive notifications.</CardDescription>
+            </CardHeader>
+            <CardContent className="p-0">
+              {[
+                { id: "email-notifs", label: "Email", desc: "Send notifications to your account email", default: true },
+                { id: "in-app-notifs", label: "In-App", desc: "Show notifications in the dashboard bell icon", default: true },
+                { id: "browser-push", label: "Browser Push", desc: "Desktop push notifications when the app is open", default: false },
+              ].map((item, idx, arr) => (
+                <div
+                  key={item.id}
+                  className={`flex items-center justify-between px-6 py-4 ${idx < arr.length - 1 ? "border-b" : ""}`}
+                >
+                  <div>
+                    <Label htmlFor={item.id} className="text-sm font-medium">{item.label}</Label>
+                    <p className="text-xs text-muted-foreground mt-0.5">{item.desc}</p>
+                  </div>
+                  <Switch id={item.id} defaultChecked={item.default} />
                 </div>
               ))}
             </CardContent>
