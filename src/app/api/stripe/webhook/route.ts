@@ -85,29 +85,45 @@ export async function POST(request: Request) {
         const priceId = subscription.items.data[0]?.price?.id;
         const plan = priceId ? getPlanByPriceId(priceId) : null;
 
-        const statusMap: Record<string, string> = {
-          active: "active",
-          past_due: "past_due",
-          canceled: "cancelled",
-          trialing: "trialing",
-          incomplete: "past_due",
-          unpaid: "past_due",
+        let status: string;
+        if (subscription.cancel_at_period_end && subscription.status === "active") {
+          status = "cancelling";
+        } else {
+          const statusMap: Record<string, string> = {
+            active: "active",
+            past_due: "past_due",
+            canceled: "cancelled",
+            trialing: "trialing",
+            incomplete: "past_due",
+            unpaid: "past_due",
+          };
+          status = statusMap[subscription.status] ?? "active";
+        }
+
+        console.log(`[Stripe Webhook] Subscription updated: status=${status}, cancel_at_period_end=${subscription.cancel_at_period_end}`);
+
+        const updatePayload = {
+          status,
+          plan: plan ?? undefined,
+          amount: subscription.items.data[0]?.price?.unit_amount ?? 0,
+          current_period_start: period.start,
+          current_period_end: period.end,
+          cancelled_at: subscription.canceled_at
+            ? new Date(subscription.canceled_at * 1000).toISOString()
+            : null,
+          updated_at: new Date().toISOString(),
         };
 
-        await sb
+        const { error: updateError, count } = await sb
           .from("subscriptions")
-          .update({
-            status: statusMap[subscription.status] ?? "active",
-            plan: plan ?? undefined,
-            amount: subscription.items.data[0]?.price?.unit_amount ?? 0,
-            current_period_start: period.start,
-            current_period_end: period.end,
-            cancelled_at: subscription.canceled_at
-              ? new Date(subscription.canceled_at * 1000).toISOString()
-              : null,
-            updated_at: new Date().toISOString(),
-          })
+          .update(updatePayload)
           .eq("stripe_subscription_id", subscription.id);
+
+        if (updateError) {
+          console.error(`[Stripe Webhook] Update error:`, updateError);
+        } else {
+          console.log(`[Stripe Webhook] Updated subscription ${subscription.id} to status=${status}, rows affected: ${count}`);
+        }
         break;
       }
 

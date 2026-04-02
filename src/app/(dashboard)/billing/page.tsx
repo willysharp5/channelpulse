@@ -29,12 +29,15 @@ export default async function BillingPage({
       .from("subscriptions")
       .select("*")
       .eq("user_id", user.id)
-      .eq("status", "active")
+      .in("status", ["active", "cancelling"])
       .single();
 
     if (activeSub) {
       currentPlan = activeSub.plan;
-      subscription = activeSub;
+      subscription = {
+        ...activeSub,
+        _cancelling: activeSub.status === "cancelling",
+      };
     } else {
       const { data: cancelled } = await sb
         .from("subscriptions")
@@ -51,7 +54,19 @@ export default async function BillingPage({
           .select("features")
           .eq("id", cancelled.plan)
           .single();
-        cancelledSub = { ...cancelled, features: planData?.features ?? [] };
+
+        const periodEnd = cancelled.current_period_end ? new Date(cancelled.current_period_end) : null;
+        const stillHasAccess = periodEnd && periodEnd > new Date();
+
+        if (stillHasAccess) {
+          currentPlan = cancelled.plan;
+          subscription = {
+            ...cancelled,
+            _cancelling: true,
+          };
+        } else {
+          cancelledSub = { ...cancelled, features: planData?.features ?? [] };
+        }
       }
     }
   }

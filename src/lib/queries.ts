@@ -477,27 +477,62 @@ export async function getUserOrg() {
   return { user, profile };
 }
 
-export async function getUserPlan(): Promise<{ plan: string; limits: { channels: number; ordersPerMonth: number } }> {
+export async function getUserPlan(): Promise<{
+  plan: string;
+  limits: { channels: number; ordersPerMonth: number };
+  status: "active" | "cancelling" | "expired" | "free";
+  periodEnd: string | null;
+}> {
   const { PLAN_LIMITS } = await import("@/lib/constants");
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) return { plan: "free", limits: PLAN_LIMITS.free };
+  if (!user) return { plan: "free", limits: PLAN_LIMITS.free, status: "free", periodEnd: null };
 
   const sb = createAdminClient();
-  const { data: sub } = await sb
+
+  const { data: activeSub } = await sb
     .from("subscriptions")
-    .select("plan")
+    .select("plan, status, current_period_end, cancelled_at")
     .eq("user_id", user.id)
-    .eq("status", "active")
+    .in("status", ["active", "cancelling"])
     .order("created_at", { ascending: false })
     .limit(1)
     .single();
 
-  const plan = (sub?.plan ?? "free") as keyof typeof PLAN_LIMITS;
-  const limits = PLAN_LIMITS[plan] ?? PLAN_LIMITS.free;
+  if (activeSub) {
+    const plan = activeSub.plan as keyof typeof PLAN_LIMITS;
+    return {
+      plan,
+      limits: PLAN_LIMITS[plan] ?? PLAN_LIMITS.free,
+      status: activeSub.status === "cancelling" ? "cancelling" : "active",
+      periodEnd: activeSub.current_period_end,
+    };
+  }
 
-  return { plan, limits };
+  const { data: cancelledSub } = await sb
+    .from("subscriptions")
+    .select("plan, current_period_end")
+    .eq("user_id", user.id)
+    .eq("status", "cancelled")
+    .order("cancelled_at", { ascending: false })
+    .limit(1)
+    .single();
+
+  if (cancelledSub?.current_period_end) {
+    const periodEnd = new Date(cancelledSub.current_period_end);
+    if (periodEnd > new Date()) {
+      const plan = cancelledSub.plan as keyof typeof PLAN_LIMITS;
+      return {
+        plan,
+        limits: PLAN_LIMITS[plan] ?? PLAN_LIMITS.free,
+        status: "cancelling",
+        periodEnd: cancelledSub.current_period_end,
+      };
+    }
+  }
+
+  return { plan: "free", limits: PLAN_LIMITS.free, status: "free", periodEnd: null };
 }

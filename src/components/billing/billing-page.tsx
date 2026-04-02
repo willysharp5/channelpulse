@@ -21,13 +21,21 @@ interface Subscription {
   status: string;
   stripe_customer_id: string | null;
   current_period_end: string | null;
+  cancelled_at?: string | null;
+  _cancelling?: boolean;
 }
 
 interface CancelledSubscription {
   plan: string;
+  status: string;
+  amount: number;
+  currency: string;
   cancelled_at: string | null;
+  current_period_start: string | null;
   current_period_end: string | null;
   stripe_customer_id: string | null;
+  stripe_subscription_id: string | null;
+  created_at: string;
   features: string[];
 }
 
@@ -162,19 +170,39 @@ export function BillingClient({ plans, currentPlan, subscription, cancelledSubsc
             <div className="flex items-center gap-3">
               <CardTitle className="text-base">Current Plan</CardTitle>
               <TierBadge tier={subscription.plan} />
+              {subscription._cancelling && (
+                <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-400 text-[11px]">
+                  Cancelling
+                </Badge>
+              )}
             </div>
           </CardHeader>
           <CardContent className="space-y-5">
+            {subscription._cancelling && subscription.current_period_end && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950/40">
+                <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                  Your subscription has been cancelled but you still have access until{" "}
+                  <span className="font-bold">
+                    {new Date(subscription.current_period_end).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+                  </span>.
+                </p>
+                <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                  After this date, you&apos;ll be downgraded to the Free plan. You can resubscribe anytime to keep your current features.
+                </p>
+              </div>
+            )}
             <div className="flex items-center justify-between">
               <div className="space-y-1">
                 <p className="font-medium capitalize">
                   {subscription.plan} Plan
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  {subscription.status === "active"
-                    ? "Active"
-                    : subscription.status}
-                  {subscription.current_period_end &&
+                  {subscription._cancelling
+                    ? `Access until ${new Date(subscription.current_period_end!).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}`
+                    : subscription.status === "active"
+                      ? "Active"
+                      : subscription.status}
+                  {!subscription._cancelling && subscription.current_period_end &&
                     ` · Renews ${new Date(subscription.current_period_end).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}`}
                 </p>
               </div>
@@ -184,7 +212,7 @@ export function BillingClient({ plans, currentPlan, subscription, cancelledSubsc
                   onClick={handleManageBilling}
                   disabled={loading === "portal"}
                 >
-                  {loading === "portal" ? "Loading..." : "Manage Billing"}
+                  {loading === "portal" ? "Loading..." : subscription._cancelling ? "Resubscribe" : "Manage Billing"}
                 </Button>
               )}
             </div>
@@ -224,27 +252,112 @@ export function BillingClient({ plans, currentPlan, subscription, cancelledSubsc
       )}
 
       {cancelledSubscription && !subscription && (
-        <div className="rounded-xl border border-red-200 bg-red-50/30 p-6 dark:border-red-900 dark:bg-red-950/20">
-          <div className="flex items-center gap-3 mb-4">
-            <p className="text-base font-semibold">Subscription Cancelled</p>
-            <Badge variant="destructive" className="text-[11px]">Cancelled</Badge>
-          </div>
-          <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">
-              Your <span className="font-medium capitalize text-foreground">{cancelledSubscription.plan}</span> plan was cancelled
-              {cancelledSubscription.cancelled_at && (
-                <> on {new Date(cancelledSubscription.cancelled_at).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</>
-              )}.
-              {cancelledSubscription.current_period_end && (
-                <> Access ended {new Date(cancelledSubscription.current_period_end).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}.</>
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <CardTitle className="text-base">Previous Subscription</CardTitle>
+                <Badge variant="destructive" className="text-[11px]">Cancelled</Badge>
+              </div>
+              {cancelledSubscription.stripe_customer_id && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleManageBilling}
+                  disabled={loading === "portal"}
+                >
+                  {loading === "portal" ? "Loading..." : "Billing History"}
+                </Button>
               )}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              You&apos;re now on the Free plan with limited features. Resubscribe below to restore your access.
-            </p>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            {/* Summary row */}
+            <div className="rounded-lg border bg-red-50/50 p-4 dark:bg-red-950/20">
+              <p className="text-sm">
+                Your <span className="font-semibold capitalize">{cancelledSubscription.plan}</span> plan
+                {cancelledSubscription.amount > 0 && (
+                  <> at <span className="font-semibold">${(cancelledSubscription.amount / 100).toFixed(0)}/mo</span></>
+                )} was cancelled.
+                You&apos;re now on the Free plan. Resubscribe below to restore access.
+              </p>
+            </div>
+
+            {/* Details grid */}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-3 rounded-lg border p-4">
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Subscription Details</p>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Plan</span>
+                    <span className="font-medium capitalize">{cancelledSubscription.plan}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Amount</span>
+                    <span className="font-medium">
+                      {cancelledSubscription.amount > 0
+                        ? `$${(cancelledSubscription.amount / 100).toFixed(2)}/${cancelledSubscription.currency?.toUpperCase() ?? "USD"}`
+                        : "Free"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Status</span>
+                    <span className="font-medium text-red-600 dark:text-red-400">Cancelled</span>
+                  </div>
+                  {cancelledSubscription.stripe_subscription_id && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Subscription ID</span>
+                      <span className="font-mono text-xs text-muted-foreground">
+                        {cancelledSubscription.stripe_subscription_id.slice(0, 20)}...
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-3 rounded-lg border p-4">
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Timeline</p>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Started</span>
+                    <span className="font-medium">
+                      {cancelledSubscription.created_at
+                        ? new Date(cancelledSubscription.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+                        : "—"}
+                    </span>
+                  </div>
+                  {cancelledSubscription.current_period_start && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Last period start</span>
+                      <span className="font-medium">
+                        {new Date(cancelledSubscription.current_period_start).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                      </span>
+                    </div>
+                  )}
+                  {cancelledSubscription.current_period_end && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Access ended</span>
+                      <span className="font-medium">
+                        {new Date(cancelledSubscription.current_period_end).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                      </span>
+                    </div>
+                  )}
+                  {cancelledSubscription.cancelled_at && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Cancelled on</span>
+                      <span className="font-medium text-red-600 dark:text-red-400">
+                        {new Date(cancelledSubscription.cancelled_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Features lost */}
             {cancelledSubscription.features?.length > 0 && (
-              <div className="rounded-lg border border-red-200 bg-white p-4 dark:border-red-800 dark:bg-gray-900">
-                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">What you lost</p>
+              <div className="rounded-lg border p-4">
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-3">Features you had</p>
                 <div className="grid grid-cols-2 gap-2 text-sm text-muted-foreground">
                   {cancelledSubscription.features.map((feature) => (
                     <div key={feature} className="flex items-center gap-2">
@@ -255,8 +368,8 @@ export function BillingClient({ plans, currentPlan, subscription, cancelledSubsc
                 </div>
               </div>
             )}
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       )}
 
       {currentPlan === "free" && !subscription && !cancelledSubscription && (
