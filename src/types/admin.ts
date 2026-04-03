@@ -24,6 +24,8 @@ export interface AdminUser {
 }
 
 export interface AdminUserDetail extends AdminUser {
+  /** When false, Overview shows the guided tour on next visit (until completed). */
+  has_seen_dashboard_tour: boolean;
   organization: {
     id: string;
     name: string;

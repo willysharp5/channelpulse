@@ -36,6 +36,7 @@ const ACTION_LABELS: Record<string, { label: string; color: string }> = {
   unban_user: { label: "Unban User", color: "bg-emerald-100 text-emerald-800" },
   change_plan: { label: "Change Plan", color: "bg-amber-100 text-amber-800" },
   manual_sync: { label: "Manual Sync", color: "bg-zinc-100 text-zinc-800" },
+  dashboard_tour_flag: { label: "Dashboard Tour", color: "bg-violet-100 text-violet-800 dark:bg-violet-950 dark:text-violet-200" },
 };
 
 function formatDetails(action: string, details: Record<string, unknown>): string {
@@ -63,6 +64,11 @@ function formatDetails(action: string, details: Record<string, unknown>): string
     }
     case "manual_sync":
       return details.channel ? `Channel: ${details.channel}` : "Manual sync triggered";
+    case "dashboard_tour_flag": {
+      const seen = details.has_seen_dashboard_tour;
+      if (typeof seen === "boolean") return seen ? "Marked complete" : "Reset (show tour)";
+      return "Tour flag updated";
+    }
     default: {
       const entries = Object.entries(details);
       if (entries.length <= 2) {
@@ -112,6 +118,7 @@ export function AuditLogClient({
               <SelectItem value="ban_user">Ban User</SelectItem>
               <SelectItem value="unban_user">Unban User</SelectItem>
               <SelectItem value="change_plan">Change Plan</SelectItem>
+              <SelectItem value="dashboard_tour_flag">Dashboard Tour</SelectItem>
             </SelectContent>
           </Select>
         </CardContent>

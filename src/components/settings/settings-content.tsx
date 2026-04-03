@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import {
   RiLink,
@@ -42,7 +42,6 @@ interface SettingsContentProps {
 }
 
 export function SettingsContent({ email, businessName, plan, channels, notificationPrefs: initialPrefs }: SettingsContentProps) {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const tabFromUrl = searchParams.get("tab");
 
@@ -60,8 +59,6 @@ export function SettingsContent({ email, businessName, plan, channels, notificat
 
   const [notifPrefs, setNotifPrefs] = useState(initialPrefs);
   const [savingNotif, setSavingNotif] = useState(false);
-  const [replayTourLoading, setReplayTourLoading] = useState(false);
-
   const saveNotif = useCallback((patch: Partial<NotificationPrefsState>) => {
     setNotifPrefs((prev) => {
       const next = { ...prev, ...patch };
@@ -409,45 +406,6 @@ export function SettingsContent({ email, businessName, plan, channels, notificat
               <Button className="bg-amber-500 hover:bg-amber-600 text-white">
                 Save Changes
               </Button>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Dashboard tour</CardTitle>
-              <CardDescription>
-                Short guided highlights for KPIs, revenue chart, channel breakdown, and date range.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3 max-w-md">
-              <Button
-                type="button"
-                variant="outline"
-                className="gap-2"
-                disabled={replayTourLoading}
-                onClick={async () => {
-                  setReplayTourLoading(true);
-                  try {
-                    const res = await fetch("/api/settings/tour-reset", { method: "POST" });
-                    if (res.ok) {
-                      router.push("/");
-                      router.refresh();
-                    }
-                  } finally {
-                    setReplayTourLoading(false);
-                  }
-                }}
-              >
-                {replayTourLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <RiSparklingFill className="h-4 w-4 text-amber-500" />
-                )}
-                Replay dashboard tour
-              </Button>
-              <p className="text-xs text-muted-foreground">
-                Opens Overview with the tour overlay. Skip or finish marks it complete again.
-              </p>
             </CardContent>
           </Card>
         </TabsContent>

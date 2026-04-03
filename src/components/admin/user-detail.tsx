@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { format, parseISO } from "date-fns";
-import { Eye, Ban, ShieldCheck, ArrowLeft } from "lucide-react";
+import { Eye, Ban, ShieldCheck, ArrowLeft, Sparkles, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
@@ -49,6 +49,12 @@ export function UserDetailClient({ user, planLimits, availablePlans }: Props) {
   const [banDialogOpen, setBanDialogOpen] = useState(false);
   const [banReason, setBanReason] = useState("");
   const [loading, setLoading] = useState(false);
+  const [tourSeen, setTourSeen] = useState(user.has_seen_dashboard_tour);
+  const [tourUpdating, setTourUpdating] = useState(false);
+
+  useEffect(() => {
+    setTourSeen(user.has_seen_dashboard_tour);
+  }, [user.has_seen_dashboard_tour]);
 
   const plan = (user.subscription?.plan ?? "free") as SubscriptionPlan;
   const limits = planLimits;
@@ -102,6 +108,29 @@ export function UserDetailClient({ user, planLimits, availablePlans }: Props) {
       toast.error("Failed to unban user");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function patchDashboardTour(hasSeen: boolean) {
+    setTourUpdating(true);
+    try {
+      const res = await fetch(`/api/admin/users/${user.id}/tour`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ has_seen_dashboard_tour: hasSeen }),
+      });
+      if (!res.ok) throw new Error();
+      setTourSeen(hasSeen);
+      toast.success(
+        hasSeen
+          ? "Tour marked complete for this user"
+          : "Tour reset — they will see it on their next Overview visit"
+      );
+      router.refresh();
+    } catch {
+      toast.error("Failed to update dashboard tour");
+    } finally {
+      setTourUpdating(false);
     }
   }
 
@@ -290,6 +319,57 @@ export function UserDetailClient({ user, planLimits, availablePlans }: Props) {
           </CardContent>
         </Card>
       )}
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Sparkles className="size-4 text-amber-500" />
+            <CardTitle className="text-base">Dashboard tour</CardTitle>
+          </div>
+          <CardDescription>
+            Overview guided walkthrough (KPIs, chart, channels, date range). Reset so this user sees it
+            again, or mark complete if they should not see it.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Row
+            label="Status"
+            value={
+              tourSeen ? (
+                <Badge variant="secondary" className="font-normal">
+                  Completed or skipped
+                </Badge>
+              ) : (
+                <Badge className="bg-amber-100 font-normal text-amber-900 hover:bg-amber-100 dark:bg-amber-950 dark:text-amber-100">
+                  Pending — shows on next Overview visit
+                </Badge>
+              )
+            }
+          />
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={tourUpdating || !tourSeen}
+              onClick={() => void patchDashboardTour(false)}
+            >
+              {tourUpdating ? <Loader2 className="mr-2 size-3.5 animate-spin" /> : null}
+              Reset tour for user
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={tourUpdating || tourSeen}
+              onClick={() => void patchDashboardTour(true)}
+            >
+              {tourUpdating ? <Loader2 className="mr-2 size-3.5 animate-spin" /> : null}
+              Mark tour complete
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       <Dialog open={banDialogOpen} onOpenChange={setBanDialogOpen}>
         <DialogContent>

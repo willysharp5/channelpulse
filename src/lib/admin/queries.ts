@@ -200,7 +200,9 @@ export async function getAdminUserDetail(userId: string): Promise<AdminUserDetai
 
   const { data: profile } = await sb
     .from("profiles")
-    .select("id, full_name, role, status, banned_at, banned_reason, org_id, created_at, updated_at")
+    .select(
+      "id, full_name, role, status, banned_at, banned_reason, org_id, created_at, updated_at, has_seen_dashboard_tour"
+    )
     .eq("id", userId)
     .single();
 
@@ -233,9 +235,12 @@ export async function getAdminUserDetail(userId: string): Promise<AdminUserDetai
     0
   );
 
+  const p = profile as Record<string, unknown>;
+
   return {
     ...profile,
     email,
+    has_seen_dashboard_tour: p.has_seen_dashboard_tour === true,
     organization: orgResult.data,
     subscription: subResult.data,
     channels_count: channelsResult.count ?? 0,
