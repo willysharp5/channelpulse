@@ -23,6 +23,7 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { CHANNEL_CONFIG, PLAN_LIMITS, PLAN_PRICES } from "@/lib/constants";
+import { DisconnectButton } from "@/components/channels/disconnect-button";
 import type { Platform } from "@/types";
 import { mergeNotificationPrefs } from "@/lib/alerts";
 
@@ -141,9 +142,7 @@ export function SettingsContent({ email, businessName, plan, channels, notificat
                       >
                         {ch.status === "active" ? "Active" : ch.status}
                       </Badge>
-                      <Button variant="outline" size="sm" className="text-xs">
-                        Disconnect
-                      </Button>
+                      <DisconnectButton channelId={ch.id} channelName={ch.name} />
                     </div>
                   </div>
                 );

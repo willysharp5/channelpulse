@@ -30,10 +30,7 @@ export async function POST(request: Request) {
       break;
     }
     case "sync_error": {
-      const result = syncErrorEmail(
-        "Amazon US Store",
-        "SP-API getOrders failed: 403 Access to Orders API denied. Check your developer profile roles."
-      );
+      const result = syncErrorEmail("Amazon US Store");
       subject = result.subject;
       html = result.html;
       break;

@@ -23,8 +23,7 @@ export function ChannelSyncButton({
     if (!canSync || loading) return;
     setLoading(true);
     try {
-      const endpoint = `/api/sync/${platform}`;
-      await fetch(endpoint, {
+      await fetch("/api/sync", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ channelId }),

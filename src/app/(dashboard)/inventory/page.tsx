@@ -1,4 +1,5 @@
 import { Header } from "@/components/layout/header";
+import { ExportButton } from "@/components/export-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSession } from "@/lib/auth/actions";
 import { getInventoryPage, parseInventoryListParams } from "@/lib/inventory-list";
@@ -20,8 +21,9 @@ export default async function InventoryPage({
     <>
       <Header title="Inventory" userEmail={user?.email ?? undefined} />
       <div className="flex-1 space-y-6 p-6">
-        <div>
+        <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">Stock levels</h2>
+          <ExportButton endpoint="/api/export/inventory" label="Export Inventory" />
           <p className="text-sm text-muted-foreground">
             Read-only view from your connected stores. Green &gt; 20, yellow 5–20, red &lt; 5 units. Search and
             filters run on the server.

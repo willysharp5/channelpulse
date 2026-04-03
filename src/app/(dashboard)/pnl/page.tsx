@@ -1,4 +1,5 @@
 import { Header } from "@/components/layout/header";
+import { ExportButton } from "@/components/export-button";
 import { getPnLData } from "@/lib/queries";
 import { getSession } from "@/lib/auth/actions";
 import { PnLContent } from "@/components/pnl/pnl-content";
@@ -25,6 +26,9 @@ export default async function PnLPage({ searchParams }: { searchParams: Promise<
   return (
     <>
       <Header title="Profit & Loss" userEmail={user?.email ?? undefined} />
+      <div className="flex items-center justify-end px-6 pt-4">
+        <ExportButton endpoint="/api/export/pnl" label="Export P&L" />
+      </div>
       <PnLContent pnl={pnl} rangeLabel={rangeLabel}>
         <SalesByChannelCard breakdown={pnl.channelBreakdown} />
       </PnLContent>

@@ -1,4 +1,5 @@
 import { Header } from "@/components/layout/header";
+import { ExportButton } from "@/components/export-button";
 import { getSession } from "@/lib/auth/actions";
 import {
   getProductsCatalogSummary,
@@ -27,6 +28,9 @@ export default async function ProductsPage({
   return (
     <>
       <Header title="Products" userEmail={user?.email ?? undefined} />
+      <div className="flex items-center justify-end px-6 pt-4">
+        <ExportButton endpoint="/api/export/products" label="Export Products" />
+      </div>
       <ProductsPageContent
         catalogSummary={catalogSummary}
         cogsTemplate={cogsTemplate}
