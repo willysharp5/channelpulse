@@ -2,9 +2,15 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TremorAreaChart } from "@/components/tremor/area-chart";
-import { CHANNEL_CONFIG, REPORT_CHANNEL_PALETTE } from "@/lib/constants";
 import { formatCompactCurrency } from "@/lib/formatters";
-import type { Platform } from "@/types";
+import type { AvailableChartColorsKeys } from "@/lib/chartUtils";
+
+const PLATFORM_CHART_COLORS: Record<string, AvailableChartColorsKeys> = {
+  shopify: "lime",
+  amazon: "amber",
+  etsy: "violet",
+  tiktok: "pink",
+};
 
 interface RevenueTrendChartProps {
   data: Array<{ dateLabel: string; [key: string]: string | number }>;
@@ -13,8 +19,8 @@ interface RevenueTrendChartProps {
 
 export function RevenueTrendChart({ data, platforms }: RevenueTrendChartProps) {
   const colors = platforms.map(
-    (p, i) => CHANNEL_CONFIG[p as Platform]?.color ?? REPORT_CHANNEL_PALETTE[i % REPORT_CHANNEL_PALETTE.length]!,
-  );
+    (p) => PLATFORM_CHART_COLORS[p] ?? "blue"
+  ) as AvailableChartColorsKeys[];
 
   return (
     <Card>
@@ -27,9 +33,10 @@ export function RevenueTrendChart({ data, platforms }: RevenueTrendChartProps) {
           index="dateLabel"
           categories={platforms}
           colors={colors}
-          stack={true}
+          type="stacked"
           valueFormatter={(v) => formatCompactCurrency(v)}
           className="h-[350px]"
+          showLegend={true}
         />
       </CardContent>
     </Card>

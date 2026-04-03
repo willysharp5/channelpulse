@@ -13,6 +13,8 @@ import {
   ClipboardList,
   Shield,
   Receipt,
+  Sparkles,
+  Mail,
   type LucideIcon,
 } from "lucide-react";
 
@@ -22,40 +24,16 @@ export const CHANNEL_CONFIG: Record<
 > = {
   shopify: { color: "#96BF48", label: "Shopify", abbr: "S" },
   amazon: { color: "#FF9900", label: "Amazon", abbr: "A" },
-  ebay: { color: "#E53238", label: "eBay", abbr: "E" },
   etsy: { color: "#F16521", label: "Etsy", abbr: "Et" },
-  woocommerce: { color: "#7B2D8E", label: "WooCommerce", abbr: "W" },
   tiktok: { color: "#FE2C55", label: "TikTok Shop", abbr: "TT" },
-  walmart: { color: "#0071CE", label: "Walmart", abbr: "Wm" },
-  facebook: { color: "#1877F2", label: "Facebook", abbr: "Fb" },
-  instagram: { color: "#E4405F", label: "Instagram", abbr: "Ig" },
-  pinterest: { color: "#BD081C", label: "Pinterest", abbr: "P" },
-  google: { color: "#4285F4", label: "Google", abbr: "G" },
-  bigcommerce: { color: "#121118", label: "BigCommerce", abbr: "BC" },
-  square: { color: "#006AFF", label: "Square", abbr: "Sq" },
-  temu: { color: "#FF6A00", label: "Temu", abbr: "Te" },
-  magento: { color: "#EE672F", label: "Magento", abbr: "Mg" },
-  mirakl: { color: "#5C2D91", label: "Mirakl", abbr: "Mi" },
 } as const;
 
 /** Order for “all platforms” UI (Channels reference, settings). */
 export const PLATFORM_DISPLAY_ORDER = [
   "shopify",
   "amazon",
-  "ebay",
   "etsy",
-  "woocommerce",
   "tiktok",
-  "walmart",
-  "facebook",
-  "instagram",
-  "pinterest",
-  "google",
-  "bigcommerce",
-  "square",
-  "temu",
-  "magento",
-  "mirakl",
 ] as const satisfies readonly Platform[];
 
 /** Stable ordering for platform filter dropdowns (known slugs first, then alpha). */
@@ -109,6 +87,7 @@ export const NAV_ITEMS: NavItem[] = [
   { title: "Inventory", href: "/inventory", icon: Boxes },
   { title: "Channels", href: "/channels", icon: Store },
   { title: "P&L", href: "/pnl", icon: FileText },
+  { title: "AI Insights", href: "/chat", icon: Sparkles },
   { title: "Billing", href: "/billing", icon: Receipt },
   { title: "Settings", href: "/settings", icon: Settings },
 ];
@@ -117,6 +96,8 @@ export const ADMIN_NAV_ITEMS: NavItem[] = [
   { title: "Dashboard", href: "/admin", icon: LayoutDashboard },
   { title: "Users", href: "/admin/users", icon: Users },
   { title: "Subscriptions", href: "/admin/subscriptions", icon: CreditCard },
+  { title: "AI Settings", href: "/admin/ai-settings", icon: Sparkles },
+  { title: "Email", href: "/admin/email", icon: Mail },
   { title: "Audit Log", href: "/admin/audit-log", icon: ClipboardList },
   { title: "Settings", href: "/admin/settings", icon: Settings },
 ];

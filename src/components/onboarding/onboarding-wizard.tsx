@@ -19,20 +19,8 @@ import type { Platform } from "@/types";
 
 const COMING_SOON_ONBOARDING: Platform[] = [
   "amazon",
-  "ebay",
   "etsy",
-  "woocommerce",
   "tiktok",
-  "walmart",
-  "facebook",
-  "instagram",
-  "pinterest",
-  "google",
-  "bigcommerce",
-  "square",
-  "temu",
-  "magento",
-  "mirakl",
 ];
 
 interface OnboardingWizardProps {
@@ -203,8 +191,8 @@ export function OnboardingWizard({ userName, onComplete }: OnboardingWizardProps
         {step === 0 && (
           <Card className="border-border/60 shadow-lg">
             <CardContent className="pt-8 pb-8 text-center space-y-6">
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 text-white shadow-lg shadow-amber-500/20">
-                <RiPulseFill className="h-8 w-8" />
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-xl bg-amber-500/10">
+                <RiPulseFill className="h-8 w-8 text-amber-500" />
               </div>
               <div>
                 <h1 className="text-2xl font-bold tracking-tight">

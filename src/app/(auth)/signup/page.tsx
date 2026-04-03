@@ -71,8 +71,8 @@ export default function SignupPage() {
     <Card className="w-full max-w-md overflow-hidden border-0 shadow-xl shadow-black/5 dark:border dark:shadow-none">
       <div className="h-1 w-full bg-gradient-to-r from-amber-400 via-amber-500 to-orange-500" />
       <CardHeader className="pb-4 pt-8 text-center">
-        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 text-white shadow-lg shadow-amber-500/25">
-          <RiPulseFill className="h-7 w-7" />
+        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-amber-500/10">
+          <RiPulseFill className="h-7 w-7 text-amber-500" />
         </div>
         <CardTitle className="text-2xl font-semibold tracking-tight">
           Create your account

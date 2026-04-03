@@ -2,6 +2,7 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @plugin "@tailwindcss/forms";
+@plugin "@tailwindcss/typography";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -87,7 +88,6 @@
   --channel-amazon: #FF9900;
   --channel-ebay: #E53238;
   --channel-etsy: #F16521;
-  --channel-woocommerce: #7B2D8E;
   --profit-positive: #22C55E;
   --profit-negative: #EF4444;
   --brand-primary: #F59E0B;
@@ -131,7 +131,6 @@
   --channel-amazon: #FF9900;
   --channel-ebay: #E53238;
   --channel-etsy: #F16521;
-  --channel-woocommerce: #7B2D8E;
   --profit-positive: #4ADE80;
   --profit-negative: #F87171;
   --brand-primary: #FBBF24;
@@ -147,6 +146,38 @@
   }
   html {
     @apply font-sans;
+  }
+
+  a,
+  button,
+  [role="button"],
+  [role="tab"],
+  [role="menuitem"],
+  [role="option"],
+  [role="switch"],
+  [role="checkbox"],
+  [role="radio"],
+  [role="link"],
+  [data-slot="sidebar-menu-button"],
+  [data-slot="tabs-trigger"],
+  select,
+  summary,
+  label[for],
+  input[type="checkbox"],
+  input[type="radio"],
+  input[type="submit"],
+  input[type="button"],
+  .recharts-surface,
+  .recharts-wrapper,
+  .recharts-sector,
+  .recharts-bar-rectangle,
+  .recharts-area,
+  .recharts-line,
+  .recharts-dot,
+  .recharts-legend-item,
+  .recharts-tooltip-cursor,
+  [draggable="true"] {
+    cursor: pointer !important;
   }
 }
 

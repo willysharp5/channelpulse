@@ -13,6 +13,9 @@ export interface KPIData {
     label?: string;
     color?: string;
   };
+  comparisonValue?: number;
+  comparisonFormatted?: string;
+  comparisonLabel?: string;
 }
 
 export interface RevenueTimeSeriesPoint {

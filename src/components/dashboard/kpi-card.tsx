@@ -92,15 +92,22 @@ export function KPICard({ data }: KPICardProps) {
         )}
 
         {!progress && (
-          <div className="mt-2 flex items-center gap-2">
-            {data.change !== 0 ? (
-              <>
-                <BadgeDelta value={data.change} size="sm" />
+          <div className="mt-2 space-y-1">
+            <div className="flex items-center gap-2">
+              {data.change !== 0 ? (
+                <>
+                  <BadgeDelta value={data.change} size="sm" />
+                  <span className="text-[11px] text-muted-foreground">{data.changeLabel}</span>
+                </>
+              ) : data.changeLabel ? (
                 <span className="text-[11px] text-muted-foreground">{data.changeLabel}</span>
-              </>
-            ) : data.changeLabel ? (
-              <span className="text-[11px] text-muted-foreground">{data.changeLabel}</span>
-            ) : null}
+              ) : null}
+            </div>
+            {data.comparisonFormatted && (
+              <p className="text-[11px] text-muted-foreground">
+                {data.comparisonLabel}: <span className="font-medium tabular-nums text-foreground/70">{data.comparisonFormatted}</span>
+              </p>
+            )}
           </div>
         )}
 

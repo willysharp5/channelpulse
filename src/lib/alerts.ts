@@ -1,4 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { sendEmail } from "@/lib/email/resend";
+import { lowStockAlertEmail, syncErrorEmail } from "@/lib/email/templates";
 
 export type NotificationPreferences = {
   sync_errors?: boolean;
@@ -82,6 +84,7 @@ export async function generateLowStockAlerts(orgId: string, supabase: SupabaseCl
   if (error || !products?.length) return;
 
   const dayAgo = new Date(Date.now() - 86400000).toISOString();
+  const newAlertItems: Array<{ title: string; sku: string | null; quantity: number; threshold: number }> = [];
 
   for (const p of products) {
     if (p.inventory_quantity == null) continue;
@@ -112,5 +115,63 @@ export async function generateLowStockAlerts(orgId: string, supabase: SupabaseCl
         threshold,
       },
     });
+
+    newAlertItems.push({ title: p.title, sku: p.sku, quantity: qty, threshold });
   }
+
+  if (newAlertItems.length > 0 && prefs.email) {
+    const ownerEmail = await getOrgOwnerEmail(orgId, supabase);
+    if (ownerEmail) {
+      const { subject, html } = lowStockAlertEmail(newAlertItems);
+      await sendEmail({ to: ownerEmail, subject, html });
+    }
+  }
+}
+
+export async function sendSyncErrorAlert(
+  orgId: string,
+  channelName: string,
+  technicalError: string,
+  supabase: SupabaseClient
+) {
+  await supabase.from("alerts").insert({
+    org_id: orgId,
+    type: "sync_error",
+    severity: "medium",
+    title: `Sync issue with ${channelName}`,
+    message: `We had trouble syncing data from ${channelName}. We'll retry automatically.`,
+    metadata: { channel_name: channelName, technical_error: technicalError },
+  });
+
+  const { data: org } = await supabase
+    .from("organizations")
+    .select("notification_preferences")
+    .eq("id", orgId)
+    .single();
+
+  const prefs = mergeNotificationPrefs(org?.notification_preferences);
+  if (!prefs.sync_errors || !prefs.email) return;
+
+  const ownerEmail = await getOrgOwnerEmail(orgId, supabase);
+  if (!ownerEmail) return;
+
+  const { subject, html } = syncErrorEmail(channelName);
+  await sendEmail({ to: ownerEmail, subject, html });
+}
+
+async function getOrgOwnerEmail(
+  orgId: string,
+  supabase: SupabaseClient
+): Promise<string | null> {
+  const { data } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("org_id", orgId)
+    .limit(1)
+    .single();
+
+  if (!data?.id) return null;
+
+  const { data: authUser } = await supabase.auth.admin.getUserById(data.id);
+  return authUser?.user?.email ?? null;
 }

@@ -152,7 +152,7 @@ export function SettingsContent({ email, businessName, plan, channels, notificat
                 <p className="text-sm text-muted-foreground">No channels connected yet.</p>
               )}
               <Separator className="my-4" />
-              <ConnectShopifySection hasShopify={channels.some((ch) => ch.platform === "shopify")} />
+              <ConnectShopifySection hasShopify={channels.some((ch) => ch.platform === "shopify")} hasAmazon={channels.some((ch) => ch.platform === "amazon")} hasEtsy={channels.some((ch) => ch.platform === "etsy")} hasTikTok={channels.some((ch) => ch.platform === "tiktok")} />
             </CardContent>
           </Card>
         </TabsContent>
@@ -644,9 +644,12 @@ function AccountTab({ email, businessName }: { email: string; businessName: stri
   );
 }
 
-function ConnectShopifySection({ hasShopify }: { hasShopify: boolean }) {
+function ConnectShopifySection({ hasShopify, hasAmazon, hasEtsy, hasTikTok }: { hasShopify: boolean; hasAmazon: boolean; hasEtsy: boolean; hasTikTok: boolean }) {
   const [shopDomain, setShopDomain] = useState("");
   const [connecting, setConnecting] = useState(false);
+  const [connectingAmazon, setConnectingAmazon] = useState(false);
+  const [connectingEtsy, setConnectingEtsy] = useState(false);
+  const [connectingTikTok, setConnectingTikTok] = useState(false);
 
   function handleConnectShopify() {
     let domain = shopDomain.trim();
@@ -657,6 +660,11 @@ function ConnectShopifySection({ hasShopify }: { hasShopify: boolean }) {
     }
     setConnecting(true);
     window.location.href = `/api/auth/shopify?shop=${encodeURIComponent(domain)}`;
+  }
+
+  function handleConnectAmazon() {
+    setConnectingAmazon(true);
+    window.location.href = "/api/auth/amazon";
   }
 
   return (
@@ -696,37 +704,95 @@ function ConnectShopifySection({ hasShopify }: { hasShopify: boolean }) {
           </div>
         </div>
       )}
-      <div className="flex gap-2 flex-wrap">
-        {(
-          [
-            "amazon",
-            "ebay",
-            "etsy",
-            "woocommerce",
-            "tiktok",
-            "walmart",
-            "facebook",
-            "instagram",
-            "pinterest",
-            "google",
-            "bigcommerce",
-            "square",
-            "temu",
-            "magento",
-            "mirakl",
-          ] as const satisfies readonly Platform[]
-        ).map((platform) => (
-          <Button key={platform} variant="outline" className="gap-2 rounded-lg" disabled>
+      {!hasAmazon && (
+        <div className="mb-4 rounded-xl border border-border/60 bg-muted/30 p-4 space-y-3">
+          <div className="flex items-center gap-2.5">
             <span
-              className="inline-block h-2.5 w-2.5 rounded-full"
-              style={{ backgroundColor: CHANNEL_CONFIG[platform].color }}
-            />
-            {CHANNEL_CONFIG[platform].label}
-            <Badge variant="secondary" className="text-[10px] px-1.5">
-              Soon
-            </Badge>
+              className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-xs font-bold text-white shadow-sm"
+              style={{ backgroundColor: CHANNEL_CONFIG.amazon.color }}
+            >
+              A
+            </span>
+            <span className="text-sm font-semibold">Connect Amazon</span>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Connect your Amazon Seller Central account via OAuth. Orders, inventory, and product data will sync automatically.
+          </p>
+          <Button
+            onClick={handleConnectAmazon}
+            disabled={connectingAmazon}
+            className="bg-[#FF9900] hover:bg-[#e68a00] text-white"
+            size="sm"
+          >
+            {connectingAmazon && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Connect Amazon Seller Central
           </Button>
-        ))}
+        </div>
+      )}
+      {!hasEtsy && (
+        <div className="mb-4 rounded-xl border border-border/60 bg-muted/30 p-4 space-y-3">
+          <div className="flex items-center gap-2.5">
+            <span
+              className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-xs font-bold text-white shadow-sm"
+              style={{ backgroundColor: CHANNEL_CONFIG.etsy.color }}
+            >
+              Et
+            </span>
+            <span className="text-sm font-semibold">Connect Etsy</span>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Connect your Etsy shop via OAuth. Orders, listings, and inventory data will sync automatically.
+          </p>
+          <Button
+            onClick={() => {
+              setConnectingEtsy(true);
+              window.location.href = "/api/auth/etsy";
+            }}
+            disabled={connectingEtsy}
+            className="bg-[#F16521] hover:bg-[#d9561a] text-white"
+            size="sm"
+          >
+            {connectingEtsy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Connect Etsy Shop
+          </Button>
+        </div>
+      )}
+      {!hasTikTok && (
+        <div className="mb-4 rounded-xl border border-border/60 bg-muted/30 p-4 space-y-3">
+          <div className="flex items-center gap-2.5">
+            <span
+              className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-xs font-bold text-white shadow-sm"
+              style={{ backgroundColor: CHANNEL_CONFIG.tiktok.color }}
+            >
+              TT
+            </span>
+            <span className="text-sm font-semibold">Connect TikTok Shop</span>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Connect your TikTok Shop account via OAuth. Orders, products, and inventory will sync automatically.
+          </p>
+          <Button
+            onClick={() => {
+              setConnectingTikTok(true);
+              window.location.href = "/api/auth/tiktok";
+            }}
+            disabled={connectingTikTok}
+            className="bg-[#FE2C55] hover:bg-[#e0264c] text-white"
+            size="sm"
+          >
+            {connectingTikTok && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Connect TikTok Shop
+          </Button>
+        </div>
+      )}
+      <div className="flex gap-2 flex-wrap">
+        <Button variant="outline" className="gap-2 rounded-lg" disabled>
+          <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#0071CE]" />
+          Walmart
+          <Badge variant="secondary" className="text-[10px] px-1.5">
+            Coming Soon
+          </Badge>
+        </Button>
       </div>
     </div>
   );

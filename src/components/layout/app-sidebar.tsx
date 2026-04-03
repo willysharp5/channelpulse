@@ -97,8 +97,8 @@ export function AppSidebar() {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" render={<Link href="/" />}>
-              <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-amber-500 text-white">
-                <Zap className="size-4" />
+              <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-amber-500/10">
+                <Zap className="size-4 text-amber-500" />
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-bold">ChannelPulse</span>
@@ -126,6 +126,14 @@ export function AppSidebar() {
                     <SidebarMenuButton render={<Link href={item.href} />} isActive={isActive}>
                       <item.icon className="size-4" />
                       <span>{item.title}</span>
+                      {item.badge && (
+                        <Badge
+                          variant="outline"
+                          className="ml-auto border-amber-500/30 px-1.5 py-0 text-[9px] text-amber-500"
+                        >
+                          {item.badge}
+                        </Badge>
+                      )}
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 );

@@ -249,7 +249,7 @@ export default function LandingPage() {
                 { name: "Amazon", color: "#FF9900", abbr: "A", status: "Syncing", orders: "634" },
                 { name: "eBay", color: "#E53238", abbr: "E", status: "Syncing", orders: "200" },
                 { name: "Etsy", color: "#F16521", abbr: "Et", status: "Pending", orders: "" },
-                { name: "WooCommerce", color: "#7B2D8E", abbr: "W", status: "Pending", orders: "" },
+                { name: "TikTok Shop", color: "#FE2C55", abbr: "TT", status: "Pending", orders: "" },
               ].map((ch) => (
                 <div key={ch.name} className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3.5 dark:border-gray-700 dark:bg-gray-900">
                   <div className="flex items-center gap-3">
@@ -541,7 +541,7 @@ export default function LandingPage() {
               { title: "Product", links: ["Overview", "Orders", "Revenue", "P&L Reports", "Documentation", "Changelog"] },
               { title: "Company", links: ["About", "Blog", "Careers", "Press", "Partners"] },
               { title: "Resources", links: ["Community", "Contact", "Support", "Privacy Policy", "Terms of Service", "Report an Issue"] },
-              { title: "Channels", links: ["Shopify", "Amazon", "eBay", "Etsy", "WooCommerce"] },
+              { title: "Channels", links: ["Shopify", "Amazon", "Etsy", "TikTok Shop"] },
             ].map((col) => (
               <div key={col.title}>
                 <p className="text-sm font-semibold text-gray-950 dark:text-gray-50">{col.title}</p>

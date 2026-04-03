@@ -16,13 +16,15 @@ export function ChannelSyncButton({
 }) {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-  const canSync = platform === "shopify" && !disabled;
+  const supportedPlatforms = ["shopify", "amazon", "etsy", "tiktok"];
+  const canSync = supportedPlatforms.includes(platform) && !disabled;
 
   async function onSync() {
     if (!canSync || loading) return;
     setLoading(true);
     try {
-      await fetch("/api/sync/shopify", {
+      const endpoint = `/api/sync/${platform}`;
+      await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ channelId }),
@@ -41,7 +43,7 @@ export function ChannelSyncButton({
       className="h-7 text-xs"
       onClick={onSync}
       disabled={!canSync || loading}
-      title={!canSync && platform !== "shopify" ? "Sync available for Shopify" : undefined}
+      title={!canSync ? "Sync not available for this platform yet" : undefined}
     >
       <RefreshCw className={`mr-1 h-3 w-3 ${loading ? "animate-spin" : ""}`} />
       {loading ? "Syncing…" : "Sync Now"}

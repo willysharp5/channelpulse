@@ -249,18 +249,35 @@ export default async function ChannelsPage({
 
         <Card className="border-dashed">
           <CardHeader className="pb-3">
-            <CardTitle className="text-base font-semibold">All supported platform types</CardTitle>
+            <CardTitle className="text-base font-semibold">Supported Channels</CardTitle>
             <CardDescription>
-              Labels and colors used across the app.               Optional demo load:{" "}
-              <code className="rounded bg-muted px-1 py-0.5 text-xs">npm run seed:demo</code> adds sample marketplace
-              stores (your real Shopify is unchanged).
+              Click any channel to connect it.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-2">
-              {PLATFORM_DISPLAY_ORDER.map((p) => (
-                <ChannelBadge key={p} platform={p} className="text-xs" />
-              ))}
+              {PLATFORM_DISPLAY_ORDER.map((p) => {
+                const config = CHANNEL_CONFIG[p];
+                return (
+                  <Link key={p} href="/settings">
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-muted cursor-pointer"
+                      style={{
+                        borderColor: config.color,
+                        color: config.color,
+                        backgroundColor: `${config.color}10`,
+                      }}
+                    >
+                      <span
+                        className="inline-block h-2 w-2 rounded-full"
+                        style={{ backgroundColor: config.color }}
+                      />
+                      {config.label}
+                    </button>
+                  </Link>
+                );
+              })}
             </div>
           </CardContent>
         </Card>

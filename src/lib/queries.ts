@@ -135,6 +135,85 @@ export async function getDashboardStats(params: DateParams = { days: 30 }) {
   };
 }
 
+export interface ComparisonStats {
+  revenue: number;
+  orders: number;
+  profit: number;
+  units: number;
+  aov: number;
+}
+
+export async function getComparisonStats(
+  compareFrom: string,
+  compareTo: string
+): Promise<ComparisonStats> {
+  const supabase = await createClient();
+  const orgId = await getOrgId();
+  if (!orgId) return { revenue: 0, orders: 0, profit: 0, units: 0, aov: 0 };
+
+  const reportFilter = await buildReportingChannelsFilter(supabase, orgId);
+  if (reportFilter.kind === "include_only" && reportFilter.channelIds.length === 0) {
+    return { revenue: 0, orders: 0, profit: 0, units: 0, aov: 0 };
+  }
+
+  let q = supabase
+    .from("daily_stats")
+    .select("total_revenue, total_orders, total_units, estimated_profit")
+    .eq("org_id", orgId)
+    .gte("date", compareFrom)
+    .lte("date", compareTo);
+  if (reportFilter.kind === "include_only") {
+    q = q.in("channel_id", reportFilter.channelIds);
+  }
+  const { data } = await q;
+
+  const sumField = (rows: Record<string, unknown>[] | null, field: string) =>
+    rows?.reduce((s, r) => s + Number(r[field] || 0), 0) ?? 0;
+
+  const revenue = sumField(data, "total_revenue");
+  const orders = sumField(data, "total_orders");
+  const profit = sumField(data, "estimated_profit");
+  const units = sumField(data, "total_units");
+  const aov = orders > 0 ? revenue / orders : 0;
+
+  return { revenue, orders, profit, units, aov };
+}
+
+export async function getComparisonRevenueSeries(
+  compareFrom: string,
+  compareTo: string
+): Promise<{ date: string; total: number }[]> {
+  const supabase = await createClient();
+  const orgId = await getOrgId();
+  if (!orgId) return [];
+
+  const reportFilter = await buildReportingChannelsFilter(supabase, orgId);
+  if (reportFilter.kind === "include_only" && reportFilter.channelIds.length === 0) {
+    return [];
+  }
+
+  let q = supabase
+    .from("daily_stats")
+    .select("date, total_revenue")
+    .eq("org_id", orgId)
+    .gte("date", compareFrom)
+    .lte("date", compareTo)
+    .order("date", { ascending: true });
+  if (reportFilter.kind === "include_only") {
+    q = q.in("channel_id", reportFilter.channelIds);
+  }
+  const { data } = await q;
+
+  const byDate = new Map<string, number>();
+  for (const row of data ?? []) {
+    byDate.set(row.date, (byDate.get(row.date) ?? 0) + Number(row.total_revenue));
+  }
+
+  return Array.from(byDate.entries())
+    .map(([date, total]) => ({ date, total }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
 export interface RevenuePoint {
   date: string;
   total: number;
@@ -182,13 +261,17 @@ export async function getRevenueSeries(params: DateParams = { days: 30 }): Promi
     byDate.set(row.date, existing);
   }
 
-  const activePlatforms = [...new Set(Array.from(channelMap.values()))];
+  const activePlatformSet = new Set<string>();
+  for (const row of stats ?? []) {
+    const platform = channelMap.get(row.channel_id);
+    if (platform) activePlatformSet.add(platform);
+  }
 
   const series = Array.from(byDate.entries())
     .map(([date, values]) => ({ date, ...values } as RevenuePoint))
     .sort((a, b) => a.date.localeCompare(b.date));
 
-  return { series, platforms: activePlatforms };
+  return { series, platforms: [...activePlatformSet] };
 }
 
 export async function getChannelRevenue(params: DateParams = { days: 30 }) {
@@ -316,20 +399,30 @@ export async function getChannelsWithStats(params: DateParams = { days: 30 }) {
   const orgId = await getOrgId();
   if (!orgId) return [];
 
+  const reportFilter = await buildReportingChannelsFilter(supabase, orgId);
+
   const { fromStr, toStr } = getDateRange(params);
 
-  const { data: channels } = await supabase
+  let channelsQ = supabase
     .from("channels")
     .select("*")
     .eq("org_id", orgId)
     .order("created_at", { ascending: true });
+  if (reportFilter.kind === "include_only") {
+    channelsQ = channelsQ.in("id", reportFilter.channelIds.length > 0 ? reportFilter.channelIds : ["__none__"]);
+  }
+  const { data: channels } = await channelsQ;
 
-  const { data: stats } = await supabase
+  let statsQ = supabase
     .from("daily_stats")
     .select("channel_id, total_revenue, total_orders, total_units")
     .eq("org_id", orgId)
     .gte("date", fromStr)
     .lte("date", toStr);
+  if (reportFilter.kind === "include_only") {
+    statsQ = statsQ.in("channel_id", reportFilter.channelIds.length > 0 ? reportFilter.channelIds : ["__none__"]);
+  }
+  const { data: stats } = await statsQ;
 
   const statsByChannel = new Map<string, { revenue: number; orders: number; units: number }>();
   for (const row of stats ?? []) {
@@ -568,10 +661,14 @@ export async function getPnLData(params: DateParams = { days: 30 }) {
   }
   const { data: stats } = await statsQ;
 
-  const { data: channels } = await supabase
+  let channelsQ = supabase
     .from("channels")
     .select("id, platform, name")
     .eq("org_id", orgId);
+  if (reportFilter.kind === "include_only") {
+    channelsQ = channelsQ.in("id", reportFilter.channelIds.length > 0 ? reportFilter.channelIds : ["__none__"]);
+  }
+  const { data: channels } = await channelsQ;
 
   const channelMap = new Map(channels?.map((c) => [c.id, { platform: c.platform, name: c.name }]) ?? []);
 
