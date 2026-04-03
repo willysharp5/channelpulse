@@ -9,12 +9,32 @@ export interface TopProductSale {
   revenue: number;
 }
 
-interface OrderRow {
+export interface OrderRow {
   id: string;
   platform: string;
   raw_data: unknown;
   total_amount: number | null;
   item_count: number | null;
+}
+
+/** Synthetic line items from demo seed (`raw_data.demo_lines`). */
+function parseDemoLineItems(raw: unknown): Array<{ title: string; sku: string | null; quantity: number; revenue: number }> {
+  if (!raw || typeof raw !== "object") return [];
+  const lines = (raw as { demo_lines?: unknown }).demo_lines;
+  if (!Array.isArray(lines)) return [];
+  const out: Array<{ title: string; sku: string | null; quantity: number; revenue: number }> = [];
+  for (const x of lines) {
+    if (!x || typeof x !== "object") continue;
+    const o = x as Record<string, unknown>;
+    const title = typeof o.title === "string" ? o.title : "Item";
+    const sku = typeof o.sku === "string" ? o.sku : null;
+    const quantity = typeof o.quantity === "number" ? o.quantity : 0;
+    const revenue = typeof o.revenue === "number" ? o.revenue : 0;
+    if (quantity > 0 && revenue >= 0) {
+      out.push({ title, sku, quantity, revenue });
+    }
+  }
+  return out;
 }
 
 function parseShopifyLineItems(raw: unknown): Array<{ title: string; sku: string | null; quantity: number; revenue: number }> {
@@ -43,6 +63,10 @@ function linesFromOrder(order: OrderRow): Array<{ title: string; sku: string | n
     if (parsed.length > 0) {
       return parsed.map((p) => ({ ...p, platform }));
     }
+  }
+  const demoParsed = parseDemoLineItems(order.raw_data);
+  if (demoParsed.length > 0) {
+    return demoParsed.map((p) => ({ ...p, platform }));
   }
   const units = Number(order.item_count ?? 0);
   const total = Number(order.total_amount ?? 0);

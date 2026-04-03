@@ -1,10 +1,25 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import { useDebouncedUrlSearch, useSyncEffectivePage } from "@/hooks/use-debounced-url-search";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { Search, ChevronLeft, ChevronRight, X, Info, Download } from "lucide-react";
-import { downloadCSV } from "@/lib/csv-export";
+import {
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  X,
+  Info,
+  Download,
+  Loader2,
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  Eye,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { ResultPendingShell } from "@/components/ui/result-pending-shell";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -25,7 +40,11 @@ import {
 import { ChannelBadge } from "@/components/layout/channel-badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatCurrency, formatDate } from "@/lib/formatters";
+import { TableDateRangeFilter } from "@/components/layout/table-date-range-filter";
+import { isTableDateRangeActive, parseTableDateRangeSearchParams } from "@/lib/table-date-range";
 import type { Platform } from "@/types";
+import type { OrderListRow } from "@/lib/orders-list";
+import { OrderDetailSheet } from "@/components/orders/order-detail-sheet";
 
 function HeaderWithTip({ children, tip, className }: { children: React.ReactNode; tip: string; className?: string }) {
   return (
@@ -33,35 +52,17 @@ function HeaderWithTip({ children, tip, className }: { children: React.ReactNode
       {children}
       <Tooltip>
         <TooltipTrigger render={<Info className="h-3 w-3 text-muted-foreground/40 cursor-help" />} />
-        <TooltipContent side="top" className="max-w-[220px] text-xs">{tip}</TooltipContent>
+        <TooltipContent side="top" className="max-w-[220px] text-xs">
+          {tip}
+        </TooltipContent>
       </Tooltip>
     </span>
   );
 }
 
-interface Order {
-  id: string;
-  platform: string;
-  order_number: string | null;
-  status: string | null;
-  financial_status: string | null;
-  customer_name: string | null;
-  total_amount: number | null;
-  subtotal: number | null;
-  total_tax: number | null;
-  total_shipping: number | null;
-  platform_fees: number | null;
-  net_profit: number | null;
-  currency: string | null;
-  item_count: number | null;
-  ordered_at: string;
-}
-
-interface OrdersTableProps {
-  orders: Order[];
-}
-
 const PAGE_SIZES = [10, 20, 50, 100];
+
+type OrderSortKey = "date" | "amount" | "fees" | "profit" | "items";
 
 const STATUS_STYLES: Record<string, { variant: "default" | "secondary" | "outline" | "destructive"; label: string }> = {
   pending: { variant: "outline", label: "Pending" },
@@ -72,210 +73,421 @@ const STATUS_STYLES: Record<string, { variant: "default" | "secondary" | "outlin
   refunded: { variant: "destructive", label: "Refunded" },
 };
 
-export function OrdersTable({ orders }: OrdersTableProps) {
+function normalizeOrdersQuery(pathname: string, cur: URLSearchParams): string {
+  const n = new URLSearchParams(cur.toString());
+  if (!n.get("search")) n.delete("search");
+  if (!n.get("page") || n.get("page") === "1") n.delete("page");
+  if (!n.get("pageSize") || n.get("pageSize") === "20") n.delete("pageSize");
+  if (!n.get("status") || n.get("status") === "all") n.delete("status");
+  if (!n.get("channel") || n.get("channel") === "all") n.delete("channel");
+  if (!n.get("range")) n.delete("range");
+  if (!n.get("date") || n.get("date") === "all") n.delete("date");
+  if (!n.get("from")) n.delete("from");
+  if (!n.get("to")) n.delete("to");
+  const sort = n.get("sort");
+  if (!sort || sort === "date") {
+    if (sort === "date" && n.get("dir") === "asc") {
+      // keep explicit oldest-first
+    } else {
+      n.delete("sort");
+      n.delete("dir");
+    }
+  } else if (n.get("dir") === "desc") {
+    n.delete("dir");
+  }
+  const qs = n.toString();
+  return `${pathname}${qs ? `?${qs}` : ""}`;
+}
+
+interface OrdersTableProps {
+  rows: OrderListRow[];
+  totalCount: number;
+  totalRevenue: number;
+  effectivePage: number;
+  requestedPage: number;
+  platformOptions: string[];
+}
+
+export function OrdersTable({
+  rows,
+  totalCount,
+  totalRevenue,
+  effectivePage,
+  requestedPage,
+  platformOptions,
+}: OrdersTableProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
 
-  const initialSearch = searchParams.get("search") ?? "";
-  const initialStatus = searchParams.get("status") ?? "all";
-  const initialChannel = searchParams.get("channel") ?? "all";
   const highlightId = searchParams.get("order") ?? "";
 
-  const [search, setSearch] = useState(initialSearch);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
-  const [statusFilter, setStatusFilter] = useState(initialStatus);
-  const [channelFilter, setChannelFilter] = useState(initialChannel);
+  const pageFromUrl = Math.max(1, parseInt(searchParams.get("page") ?? "1", 10) || 1);
+  const pageSizeRaw = parseInt(searchParams.get("pageSize") ?? "20", 10);
+  const pageSize = PAGE_SIZES.includes(pageSizeRaw) ? pageSizeRaw : 20;
+  const statusFilter = searchParams.get("status") ?? "all";
+  const dateParamsQs = searchParams.toString();
+  const tableDateParams = useMemo(() => {
+    const sp = new URLSearchParams(dateParamsQs);
+    const r: Record<string, string> = {};
+    sp.forEach((v, k) => {
+      if (!(k in r)) r[k] = v;
+    });
+    return parseTableDateRangeSearchParams(r);
+  }, [dateParamsQs]);
+  const channelFromUrl = searchParams.get("channel") ?? "all";
+  const searchFromUrl = searchParams.get("search") ?? "";
+  const [searchDraft, setSearchDraft] = useState(searchFromUrl);
+  const [pendingChannel, setPendingChannel] = useState<string | null>(null);
+  const channelFilter = pendingChannel ?? channelFromUrl;
+  const [detailOrder, setDetailOrder] = useState<OrderListRow | null>(null);
 
-  const platforms = [...new Set(orders.map((o) => o.platform))];
+  const [isFilterPending, startTransition] = useTransition();
 
-  const updateUrl = useCallback(
-    (params: Record<string, string>) => {
-      const sp = new URLSearchParams();
-      for (const [k, v] of Object.entries(params)) {
-        if (v && v !== "all" && v !== "1") sp.set(k, v);
-      }
-      const qs = sp.toString();
-      router.replace(`${pathname}${qs ? `?${qs}` : ""}`, { scroll: false });
-    },
-    [router, pathname]
+  useEffect(() => {
+    setSearchDraft(searchFromUrl);
+  }, [searchFromUrl]);
+
+  useEffect(() => {
+    if (pendingChannel === null) return;
+    if (pendingChannel === channelFromUrl) setPendingChannel(null);
+  }, [channelFromUrl, pendingChannel]);
+
+  useDebouncedUrlSearch(
+    searchDraft,
+    searchFromUrl,
+    pathname,
+    searchParams,
+    router,
+    normalizeOrdersQuery,
+    400,
+    startTransition
+  );
+  useSyncEffectivePage(
+    effectivePage,
+    requestedPage,
+    pathname,
+    searchParams,
+    router,
+    normalizeOrdersQuery,
+    startTransition
   );
 
-  function handleSearchChange(value: string) {
-    setSearch(value);
-    setPage(1);
-    updateUrl({ search: value, status: statusFilter, channel: channelFilter });
-  }
+  const replaceQuery = useCallback(
+    (mutate: (n: URLSearchParams) => void) => {
+      const n = new URLSearchParams(searchParams.toString());
+      mutate(n);
+      startTransition(() => {
+        router.replace(normalizeOrdersQuery(pathname, n), { scroll: false });
+      });
+    },
+    [pathname, router, searchParams, startTransition]
+  );
 
-  function handleStatusChange(value: string) {
-    setStatusFilter(value);
-    setPage(1);
-    updateUrl({ search, status: value, channel: channelFilter });
-  }
+  const sortRaw = searchParams.get("sort");
+  const orderSortKey: OrderSortKey =
+    sortRaw === "amount" || sortRaw === "fees" || sortRaw === "profit" || sortRaw === "items"
+      ? sortRaw
+      : "date";
+  const orderSortDir = searchParams.get("dir") === "asc" ? "asc" : "desc";
 
-  function handleChannelChange(value: string) {
-    setChannelFilter(value);
-    setPage(1);
-    updateUrl({ search, status: statusFilter, channel: value });
-  }
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const safePage = Math.min(pageFromUrl, totalPages);
+  const hasSortInUrl = searchParams.has("sort") || searchParams.get("dir") === "asc";
+  const hasFilters =
+    searchFromUrl.length > 0 ||
+    statusFilter !== "all" ||
+    channelFilter !== "all" ||
+    isTableDateRangeActive(tableDateParams) ||
+    hasSortInUrl;
 
-  function handleClearAll() {
-    setSearch("");
-    setStatusFilter("all");
-    setChannelFilter("all");
-    setPage(1);
-    router.replace(pathname, { scroll: false });
-  }
-
-  const filtered = useMemo(() => {
-    let result = orders;
-    if (statusFilter !== "all") {
-      result = result.filter((o) => o.status === statusFilter);
-    }
-    if (channelFilter !== "all") {
-      result = result.filter((o) => o.platform === channelFilter);
-    }
-    if (search.length >= 1) {
-      const q = search.toLowerCase();
-      result = result.filter(
-        (o) =>
-          (o.order_number && o.order_number.toLowerCase().includes(q)) ||
-          (o.customer_name && o.customer_name.toLowerCase().includes(q)) ||
-          String(o.total_amount ?? "").includes(q)
-      );
-    }
-    return result;
-  }, [orders, search, statusFilter, channelFilter]);
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const safePage = Math.min(page, totalPages);
-  const start = (safePage - 1) * pageSize;
-  const paged = filtered.slice(start, start + pageSize);
-  const totalRevenue = filtered.reduce((s, o) => s + Number(o.total_amount ?? 0), 0);
-  const hasFilters = search.length > 0 || statusFilter !== "all" || channelFilter !== "all";
+  const searchTypingPending = searchDraft !== searchFromUrl;
+  const showSearchLoader =
+    searchTypingPending || (isFilterPending && searchFromUrl.trim().length > 0);
 
   function highlightMatch(text: string): React.ReactNode {
-    if (!search || search.length < 1) return text;
-    const idx = text.toLowerCase().indexOf(search.toLowerCase());
+    const q = searchFromUrl.trim();
+    if (!q || q.length < 1) return text;
+    const idx = text.toLowerCase().indexOf(q.toLowerCase());
     if (idx === -1) return text;
     return (
       <>
         {text.slice(0, idx)}
-        <mark className="bg-amber-200 dark:bg-amber-800 text-inherit rounded-sm px-0.5">
-          {text.slice(idx, idx + search.length)}
+        <mark className="rounded-sm bg-amber-200 px-0.5 text-inherit dark:bg-amber-800/90">
+          {text.slice(idx, idx + q.length)}
         </mark>
-        {text.slice(idx + search.length)}
+        {text.slice(idx + q.length)}
       </>
+    );
+  }
+
+  function exportCsv() {
+    const qs = searchParams.toString();
+    window.location.assign(`/api/orders/export${qs ? `?${qs}` : ""}`);
+  }
+
+  function toggleOrderSort(key: OrderSortKey) {
+    replaceQuery((n) => {
+      const curSort = n.get("sort");
+      const curDir = n.get("dir") === "asc" ? "asc" : "desc";
+
+      if (key === "date") {
+        if (!curSort || curSort === "date") {
+          if (!curSort) {
+            n.set("sort", "date");
+            n.set("dir", "asc");
+          } else if (curDir === "desc") {
+            n.set("dir", "asc");
+          } else {
+            n.delete("sort");
+            n.delete("dir");
+          }
+        } else {
+          n.set("sort", "date");
+          n.set("dir", "desc");
+        }
+      } else if (curSort !== key) {
+        n.set("sort", key);
+        n.set("dir", "desc");
+      } else {
+        n.set("dir", curDir === "desc" ? "asc" : "desc");
+      }
+      n.set("page", "1");
+    });
+  }
+
+  function OrderSortHeader({ column, children }: { column: OrderSortKey; children: React.ReactNode }) {
+    const active = orderSortKey === column;
+    const dir = orderSortDir;
+    return (
+      <button
+        type="button"
+        onClick={() => toggleOrderSort(column)}
+        className="inline-flex items-center gap-1 font-medium text-foreground hover:opacity-90"
+      >
+        {children}
+        {!active ? (
+          <ArrowUpDown className="h-3 w-3 shrink-0 text-muted-foreground/70" />
+        ) : dir === "desc" ? (
+          <ArrowDown className="h-3 w-3 shrink-0 text-muted-foreground" />
+        ) : (
+          <ArrowUp className="h-3 w-3 shrink-0 text-muted-foreground" />
+        )}
+      </button>
     );
   }
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search by order #, customer name..."
-            value={search}
-            onChange={(e) => handleSearchChange(e.target.value)}
-            className="pl-8 pr-8 h-9"
-          />
-          {search && (
-            <button
-              onClick={() => handleSearchChange("")}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+      <div
+        className={cn(
+          "rounded-xl border border-border/80 bg-slate-50/90 p-4 shadow-sm transition-opacity duration-200",
+          "dark:bg-muted/25",
+          isFilterPending && "opacity-80"
+        )}
+      >
+        <div className="flex flex-col gap-4 lg:flex-row lg:flex-wrap lg:items-end lg:gap-x-6 lg:gap-y-4">
+          <div className="min-w-[min(100%,220px)] flex-1 space-y-1.5">
+            <Label className="text-xs font-medium text-muted-foreground">Search</Label>
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Order #, customer name…"
+                value={searchDraft}
+                onChange={(e) => setSearchDraft(e.target.value)}
+                aria-busy={showSearchLoader || isFilterPending}
+                className={cn(
+                  "h-9 bg-background pl-8",
+                  showSearchLoader && searchDraft ? "pr-16" : showSearchLoader ? "pr-10" : searchDraft ? "pr-8" : "pr-8"
+                )}
+              />
+              {showSearchLoader ? (
+                <span
+                  className={cn(
+                    "absolute top-1/2 -translate-y-1/2 text-muted-foreground",
+                    searchDraft ? "right-9" : "right-3"
+                  )}
+                  title="Updating results…"
+                >
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                </span>
+              ) : null}
+              {searchDraft ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchDraft("");
+                    replaceQuery((n) => {
+                      n.delete("search");
+                      n.set("page", "1");
+                    });
+                  }}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  aria-label="Clear search"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              ) : null}
+            </div>
+          </div>
+
+          {platformOptions.length > 1 ? (
+            <div className="w-full space-y-1.5 sm:w-[160px]">
+              <Label className="text-xs font-medium text-muted-foreground">Channel</Label>
+              <Select
+                value={channelFilter}
+                onValueChange={(v: string | null) => {
+                  const next = v ?? "all";
+                  setPendingChannel(next);
+                  replaceQuery((n) => {
+                    if (next === "all") n.delete("channel");
+                    else n.set("channel", next);
+                    n.set("page", "1");
+                  });
+                }}
+              >
+                <SelectTrigger className="h-9 w-full bg-background">
+                  <SelectValue placeholder="Channel" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  {platformOptions.map((p) => (
+                    <SelectItem key={p} value={p}>
+                      {p.charAt(0).toUpperCase() + p.slice(1)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null}
+
+          <div className="w-full space-y-1.5 sm:w-[200px]">
+            <Label className="text-xs font-medium text-muted-foreground">Status</Label>
+            <Select
+              value={statusFilter}
+              onValueChange={(v: string | null) => {
+                const next = v ?? "all";
+                replaceQuery((n) => {
+                  if (next === "all") n.delete("status");
+                  else n.set("status", next);
+                  n.set("page", "1");
+                });
+              }}
             >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          )}
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          {platforms.length > 1 && (
-            <Select value={channelFilter} onValueChange={(v: string | null) => handleChannelChange(v ?? "all")}>
-              <SelectTrigger className="w-[130px] h-9">
-                <SelectValue placeholder="Channel" />
+              <SelectTrigger className="h-9 w-full bg-background">
+                <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Channels</SelectItem>
-                {platforms.map((p) => (
-                  <SelectItem key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</SelectItem>
-                ))}
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="paid">Paid</SelectItem>
+                <SelectItem value="shipped">Shipped</SelectItem>
+                <SelectItem value="delivered">Delivered</SelectItem>
+                <SelectItem value="cancelled">Cancelled</SelectItem>
+                <SelectItem value="refunded">Refunded</SelectItem>
               </SelectContent>
             </Select>
-          )}
-          <Select value={statusFilter} onValueChange={(v: string | null) => handleStatusChange(v ?? "all")}>
-            <SelectTrigger className="w-[130px] h-9">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="paid">Paid</SelectItem>
-              <SelectItem value="shipped">Shipped</SelectItem>
-              <SelectItem value="delivered">Delivered</SelectItem>
-              <SelectItem value="cancelled">Cancelled</SelectItem>
-              <SelectItem value="refunded">Refunded</SelectItem>
-            </SelectContent>
-          </Select>
-          {hasFilters && (
-            <Button variant="ghost" size="sm" className="h-9 text-xs gap-1" onClick={handleClearAll}>
-              <X className="h-3 w-3" /> Clear
+          </div>
+
+          <TableDateRangeFilter
+            label="Order date"
+            searchParams={searchParams}
+            replaceQuery={replaceQuery}
+            allowAllTime
+          />
+
+          <div className="flex flex-wrap gap-2 pb-0.5 lg:ml-auto">
+            {hasFilters ? (
+              <Button variant="secondary" size="sm" className="h-9" onClick={() => {
+                setPendingChannel(null);
+                startTransition(() => router.replace(pathname, { scroll: false }));
+              }}>
+                Reset
+              </Button>
+            ) : null}
+            <Button variant="outline" size="sm" className="h-9 gap-1" onClick={exportCsv}>
+              <Download className="h-3.5 w-3.5" />
+              Export CSV
             </Button>
-          )}
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-9 text-xs gap-1"
-            onClick={() => {
-              downloadCSV(
-                `channelpulse-orders-${new Date().toISOString().split("T")[0]}.csv`,
-                ["Order #", "Channel", "Customer", "Amount", "Fees", "Profit", "Status", "Items", "Date"],
-                filtered.map((o) => [
-                  o.order_number ?? "", o.platform, o.customer_name ?? "",
-                  String(Number(o.total_amount ?? 0).toFixed(2)),
-                  String(Number(o.platform_fees ?? 0).toFixed(2)),
-                  String(Number(o.net_profit ?? 0).toFixed(2)),
-                  o.status ?? "", String(o.item_count ?? 0), o.ordered_at,
-                ])
-              );
-            }}
-          >
-            <Download className="h-3 w-3" /> Export
-          </Button>
-          <div className="text-xs text-muted-foreground whitespace-nowrap">
-            {filtered.length} order{filtered.length !== 1 ? "s" : ""} · {formatCurrency(totalRevenue)}
           </div>
         </div>
       </div>
 
-      <div className="rounded-md border">
-        <Table>
+      <ResultPendingShell pending={isFilterPending} className="space-y-5">
+        <div className="rounded-xl border border-border/80 bg-background px-5 py-4 shadow-sm">
+          <p className="text-xs font-medium text-muted-foreground">Matching orders</p>
+          <p className="mt-1 text-3xl font-semibold tabular-nums tracking-tight">
+            {totalCount}
+            <span className="ml-2 text-lg font-normal text-muted-foreground">
+              · {formatCurrency(totalRevenue)} total
+            </span>
+          </p>
+        </div>
+
+        <div className="rounded-md border">
+          <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Order</TableHead>
               <TableHead>Channel</TableHead>
               <TableHead className="hidden sm:table-cell">Customer</TableHead>
-              <TableHead className="text-right"><HeaderWithTip tip="Total order amount including tax and shipping.">Amount</HeaderWithTip></TableHead>
-              <TableHead className="hidden md:table-cell text-right"><HeaderWithTip tip="Estimated marketplace/payment processing fees. Shopify: 2.9% + $0.30 per order.">Fees</HeaderWithTip></TableHead>
-              <TableHead className="hidden lg:table-cell text-right"><HeaderWithTip tip="Order amount minus platform fees. Calculated as: Amount - Fees.">Profit</HeaderWithTip></TableHead>
+              <TableHead className="text-right">
+                <div className="flex justify-end">
+                  <OrderSortHeader column="amount">
+                    <HeaderWithTip tip="Total order amount including tax and shipping.">Amount</HeaderWithTip>
+                  </OrderSortHeader>
+                </div>
+              </TableHead>
+              <TableHead className="hidden text-right md:table-cell">
+                <div className="flex justify-end">
+                  <OrderSortHeader column="fees">
+                    <HeaderWithTip tip="Estimated marketplace/payment processing fees. Shopify: 2.9% + $0.30 per order.">
+                      Fees
+                    </HeaderWithTip>
+                  </OrderSortHeader>
+                </div>
+              </TableHead>
+              <TableHead className="hidden text-right lg:table-cell">
+                <div className="flex justify-end">
+                  <OrderSortHeader column="profit">
+                    <HeaderWithTip tip="Order amount minus platform fees. Calculated as: Amount - Fees.">Profit</HeaderWithTip>
+                  </OrderSortHeader>
+                </div>
+              </TableHead>
               <TableHead className="hidden md:table-cell">Status</TableHead>
-              <TableHead className="hidden lg:table-cell">Items</TableHead>
-              <TableHead className="text-right">Date</TableHead>
+              <TableHead className="hidden lg:table-cell">
+                <OrderSortHeader column="items">Items</OrderSortHeader>
+              </TableHead>
+              <TableHead className="text-right">
+                <div className="flex justify-end">
+                  <OrderSortHeader column="date">Date</OrderSortHeader>
+                </div>
+              </TableHead>
+              <TableHead className="w-12 text-center">
+                <span className="sr-only">View</span>
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {paged.length === 0 ? (
+            {rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
-                  {search ? `No orders matching "${search}"` : "No orders found"}
+                <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+                  {searchFromUrl ? `No orders matching "${searchFromUrl}"` : "No orders found"}
                 </TableCell>
               </TableRow>
             ) : (
-              paged.map((order) => {
+              rows.map((order) => {
                 const statusStyle = STATUS_STYLES[order.status ?? "pending"] ?? STATUS_STYLES.pending;
                 const isHighlighted = highlightId === order.id;
+                const orderLabel = order.order_number ?? order.id.slice(0, 8);
                 return (
-                  <TableRow key={order.id} className={isHighlighted ? "bg-amber-50 dark:bg-amber-950/30" : ""}>
+                  <TableRow
+                    key={order.id}
+                    className={cn(
+                      "cursor-pointer transition-colors hover:bg-muted/40",
+                      isHighlighted ? "bg-amber-50 dark:bg-amber-950/30" : ""
+                    )}
+                    onClick={() => setDetailOrder(order)}
+                  >
                     <TableCell className="font-medium tabular-nums">
                       {highlightMatch(order.order_number ?? order.id.slice(0, 8))}
                     </TableCell>
@@ -297,13 +509,25 @@ export function OrdersTable({ orders }: OrdersTableProps) {
                       </span>
                     </TableCell>
                     <TableCell className="hidden md:table-cell">
-                      <Badge variant={statusStyle.variant} className="text-[10px]">{statusStyle.label}</Badge>
+                      <Badge variant={statusStyle.variant} className="text-[10px]">
+                        {statusStyle.label}
+                      </Badge>
                     </TableCell>
-                    <TableCell className="hidden lg:table-cell tabular-nums text-muted-foreground">
-                      {order.item_count ?? 0}
-                    </TableCell>
+                    <TableCell className="hidden lg:table-cell tabular-nums text-muted-foreground">{order.item_count ?? 0}</TableCell>
                     <TableCell className="text-right text-muted-foreground text-xs">
                       {formatDate(order.ordered_at, "MMM d, h:mm a")}
+                    </TableCell>
+                    <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                        aria-label={`View details for order ${orderLabel}`}
+                        onClick={() => setDetailOrder(order)}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
                     </TableCell>
                   </TableRow>
                 );
@@ -311,34 +535,70 @@ export function OrdersTable({ orders }: OrdersTableProps) {
             )}
           </TableBody>
         </Table>
-      </div>
+        </div>
+      </ResultPendingShell>
 
-      {filtered.length > PAGE_SIZES[0] && (
+      {totalCount > PAGE_SIZES[0] && (
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground">Rows per page</span>
-            <Select value={String(pageSize)} onValueChange={(v: string | null) => { setPageSize(Number(v ?? 20)); setPage(1); }}>
+            <Select
+              value={String(pageSize)}
+              onValueChange={(v: string | null) => {
+                const ps = Number(v ?? 20);
+                replaceQuery((n) => {
+                  n.set("pageSize", String(ps));
+                  n.set("page", "1");
+                });
+              }}
+            >
               <SelectTrigger className="h-8 w-[70px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 {PAGE_SIZES.map((s) => (
-                  <SelectItem key={s} value={String(s)}>{s}</SelectItem>
+                  <SelectItem key={s} value={String(s)}>
+                    {s}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">Page {safePage} of {totalPages}</span>
-            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={safePage <= 1}>
+            <span className="text-xs text-muted-foreground">
+              Page {safePage} of {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              disabled={safePage <= 1}
+              onClick={() =>
+                replaceQuery((n) => {
+                  n.set("page", String(Math.max(1, safePage - 1)));
+                })
+              }
+            >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={safePage >= totalPages}>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              disabled={safePage >= totalPages}
+              onClick={() =>
+                replaceQuery((n) => {
+                  n.set("page", String(Math.min(totalPages, safePage + 1)));
+                })
+              }
+            >
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
         </div>
       )}
+
+      <OrderDetailSheet order={detailOrder} onDismiss={() => setDetailOrder(null)} />
     </div>
   );
 }

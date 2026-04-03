@@ -15,6 +15,25 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CHANNEL_CONFIG } from "@/lib/constants";
+import type { Platform } from "@/types";
+
+const COMING_SOON_ONBOARDING: Platform[] = [
+  "amazon",
+  "ebay",
+  "etsy",
+  "woocommerce",
+  "tiktok",
+  "walmart",
+  "facebook",
+  "instagram",
+  "pinterest",
+  "google",
+  "bigcommerce",
+  "square",
+  "temu",
+  "magento",
+  "mirakl",
+];
 
 interface OnboardingWizardProps {
   userName?: string;
@@ -283,8 +302,8 @@ export function OnboardingWizard({ userName, onComplete }: OnboardingWizardProps
 
               <div className="space-y-2">
                 <p className="text-xs text-muted-foreground font-medium">More channels coming soon:</p>
-                <div className="flex gap-2 flex-wrap">
-                  {(["amazon", "ebay", "etsy"] as const).map((platform) => (
+                <div className="flex max-h-36 gap-2 overflow-y-auto flex-wrap pr-1">
+                  {COMING_SOON_ONBOARDING.map((platform) => (
                     <div
                       key={platform}
                       className="flex items-center gap-1.5 rounded-full border border-border/60 px-3 py-1 text-xs text-muted-foreground"

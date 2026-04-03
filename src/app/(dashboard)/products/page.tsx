@@ -1,24 +1,38 @@
 import { Header } from "@/components/layout/header";
-import { getProductsWithSales } from "@/lib/queries";
 import { getSession } from "@/lib/auth/actions";
+import {
+  getProductsCatalogSummary,
+  getProductsCogsTemplateRows,
+  getProductsPage,
+  parseProductsListParams,
+} from "@/lib/products-list";
 import { ProductsPageContent } from "@/components/products/products-page-content";
-import { rangeToDays } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
 
 export default async function ProductsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ range?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const params = await searchParams;
-  const dateParams = { days: rangeToDays(params.range ?? null) };
-  const [user, products] = await Promise.all([getSession(), getProductsWithSales(dateParams)]);
+  const listParams = parseProductsListParams(params);
+  const [user, catalogSummary, cogsTemplate, pageData] = await Promise.all([
+    getSession(),
+    getProductsCatalogSummary(),
+    getProductsCogsTemplateRows(),
+    getProductsPage(listParams),
+  ]);
 
   return (
     <>
       <Header title="Products" userEmail={user?.email ?? undefined} />
-      <ProductsPageContent initialProducts={products} />
+      <ProductsPageContent
+        catalogSummary={catalogSummary}
+        cogsTemplate={cogsTemplate}
+        pageData={pageData}
+        requestedPage={listParams.page}
+      />
     </>
   );
 }

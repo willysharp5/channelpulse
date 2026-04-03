@@ -3,12 +3,16 @@ import { CHANNEL_CONFIG } from "@/lib/constants";
 import type { Platform } from "@/types";
 
 interface ChannelBadgeProps {
-  platform: Platform;
+  platform: Platform | string;
   className?: string;
 }
 
 export function ChannelBadge({ platform, className }: ChannelBadgeProps) {
-  const config = CHANNEL_CONFIG[platform];
+  const config = CHANNEL_CONFIG[platform as Platform] ?? {
+    label: platform.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+    color: "#6b7280",
+    abbr: "?",
+  };
 
   return (
     <Badge

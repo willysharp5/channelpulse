@@ -27,6 +27,7 @@ export async function POST(request: Request) {
     other_expenses_monthly: body.other_expenses_monthly,
     default_cogs_percent: body.default_cogs_percent,
     cogs_method: body.cogs_method,
+    use_modeled_platform_fees: Boolean(body.use_modeled_platform_fees),
   }, { onConflict: "org_id" });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

@@ -1,4 +1,20 @@
-export type Platform = "shopify" | "amazon" | "ebay" | "etsy" | "woocommerce";
+export type Platform =
+  | "shopify"
+  | "amazon"
+  | "ebay"
+  | "etsy"
+  | "woocommerce"
+  | "tiktok"
+  | "walmart"
+  | "facebook"
+  | "instagram"
+  | "pinterest"
+  | "google"
+  | "bigcommerce"
+  | "square"
+  | "temu"
+  | "magento"
+  | "mirakl";
 
 export type ChannelStatus =
   | "pending"

@@ -1,13 +1,14 @@
 import Link from "next/link";
 import { RefreshCw, CheckCircle2, AlertCircle } from "lucide-react";
 import { Header } from "@/components/layout/header";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChannelSyncButton } from "@/components/channels/channel-sync-button";
+import { ChannelAovMetricLabel } from "@/components/channels/channel-aov-label";
 import { Badge } from "@/components/ui/badge";
 import { ChannelBadge } from "@/components/layout/channel-badge";
 import { KPICard } from "@/components/dashboard/kpi-card";
 import { CategoryBar } from "@/components/tremor/category-bar";
-import { CHANNEL_CONFIG, rangeToDays } from "@/lib/constants";
+import { CHANNEL_CONFIG, PLATFORM_DISPLAY_ORDER, rangeToDays } from "@/lib/constants";
 import { formatCurrency, formatNumber, formatDate } from "@/lib/formatters";
 import { getChannelsWithStats, getUserPlan } from "@/lib/queries";
 import { getSession } from "@/lib/auth/actions";
@@ -91,7 +92,9 @@ export default async function ChannelsPage({
     .map((c) => {
       const config = CHANNEL_CONFIG[c.platform as Platform];
       return {
-        label: config?.label ?? c.platform,
+        id: c.id,
+        label: c.name ?? config?.label ?? c.platform,
+        sublabel: config?.label,
         value: c.revenue,
         color: config?.color ?? "#94a3b8",
       };
@@ -218,7 +221,7 @@ export default async function ChannelsPage({
                           <p className="text-lg font-bold tabular-nums">
                             {formatCurrency(aov)}
                           </p>
-                          <p className="text-xs text-muted-foreground">AOV</p>
+                          <ChannelAovMetricLabel />
                         </div>
                       </div>
 
@@ -243,6 +246,24 @@ export default async function ChannelsPage({
             </div>
           </>
         )}
+
+        <Card className="border-dashed">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-semibold">All supported platform types</CardTitle>
+            <CardDescription>
+              Labels and colors used across the app.               Optional demo load:{" "}
+              <code className="rounded bg-muted px-1 py-0.5 text-xs">npm run seed:demo</code> adds sample marketplace
+              stores (your real Shopify is unchanged).
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
+              {PLATFORM_DISPLAY_ORDER.map((p) => (
+                <ChannelBadge key={p} platform={p} className="text-xs" />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </>
   );

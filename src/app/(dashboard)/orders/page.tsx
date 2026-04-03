@@ -5,22 +5,32 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { KPICard } from "@/components/dashboard/kpi-card";
 import { CategoryBar } from "@/components/tremor/category-bar";
 import { OrdersTable } from "@/components/orders/orders-table";
-import { getAllOrders, getUserPlan } from "@/lib/queries";
+import { getUserPlan } from "@/lib/queries";
 import { getSession } from "@/lib/auth/actions";
 import { formatCurrency } from "@/lib/formatters";
+import { getOrdersPage, getOrdersOrgTotalCount, parseOrdersListParams } from "@/lib/orders-list";
 
 export const dynamic = "force-dynamic";
 
-export default async function OrdersPage() {
-  const [user, orders] = await Promise.all([getSession(), getAllOrders()]);
+export default async function OrdersPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const sp = await searchParams;
+  const params = parseOrdersListParams(sp);
+  const [user, orderData, orgOrderCount, { limits }] = await Promise.all([
+    getSession(),
+    getOrdersPage(params),
+    getOrdersOrgTotalCount(),
+    getUserPlan(),
+  ]);
 
-  const totalOrders = orders.length;
-  const totalRevenue = orders.reduce((s, o) => s + Number(o.total_amount ?? 0), 0);
-  const totalProfit = orders.reduce((s, o) => s + Number(o.net_profit ?? 0), 0);
-  const totalFees = orders.reduce((s, o) => s + Number(o.platform_fees ?? 0), 0);
+  const totalOrders = orderData.totalCount;
+  const totalRevenue = orderData.totalRevenue;
+  const totalProfit = orderData.totalProfit;
+  const totalFees = orderData.totalFees;
   const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
-
-  const { limits } = await getUserPlan();
   const profitMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
 
   const netRevenue = totalRevenue - totalFees;
@@ -38,32 +48,32 @@ export default async function OrdersPage() {
           <KPICard
             data={{
               title: "Total Orders",
-              value: totalOrders,
-              formattedValue: totalOrders.toLocaleString(),
+              value: orgOrderCount,
+              formattedValue: orgOrderCount.toLocaleString(),
               change: 0,
               changeLabel: "",
               sparklineData: [],
               progress: {
-                value: totalOrders,
+                value: orgOrderCount,
                 max: limits.ordersPerMonth,
-                label: `${totalOrders.toLocaleString()} / ${limits.ordersPerMonth.toLocaleString()} plan limit`,
-                color: totalOrders > limits.ordersPerMonth * 0.9 ? "#ef4444" : "#f59e0b",
+                label: `${orgOrderCount.toLocaleString()} / ${limits.ordersPerMonth.toLocaleString()} plan limit`,
+                color: orgOrderCount > limits.ordersPerMonth * 0.9 ? "#ef4444" : "#f59e0b",
               },
             }}
           />
           <KPICard
             data={{
-              title: "Total Revenue",
+              title: "Filtered revenue",
               value: totalRevenue,
               formattedValue: formatCurrency(totalRevenue),
               change: 0,
-              changeLabel: "",
+              changeLabel: "Matches table filters",
               sparklineData: [],
             }}
           />
           <KPICard
             data={{
-              title: "Avg Order Value",
+              title: "Avg order (filtered)",
               value: avgOrderValue,
               formattedValue: formatCurrency(avgOrderValue),
               change: 0,
@@ -73,7 +83,7 @@ export default async function OrdersPage() {
           />
           <KPICard
             data={{
-              title: "Net Profit",
+              title: "Net profit (filtered)",
               value: totalProfit,
               formattedValue: formatCurrency(totalProfit),
               change: 0,
@@ -91,7 +101,7 @@ export default async function OrdersPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base font-semibold">Revenue Breakdown</CardTitle>
+            <CardTitle className="text-base font-semibold">Revenue Breakdown (filtered)</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
@@ -99,7 +109,7 @@ export default async function OrdersPage() {
                 <span className="text-muted-foreground">Total</span>
                 <span className="font-medium tabular-nums">{formatCurrency(totalRevenue)}</span>
               </div>
-              <CategoryBar data={categoryData} />
+              <CategoryBar data={categoryData} amountLabel="Amount" />
             </div>
           </CardContent>
         </Card>
@@ -117,7 +127,14 @@ export default async function OrdersPage() {
                 </div>
               }
             >
-              <OrdersTable orders={orders} />
+              <OrdersTable
+                rows={orderData.rows}
+                totalCount={orderData.totalCount}
+                totalRevenue={orderData.totalRevenue}
+                effectivePage={orderData.effectivePage}
+                requestedPage={params.page}
+                platformOptions={orderData.platformOptions}
+              />
             </Suspense>
           </CardContent>
         </Card>

@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TremorAreaChart } from "@/components/tremor/area-chart";
-import { CHANNEL_CONFIG } from "@/lib/constants";
+import { CHANNEL_CONFIG, REPORT_CHANNEL_PALETTE } from "@/lib/constants";
 import { formatCompactCurrency } from "@/lib/formatters";
 import type { Platform } from "@/types";
 
@@ -13,7 +13,7 @@ interface RevenueTrendChartProps {
 
 export function RevenueTrendChart({ data, platforms }: RevenueTrendChartProps) {
   const colors = platforms.map(
-    (p) => CHANNEL_CONFIG[p as Platform]?.color ?? "#6B7280",
+    (p, i) => CHANNEL_CONFIG[p as Platform]?.color ?? REPORT_CHANNEL_PALETTE[i % REPORT_CHANNEL_PALETTE.length]!,
   );
 
   return (

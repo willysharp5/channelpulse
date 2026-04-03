@@ -2,6 +2,7 @@ import { Header } from "@/components/layout/header";
 import { getPnLData } from "@/lib/queries";
 import { getSession } from "@/lib/auth/actions";
 import { PnLContent } from "@/components/pnl/pnl-content";
+import { SalesByChannelCard } from "@/components/pnl/sales-by-channel-card";
 import { rangeToDays, DATE_RANGE_PRESETS } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
@@ -24,7 +25,9 @@ export default async function PnLPage({ searchParams }: { searchParams: Promise<
   return (
     <>
       <Header title="Profit & Loss" userEmail={user?.email ?? undefined} />
-      <PnLContent pnl={pnl} rangeLabel={rangeLabel} />
+      <PnLContent pnl={pnl} rangeLabel={rangeLabel}>
+        <SalesByChannelCard breakdown={pnl.channelBreakdown} />
+      </PnLContent>
     </>
   );
 }

@@ -112,7 +112,7 @@ export default function LandingPage() {
           </h1>
 
           <p className="mx-auto mt-8 max-w-lg text-lg leading-relaxed text-gray-500 dark:text-gray-400">
-            Unify your Shopify, Amazon, eBay, and Etsy data into one analytics dashboard. Revenue, orders, and profit — in real time.
+            Unify your Shopify, Amazon, eBay, and Etsy data into one analytics dashboard. Revenue, orders, and profit in real time.
           </p>
 
           <div className="mt-10">
@@ -162,7 +162,10 @@ export default function LandingPage() {
               {/* Chart area */}
               <div className="rounded-2xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-900 lg:col-span-3">
                 <div className="mb-4 flex items-center justify-between">
-                  <p className="text-sm font-semibold">Revenue — Last 30 Days</p>
+                  <div className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3">
+                    <p className="text-sm font-semibold">Revenue</p>
+                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Last 30 days</p>
+                  </div>
                   <div className="flex gap-4">
                     {[{ l: "Shopify", c: "#96BF48" }, { l: "Amazon", c: "#FF9900" }].map((ch) => (
                       <div key={ch.l} className="flex items-center gap-1.5">
@@ -245,8 +248,8 @@ export default function LandingPage() {
                 { name: "Shopify", color: "#96BF48", abbr: "S", status: "Syncing", orders: "1,247" },
                 { name: "Amazon", color: "#FF9900", abbr: "A", status: "Syncing", orders: "634" },
                 { name: "eBay", color: "#E53238", abbr: "E", status: "Syncing", orders: "200" },
-                { name: "Etsy", color: "#F16521", abbr: "Et", status: "Pending", orders: "—" },
-                { name: "WooCommerce", color: "#7B2D8E", abbr: "W", status: "Pending", orders: "—" },
+                { name: "Etsy", color: "#F16521", abbr: "Et", status: "Pending", orders: "" },
+                { name: "WooCommerce", color: "#7B2D8E", abbr: "W", status: "Pending", orders: "" },
               ].map((ch) => (
                 <div key={ch.name} className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3.5 dark:border-gray-700 dark:bg-gray-900">
                   <div className="flex items-center gap-3">
@@ -255,7 +258,7 @@ export default function LandingPage() {
                     </div>
                     <div>
                       <p className="text-sm font-medium">{ch.name}</p>
-                      <p className="text-xs text-gray-400">{ch.orders !== "—" ? `${ch.orders} orders` : "Not connected"}</p>
+                      <p className="text-xs text-gray-400">{ch.orders ? `${ch.orders} orders` : "Not connected"}</p>
                     </div>
                   </div>
                   {ch.status === "Syncing" ? (
@@ -283,7 +286,10 @@ export default function LandingPage() {
           <div className="order-2 lg:order-1">
             <div className="overflow-hidden rounded-3xl border border-gray-200 bg-white p-1.5 shadow-xl shadow-gray-200/40 dark:border-gray-800 dark:bg-gray-900 dark:shadow-none">
               <div className="rounded-2xl border border-gray-100 bg-gray-50 p-5 dark:border-gray-800 dark:bg-gray-900/50">
-                <p className="mb-4 text-sm font-semibold">P&L — Last 30 Days</p>
+                <div className="mb-4">
+                  <p className="text-sm font-semibold">P&amp;L</p>
+                  <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Last 30 days</p>
+                </div>
                 <div className="space-y-1.5">
                   {[
                     { label: "Revenue", value: "$45,230", bold: true },
@@ -317,7 +323,7 @@ export default function LandingPage() {
               Turn raw orders into actionable P&L insights
             </p>
             <p className="mt-6 text-gray-500 dark:text-gray-400 leading-relaxed">
-              See exactly where your profit comes from and where fees eat into margins. Set COGS per product or as a percentage, track marketplace fees, shipping costs, ad spend, and refunds — all broken down by channel.
+              See exactly where your profit comes from and where fees eat into margins. Set COGS per product or as a percentage, track marketplace fees, shipping costs, ad spend, and refunds, all broken down by channel.
             </p>
           </div>
         </div>
@@ -375,7 +381,9 @@ export default function LandingPage() {
                     <th className="px-6 py-3.5 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Channel</th>
                     <th className="px-4 py-3.5 text-right text-xs font-medium text-gray-500 dark:text-gray-400">Orders</th>
                     <th className="px-4 py-3.5 text-right text-xs font-medium text-gray-500 dark:text-gray-400">Revenue</th>
-                    <th className="px-4 py-3.5 text-right text-xs font-medium text-gray-500 dark:text-gray-400">AOV</th>
+                    <th className="px-4 py-3.5 text-right text-xs font-medium text-gray-500 dark:text-gray-400" title="Average order value">
+                      Avg order
+                    </th>
                     <th className="px-4 py-3.5 text-right text-xs font-medium text-gray-500 dark:text-gray-400">Growth</th>
                     <th className="px-4 py-3.5 text-right text-xs font-medium text-gray-500 dark:text-gray-400">Fees</th>
                     <th className="px-6 py-3.5 text-right text-xs font-medium text-gray-500 dark:text-gray-400">Profit</th>
@@ -416,7 +424,7 @@ export default function LandingPage() {
         {/* Feature pills below table */}
         <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[
-            { icon: RiBarChartBoxFill, title: "Revenue Breakdown", desc: "See revenue per channel with trend lines and AOV metrics." },
+            { icon: RiBarChartBoxFill, title: "Revenue Breakdown", desc: "See revenue per channel with trend lines and average order value." },
             { icon: RiShoppingCart2Fill, title: "Order Analytics", desc: "Track order volume, fulfillment status, and customer data." },
             { icon: RiLineChartFill, title: "P&L Reports", desc: "Full profit & loss with COGS, fees, shipping, and ad spend." },
             { icon: RiShieldCheckFill, title: "Read-Only & Secure", desc: "We never write to your stores. Encrypted, row-level security." },

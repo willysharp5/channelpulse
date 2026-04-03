@@ -16,6 +16,27 @@ export async function POST(request: Request) {
 
   const body = await request.json();
 
+  // Bulk: same COGS for many product IDs (org-scoped)
+  if (Array.isArray(body.productIds) && body.cogs != null) {
+    const cogs = Number(body.cogs);
+    if (Number.isNaN(cogs) || cogs < 0) {
+      return NextResponse.json({ error: "Invalid cogs" }, { status: 400 });
+    }
+    const ids = (body.productIds as unknown[]).filter((id): id is string => typeof id === "string" && id.length > 0);
+    if (ids.length === 0) {
+      return NextResponse.json({ error: "No product IDs" }, { status: 400 });
+    }
+    const { data, error } = await supabase
+      .from("products")
+      .update({ cogs })
+      .eq("org_id", profile.org_id)
+      .in("id", ids)
+      .select("id");
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true, updated: data?.length ?? 0 });
+  }
+
   // Single product update
   if (body.productId) {
     const { error } = await supabase

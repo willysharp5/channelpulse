@@ -7,10 +7,11 @@ import {
   lookupProductSales,
   type TopProductSale,
 } from "@/lib/sales-from-orders";
+import { computePnLExpenseTotals, type ChannelPnlOverride } from "@/lib/pnl-model";
 
 export type { TopProductSale };
 
-async function getOrgId(): Promise<string | null> {
+export async function getOrgId(): Promise<string | null> {
   const supabase = await createClient();
 
   const impersonatedUserId = await getImpersonatedUserId();
@@ -59,38 +60,18 @@ const EMPTY_STATS = {
   units: { value: 0, change: 0 },
 };
 
-export interface DateParams {
-  days?: number;
-  from?: string;
-  to?: string;
-}
+import { getDateRange, type DateParams } from "./date-range-bounds";
+import { buildReportingChannelsFilter, type ReportingChannelsFilter } from "@/lib/reporting-channel-filter";
 
-function getDateRange(params: DateParams): { fromStr: string; toStr: string; prevFromStr: string; prevToStr: string } {
-  if (params.from && params.to) {
-    const from = new Date(params.from);
-    const to = new Date(params.to);
-    const diff = Math.ceil((to.getTime() - from.getTime()) / 86400000);
-    const prevFrom = new Date(from);
-    prevFrom.setDate(prevFrom.getDate() - diff);
-    return {
-      fromStr: params.from,
-      toStr: params.to,
-      prevFromStr: prevFrom.toISOString().split("T")[0],
-      prevToStr: params.from,
-    };
-  }
-  const days = params.days ?? 30;
-  const toDate = new Date();
-  const fromDate = new Date();
-  fromDate.setDate(fromDate.getDate() - days);
-  const prevFromDate = new Date();
-  prevFromDate.setDate(prevFromDate.getDate() - days * 2);
-  return {
-    fromStr: fromDate.toISOString().split("T")[0],
-    toStr: toDate.toISOString().split("T")[0],
-    prevFromStr: prevFromDate.toISOString().split("T")[0],
-    prevToStr: fromDate.toISOString().split("T")[0],
-  };
+export type { DateParams };
+export { getDateRange };
+export type { ReportingChannelsFilter };
+
+export async function getReportingChannelsFilter(): Promise<ReportingChannelsFilter> {
+  const orgId = await getOrgId();
+  if (!orgId) return { kind: "none" };
+  const supabase = await createClient();
+  return buildReportingChannelsFilter(supabase, orgId);
 }
 
 export async function getDashboardStats(params: DateParams = { days: 30 }) {
@@ -98,21 +79,34 @@ export async function getDashboardStats(params: DateParams = { days: 30 }) {
   const orgId = await getOrgId();
   if (!orgId) return EMPTY_STATS;
 
+  const reportFilter = await buildReportingChannelsFilter(supabase, orgId);
+  if (reportFilter.kind === "include_only" && reportFilter.channelIds.length === 0) {
+    return EMPTY_STATS;
+  }
+
   const { fromStr, toStr, prevFromStr, prevToStr } = getDateRange(params);
 
-  const { data: currentStats } = await supabase
+  let currentQ = supabase
     .from("daily_stats")
     .select("total_revenue, total_orders, total_units, avg_order_value, platform_fees, estimated_cogs, estimated_profit")
     .eq("org_id", orgId)
     .gte("date", fromStr)
     .lte("date", toStr);
+  if (reportFilter.kind === "include_only") {
+    currentQ = currentQ.in("channel_id", reportFilter.channelIds);
+  }
+  const { data: currentStats } = await currentQ;
 
-  const { data: prevStats } = await supabase
+  let prevQ = supabase
     .from("daily_stats")
     .select("total_revenue, total_orders, total_units, avg_order_value, platform_fees, estimated_cogs, estimated_profit")
     .eq("org_id", orgId)
     .gte("date", prevFromStr)
     .lt("date", prevToStr);
+  if (reportFilter.kind === "include_only") {
+    prevQ = prevQ.in("channel_id", reportFilter.channelIds);
+  }
+  const { data: prevStats } = await prevQ;
 
   const sumField = (rows: Record<string, unknown>[] | null, field: string) =>
     rows?.reduce((s, r) => s + Number(r[field] || 0), 0) ?? 0;
@@ -152,15 +146,24 @@ export async function getRevenueSeries(params: DateParams = { days: 30 }): Promi
   const orgId = await getOrgId();
   if (!orgId) return { series: [], platforms: [] };
 
+  const reportFilter = await buildReportingChannelsFilter(supabase, orgId);
+  if (reportFilter.kind === "include_only" && reportFilter.channelIds.length === 0) {
+    return { series: [], platforms: [] };
+  }
+
   const { fromStr, toStr } = getDateRange(params);
 
-  const { data: stats } = await supabase
+  let statsQ = supabase
     .from("daily_stats")
     .select("date, channel_id, total_revenue, total_orders")
     .eq("org_id", orgId)
     .gte("date", fromStr)
     .lte("date", toStr)
     .order("date", { ascending: true });
+  if (reportFilter.kind === "include_only") {
+    statsQ = statsQ.in("channel_id", reportFilter.channelIds);
+  }
+  const { data: stats } = await statsQ;
 
   const { data: channels } = await supabase
     .from("channels")
@@ -193,14 +196,23 @@ export async function getChannelRevenue(params: DateParams = { days: 30 }) {
   const orgId = await getOrgId();
   if (!orgId) return [];
 
+  const reportFilter = await buildReportingChannelsFilter(supabase, orgId);
+  if (reportFilter.kind === "include_only" && reportFilter.channelIds.length === 0) {
+    return [];
+  }
+
   const { fromStr, toStr } = getDateRange(params);
 
-  const { data: stats } = await supabase
+  let statsQ = supabase
     .from("daily_stats")
     .select("channel_id, total_revenue, total_orders")
     .eq("org_id", orgId)
     .gte("date", fromStr)
     .lte("date", toStr);
+  if (reportFilter.kind === "include_only") {
+    statsQ = statsQ.in("channel_id", reportFilter.channelIds);
+  }
+  const { data: stats } = await statsQ;
 
   const { data: channels } = await supabase
     .from("channels")
@@ -228,7 +240,8 @@ export async function getChannelRevenue(params: DateParams = { days: 30 }) {
 
   const totalRevenue = Array.from(byChannel.values()).reduce((s, c) => s + c.revenue, 0);
 
-  return Array.from(byChannel.values()).map((ch) => ({
+  return Array.from(byChannel.entries()).map(([channelId, ch]) => ({
+    channelId,
     channel: ch.platform,
     label: ch.name,
     revenue: ch.revenue,
@@ -242,12 +255,21 @@ export async function getRecentOrders(limit = 10) {
   const orgId = await getOrgId();
   if (!orgId) return [];
 
-  const { data: orders } = await supabase
+  const reportFilter = await buildReportingChannelsFilter(supabase, orgId);
+  if (reportFilter.kind === "include_only" && reportFilter.channelIds.length === 0) {
+    return [];
+  }
+
+  let q = supabase
     .from("orders")
     .select("id, platform, platform_order_id, order_number, status, customer_name, total_amount, currency, ordered_at")
     .eq("org_id", orgId)
     .order("ordered_at", { ascending: false })
     .limit(limit);
+  if (reportFilter.kind === "include_only") {
+    q = q.in("channel_id", reportFilter.channelIds);
+  }
+  const { data: orders } = await q;
 
   return orders ?? [];
 }
@@ -257,11 +279,20 @@ export async function getAllOrders() {
   const orgId = await getOrgId();
   if (!orgId) return [];
 
-  const { data: orders } = await supabase
+  const reportFilter = await buildReportingChannelsFilter(supabase, orgId);
+  if (reportFilter.kind === "include_only" && reportFilter.channelIds.length === 0) {
+    return [];
+  }
+
+  let q = supabase
     .from("orders")
     .select("id, platform, platform_order_id, order_number, status, financial_status, customer_name, customer_email, total_amount, subtotal, total_tax, total_shipping, total_discounts, platform_fees, net_profit, currency, item_count, ordered_at")
     .eq("org_id", orgId)
     .order("ordered_at", { ascending: false });
+  if (reportFilter.kind === "include_only") {
+    q = q.in("channel_id", reportFilter.channelIds);
+  }
+  const { data: orders } = await q;
 
   return orders ?? [];
 }
@@ -320,8 +351,18 @@ export async function getProducts() {
   const orgId = await getOrgId();
   if (!orgId) return [];
 
+  const reportFilter = await buildReportingChannelsFilter(supabase, orgId);
+  if (reportFilter.kind === "include_only" && reportFilter.channelIds.length === 0) {
+    return [];
+  }
+
+  let pq = supabase.from("products").select("*").eq("org_id", orgId).order("title", { ascending: true });
+  if (reportFilter.kind === "include_only") {
+    pq = pq.in("channel_id", reportFilter.channelIds);
+  }
+
   const [{ data: products }, { data: channels }] = await Promise.all([
-    supabase.from("products").select("*").eq("org_id", orgId).order("title", { ascending: true }),
+    pq,
     supabase.from("channels").select("id, platform, name").eq("org_id", orgId),
   ]);
 
@@ -342,17 +383,26 @@ export async function getTopProductsBySales(params: DateParams = { days: 30 }, l
   const orgId = await getOrgId();
   if (!orgId) return [];
 
+  const reportFilter = await buildReportingChannelsFilter(supabase, orgId);
+  if (reportFilter.kind === "include_only" && reportFilter.channelIds.length === 0) {
+    return [];
+  }
+
   const { fromStr, toStr } = getDateRange(params);
   const fromIso = `${fromStr}T00:00:00.000Z`;
   const toIso = `${toStr}T23:59:59.999Z`;
 
-  const { data: orders } = await supabase
+  let oq = supabase
     .from("orders")
     .select("id, platform, raw_data, total_amount, item_count")
     .eq("org_id", orgId)
     .gte("ordered_at", fromIso)
     .lte("ordered_at", toIso)
     .neq("status", "cancelled");
+  if (reportFilter.kind === "include_only") {
+    oq = oq.in("channel_id", reportFilter.channelIds);
+  }
+  const { data: orders } = await oq;
 
   return topProductsFromOrders(orders ?? [], limit);
 }
@@ -364,20 +414,27 @@ export async function getProductsWithSales(params: DateParams = { days: 30 }) {
   const orgId = await getOrgId();
   if (!orgId) return [];
 
+  const reportFilter = await buildReportingChannelsFilter(supabase, orgId);
+  if (reportFilter.kind === "include_only" && reportFilter.channelIds.length === 0) {
+    return [];
+  }
+
   const { fromStr, toStr } = getDateRange(params);
   const fromIso = `${fromStr}T00:00:00.000Z`;
   const toIso = `${toStr}T23:59:59.999Z`;
 
-  const [products, { data: orders }] = await Promise.all([
-    getProducts(),
-    supabase
-      .from("orders")
-      .select("id, platform, raw_data, total_amount, item_count")
-      .eq("org_id", orgId)
-      .gte("ordered_at", fromIso)
-      .lte("ordered_at", toIso)
-      .neq("status", "cancelled"),
-  ]);
+  let orderQ = supabase
+    .from("orders")
+    .select("id, platform, raw_data, total_amount, item_count")
+    .eq("org_id", orgId)
+    .gte("ordered_at", fromIso)
+    .lte("ordered_at", toIso)
+    .neq("status", "cancelled");
+  if (reportFilter.kind === "include_only") {
+    orderQ = orderQ.in("channel_id", reportFilter.channelIds);
+  }
+
+  const [products, { data: orders }] = await Promise.all([getProducts(), orderQ]);
 
   const rollup = rollupForProducts(orders ?? []);
 
@@ -399,27 +456,6 @@ export async function getProductsWithSales(params: DateParams = { days: 30 }) {
   });
 }
 
-export async function getInventoryRows() {
-  const products = await getProducts();
-  return products.map((p) => {
-    const qty = Number((p as { inventory_quantity?: number }).inventory_quantity ?? 0);
-    const ch = p.channels as { platform?: string; name?: string } | null;
-    const platform = (ch?.platform as string) || "—";
-    const channelName = ch?.name || "—";
-    const updated = (p as { inventory_updated_at?: string | null }).inventory_updated_at;
-    return {
-      id: p.id as string,
-      title: p.title as string,
-      sku: (p.sku as string | null) ?? null,
-      inventory_quantity: qty,
-      platform,
-      channelName,
-      status: (p.status as string | null) ?? null,
-      updatedAt: updated,
-    };
-  });
-}
-
 export type CogsMethod = "percentage" | "per_product";
 
 export interface CostSettings {
@@ -432,6 +468,8 @@ export interface CostSettings {
   other_expenses_monthly: number;
   default_cogs_percent: number;
   cogs_method: CogsMethod;
+  /** When true, P&L marketplace fees = sum of per-store modeled fees (overrides + org defaults), not synced order totals. */
+  use_modeled_platform_fees: boolean;
 }
 
 const DEFAULT_COST_SETTINGS: CostSettings = {
@@ -444,6 +482,7 @@ const DEFAULT_COST_SETTINGS: CostSettings = {
   other_expenses_monthly: 0,
   default_cogs_percent: 0,
   cogs_method: "percentage",
+  use_modeled_platform_fees: false,
 };
 
 export async function getCostSettings(): Promise<CostSettings> {
@@ -469,6 +508,7 @@ export async function getCostSettings(): Promise<CostSettings> {
     other_expenses_monthly: Number(data.other_expenses_monthly ?? 0),
     default_cogs_percent: Number(data.default_cogs_percent ?? 0),
     cogs_method: (data.cogs_method as CogsMethod) ?? "percentage",
+    use_modeled_platform_fees: Boolean(data.use_modeled_platform_fees),
   };
 }
 
@@ -483,6 +523,18 @@ export interface PnLChannelRow {
   estimatedProfit: number;
 }
 
+/** Per-store fee/marketing inputs for P&L (null = use org defaults for % / flat). */
+export interface PnLChannelFeeRow {
+  channelId: string;
+  name: string;
+  platform: string;
+  platform_fee_percent: number | null;
+  platform_fee_flat: number | null;
+  marketing_monthly: number | null;
+  shipping_cost_percent: number | null;
+  payment_processing_percent: number | null;
+}
+
 const EMPTY_PNL = {
   totalRevenue: 0, totalOrders: 0, revenueByPlatform: {} as Record<string, number>,
   cogs: 0, grossProfit: 0, grossMargin: 0,
@@ -490,6 +542,7 @@ const EMPTY_PNL = {
   netProfit: 0, netMargin: 0,
   costSettings: DEFAULT_COST_SETTINGS,
   channelBreakdown: [] as PnLChannelRow[],
+  channelFeeOverrides: [] as PnLChannelFeeRow[],
 };
 
 export async function getPnLData(params: DateParams = { days: 30 }) {
@@ -497,14 +550,23 @@ export async function getPnLData(params: DateParams = { days: 30 }) {
   const orgId = await getOrgId();
   if (!orgId) return EMPTY_PNL;
 
+  const reportFilter = await buildReportingChannelsFilter(supabase, orgId);
+  if (reportFilter.kind === "include_only" && reportFilter.channelIds.length === 0) {
+    return EMPTY_PNL;
+  }
+
   const { fromStr, toStr } = getDateRange(params);
 
-  const { data: stats } = await supabase
+  let statsQ = supabase
     .from("daily_stats")
     .select("channel_id, total_revenue, total_orders, platform_fees, estimated_cogs, estimated_profit")
     .eq("org_id", orgId)
     .gte("date", fromStr)
     .lte("date", toStr);
+  if (reportFilter.kind === "include_only") {
+    statsQ = statsQ.in("channel_id", reportFilter.channelIds);
+  }
+  const { data: stats } = await statsQ;
 
   const { data: channels } = await supabase
     .from("channels")
@@ -513,17 +575,16 @@ export async function getPnLData(params: DateParams = { days: 30 }) {
 
   const channelMap = new Map(channels?.map((c) => [c.id, { platform: c.platform, name: c.name }]) ?? []);
 
-  // Get actual COGS from products table (user-entered values)
-  const { data: products } = await supabase
-    .from("products")
-    .select("cogs")
-    .eq("org_id", orgId);
+  let productsQ = supabase.from("products").select("cogs").eq("org_id", orgId);
+  if (reportFilter.kind === "include_only") {
+    productsQ = productsQ.in("channel_id", reportFilter.channelIds);
+  }
+  const { data: products } = await productsQ;
 
   const perProductCogs = (products ?? []).reduce((s, p) => s + Number(p.cogs ?? 0), 0);
 
   const revenueByPlatform: Record<string, number> = {};
   let totalRevenue = 0;
-  let totalFees = 0;
   let totalOrders = 0;
 
   const byChannelAgg = new Map<
@@ -536,7 +597,6 @@ export async function getPnLData(params: DateParams = { days: 30 }) {
     const platform = ch?.platform ?? "other";
     revenueByPlatform[platform] = (revenueByPlatform[platform] ?? 0) + Number(row.total_revenue);
     totalRevenue += Number(row.total_revenue);
-    totalFees += Number(row.platform_fees);
     totalOrders += Number(row.total_orders);
 
     const cid = row.channel_id as string;
@@ -577,16 +637,75 @@ export async function getPnLData(params: DateParams = { days: 30 }) {
   const totalCogs = costSettings.cogs_method === "per_product" ? perProductCogs : cogsFromPercent;
 
   const grossProfit = totalRevenue - totalCogs;
-  const marketplaceFees = totalFees > 0
-    ? totalFees
-    : (totalRevenue * costSettings.platform_fee_percent / 100) + (totalOrders * costSettings.platform_fee_flat);
-  const shippingCost = totalRevenue * (costSettings.shipping_cost_percent / 100);
-  const processingFees = totalRevenue * (costSettings.payment_processing_percent / 100);
-  const advertising = costSettings.advertising_monthly;
-  const refunds = totalRevenue * (costSettings.refund_rate_percent / 100);
-  const otherExpenses = costSettings.other_expenses_monthly;
-  const totalExpenses = marketplaceFees + shippingCost + processingFees + advertising + refunds + otherExpenses;
-  const netProfit = grossProfit - totalExpenses;
+
+  const { data: pnlSettingsRows } = await supabase
+    .from("channel_pnl_settings")
+    .select(
+      "channel_id, platform_fee_percent, platform_fee_flat, marketing_monthly, shipping_cost_percent, payment_processing_percent"
+    )
+    .eq("org_id", orgId);
+
+  const settingsByCh = new Map<
+    string,
+    {
+      platform_fee_percent: number | null;
+      platform_fee_flat: number | null;
+      marketing_monthly: number | null;
+      shipping_cost_percent: number | null;
+      payment_processing_percent: number | null;
+    }
+  >();
+  for (const r of pnlSettingsRows ?? []) {
+    const cid = r.channel_id as string;
+    settingsByCh.set(cid, {
+      platform_fee_percent: r.platform_fee_percent != null ? Number(r.platform_fee_percent) : null,
+      platform_fee_flat: r.platform_fee_flat != null ? Number(r.platform_fee_flat) : null,
+      marketing_monthly: r.marketing_monthly != null ? Number(r.marketing_monthly) : null,
+      shipping_cost_percent: r.shipping_cost_percent != null ? Number(r.shipping_cost_percent) : null,
+      payment_processing_percent:
+        r.payment_processing_percent != null ? Number(r.payment_processing_percent) : null,
+    });
+  }
+
+  const channelFeeOverrides: PnLChannelFeeRow[] = (channels ?? []).map((c) => {
+    const st = settingsByCh.get(c.id);
+    return {
+      channelId: c.id,
+      name: c.name ?? c.platform ?? "Channel",
+      platform: c.platform ?? "other",
+      platform_fee_percent: st?.platform_fee_percent ?? null,
+      platform_fee_flat: st?.platform_fee_flat ?? null,
+      marketing_monthly: st?.marketing_monthly ?? null,
+      shipping_cost_percent: st?.shipping_cost_percent ?? null,
+      payment_processing_percent: st?.payment_processing_percent ?? null,
+    };
+  });
+
+  const overrideInputs: ChannelPnlOverride[] = channelFeeOverrides.map((r) => ({
+    channelId: r.channelId,
+    platform_fee_percent: r.platform_fee_percent,
+    platform_fee_flat: r.platform_fee_flat,
+    marketing_monthly: r.marketing_monthly,
+    shipping_cost_percent: r.shipping_cost_percent,
+    payment_processing_percent: r.payment_processing_percent,
+  }));
+
+  const channelAggs = Array.from(byChannelAgg.entries()).map(([channelId, agg]) => ({
+    channelId,
+    revenue: agg.revenue,
+    orders: agg.orders,
+    storedPlatformFees: agg.platformFees,
+  }));
+
+  const expenseTotals = computePnLExpenseTotals({
+    costSettings,
+    totalRevenue,
+    totalOrders,
+    channelAggs,
+    channelOverrides: overrideInputs,
+  });
+
+  const netProfit = grossProfit - expenseTotals.total;
 
   return {
     totalRevenue,
@@ -597,17 +716,18 @@ export async function getPnLData(params: DateParams = { days: 30 }) {
     grossMargin: totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0,
     costSettings,
     fees: {
-      marketplace: marketplaceFees,
-      shipping: shippingCost,
-      processing: processingFees,
-      advertising,
-      refunds,
-      other: otherExpenses,
-      total: totalExpenses,
+      marketplace: expenseTotals.marketplace,
+      shipping: expenseTotals.shipping,
+      processing: expenseTotals.processing,
+      advertising: expenseTotals.advertising,
+      refunds: expenseTotals.refunds,
+      other: expenseTotals.other,
+      total: expenseTotals.total,
     },
     netProfit,
     netMargin: totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0,
     channelBreakdown,
+    channelFeeOverrides,
   };
 }
 

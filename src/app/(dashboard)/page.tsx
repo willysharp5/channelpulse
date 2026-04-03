@@ -10,7 +10,7 @@ import {
   getHasSeenDashboardTour,
 } from "@/lib/queries";
 import { getSession } from "@/lib/auth/actions";
-import { CHANNEL_CONFIG, rangeToDays, DATE_RANGE_PRESETS } from "@/lib/constants";
+import { REPORT_CHANNEL_PALETTE, rangeToDays, DATE_RANGE_PRESETS } from "@/lib/constants";
 import { NoChannelsEmpty } from "@/components/dashboard/empty-state";
 import { getChannels } from "@/lib/queries";
 import type { Platform } from "@/types";
@@ -105,12 +105,13 @@ export default async function OverviewPage({ searchParams }: { searchParams: Pro
     },
   ];
 
-  const channelRevenue = channelData.map((ch) => ({
+  const channelRevenue = channelData.map((ch, i) => ({
+    channelId: ch.channelId,
     channel: ch.channel as Platform,
-    label: CHANNEL_CONFIG[ch.channel as Platform]?.label ?? ch.label,
+    label: ch.label,
     revenue: ch.revenue,
     percentage: ch.percentage,
-    color: CHANNEL_CONFIG[ch.channel as Platform]?.color ?? "#6B7280",
+    color: REPORT_CHANNEL_PALETTE[i % REPORT_CHANNEL_PALETTE.length]!,
   }));
 
   return (

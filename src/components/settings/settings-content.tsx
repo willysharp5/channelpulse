@@ -17,6 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
@@ -386,31 +387,260 @@ export function SettingsContent({ email, businessName, plan, channels, notificat
         </TabsContent>
 
         <TabsContent value="account" className="mt-6 space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Account Details</CardTitle>
-              <CardDescription>Manage your account information.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-5 max-w-md">
-              <div className="space-y-2">
-                <Label htmlFor="name" className="text-sm font-medium">Business Name</Label>
-                <Input id="name" defaultValue={businessName} className="h-10" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="email" className="text-sm font-medium">Email</Label>
-                <Input id="email" type="email" defaultValue={email} disabled className="h-10" />
-                <p className="text-xs text-muted-foreground">
-                  Email is managed by your authentication provider.
-                </p>
-              </div>
-              <Button className="bg-amber-500 hover:bg-amber-600 text-white">
-                Save Changes
-              </Button>
-            </CardContent>
-          </Card>
+          <AccountTab email={email} businessName={businessName} />
         </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+function AccountTab({ email, businessName }: { email: string; businessName: string }) {
+  const [name, setName] = useState(businessName);
+  const [savingName, setSavingName] = useState(false);
+  const [nameSuccess, setNameSuccess] = useState(false);
+
+  const [newEmail, setNewEmail] = useState(email);
+  const [savingEmail, setSavingEmail] = useState(false);
+  const [emailMessage, setEmailMessage] = useState("");
+
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [savingPassword, setSavingPassword] = useState(false);
+  const [passwordMessage, setPasswordMessage] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+
+  const [deleteConfirm, setDeleteConfirm] = useState("");
+  const [deleting, setDeleting] = useState(false);
+
+  async function handleSaveName() {
+    setSavingName(true);
+    setNameSuccess(false);
+    try {
+      const res = await fetch("/api/account/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ full_name: name }),
+      });
+      if (!res.ok) throw new Error();
+      setNameSuccess(true);
+      setTimeout(() => setNameSuccess(false), 3000);
+    } catch {
+      /* ignore */
+    } finally {
+      setSavingName(false);
+    }
+  }
+
+  async function handleUpdateEmail() {
+    setSavingEmail(true);
+    setEmailMessage("");
+    try {
+      const res = await fetch("/api/account/email", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: newEmail }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setEmailMessage("Check your new email for a confirmation link.");
+    } catch (err) {
+      setEmailMessage(err instanceof Error ? err.message : "Failed to update email");
+    } finally {
+      setSavingEmail(false);
+    }
+  }
+
+  async function handleChangePassword() {
+    setPasswordError("");
+    setPasswordMessage("");
+
+    if (newPassword.length < 6) {
+      setPasswordError("Password must be at least 6 characters");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError("Passwords do not match");
+      return;
+    }
+
+    setSavingPassword(true);
+    try {
+      const res = await fetch("/api/account/password", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setPasswordMessage("Password updated successfully");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setTimeout(() => setPasswordMessage(""), 3000);
+    } catch (err) {
+      setPasswordError(err instanceof Error ? err.message : "Failed to change password");
+    } finally {
+      setSavingPassword(false);
+    }
+  }
+
+  async function handleDeleteAccount() {
+    if (deleteConfirm !== "DELETE") return;
+    setDeleting(true);
+    try {
+      const res = await fetch("/api/account/delete", { method: "DELETE" });
+      if (!res.ok) throw new Error();
+      window.location.href = "/login";
+    } catch {
+      setDeleting(false);
+    }
+  }
+
+  return (
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle>Profile</CardTitle>
+          <CardDescription>Your public-facing business information.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4 max-w-md">
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Business Name</Label>
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="h-10"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={handleSaveName}
+              disabled={savingName || name === businessName}
+              className="bg-amber-500 hover:bg-amber-600 text-white"
+            >
+              {savingName ? "Saving..." : "Save Name"}
+            </Button>
+            {nameSuccess && (
+              <span className="text-sm text-emerald-600">Saved!</span>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Email Address</CardTitle>
+          <CardDescription>
+            Change the email associated with your account. You&apos;ll receive a confirmation link at the new address.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4 max-w-md">
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Email</Label>
+            <Input
+              type="email"
+              value={newEmail}
+              onChange={(e) => setNewEmail(e.target.value)}
+              className="h-10"
+            />
+          </div>
+          {emailMessage && (
+            <p className={`text-sm ${emailMessage.includes("Check") ? "text-emerald-600" : "text-red-600"}`}>
+              {emailMessage}
+            </p>
+          )}
+          <Button
+            onClick={handleUpdateEmail}
+            disabled={savingEmail || newEmail === email || !newEmail}
+            variant="outline"
+          >
+            {savingEmail ? "Updating..." : "Update Email"}
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Change Password</CardTitle>
+          <CardDescription>Update your account password. Must be at least 6 characters.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4 max-w-md">
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Current Password</Label>
+            <PasswordInput
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              className="h-10"
+              placeholder="Enter current password"
+              autoComplete="current-password"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">New Password</Label>
+            <PasswordInput
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              className="h-10"
+              placeholder="Enter new password"
+              autoComplete="new-password"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Confirm New Password</Label>
+            <PasswordInput
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              className="h-10"
+              placeholder="Confirm new password"
+              autoComplete="new-password"
+            />
+          </div>
+          {passwordError && (
+            <p className="text-sm text-red-600">{passwordError}</p>
+          )}
+          {passwordMessage && (
+            <p className="text-sm text-emerald-600">{passwordMessage}</p>
+          )}
+          <Button
+            onClick={handleChangePassword}
+            disabled={savingPassword || !currentPassword || !newPassword}
+            variant="outline"
+          >
+            {savingPassword ? "Updating..." : "Change Password"}
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card className="border-red-200 dark:border-red-900">
+        <CardHeader>
+          <CardTitle className="text-red-600">Delete Account</CardTitle>
+          <CardDescription>
+            Permanently delete your account and all associated data. This action cannot be undone.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4 max-w-md">
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">
+              Type <span className="font-mono text-red-600">DELETE</span> to confirm
+            </Label>
+            <Input
+              value={deleteConfirm}
+              onChange={(e) => setDeleteConfirm(e.target.value)}
+              className="h-10"
+              placeholder="DELETE"
+            />
+          </div>
+          <Button
+            variant="destructive"
+            onClick={handleDeleteAccount}
+            disabled={deleteConfirm !== "DELETE" || deleting}
+          >
+            {deleting ? "Deleting..." : "Delete My Account"}
+          </Button>
+        </CardContent>
+      </Card>
+    </>
   );
 }
 
@@ -467,7 +697,25 @@ function ConnectShopifySection({ hasShopify }: { hasShopify: boolean }) {
         </div>
       )}
       <div className="flex gap-2 flex-wrap">
-        {(["amazon", "ebay", "etsy", "woocommerce"] as const).map((platform) => (
+        {(
+          [
+            "amazon",
+            "ebay",
+            "etsy",
+            "woocommerce",
+            "tiktok",
+            "walmart",
+            "facebook",
+            "instagram",
+            "pinterest",
+            "google",
+            "bigcommerce",
+            "square",
+            "temu",
+            "magento",
+            "mirakl",
+          ] as const satisfies readonly Platform[]
+        ).map((platform) => (
           <Button key={platform} variant="outline" className="gap-2 rounded-lg" disabled>
             <span
               className="inline-block h-2.5 w-2.5 rounded-full"

@@ -91,9 +91,10 @@ export interface AdminDashboardStats {
   totalChannels: number;
   activeSubscriptions: number;
   mrr: number;
-  newUsersLast7d: number;
-  newUsersLast30d: number;
-  cancelledLast30d: number;
+  /** Profiles created within the selected reporting period. */
+  newUsersInPeriod: number;
+  /** Subscriptions cancelled within the selected reporting period. */
+  cancelledInPeriod: number;
 }
 
 export interface SignupDataPoint {

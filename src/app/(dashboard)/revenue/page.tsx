@@ -2,10 +2,8 @@ import { Header } from "@/components/layout/header";
 import { RevenueDashboard } from "@/components/charts/revenue-dashboard";
 import { getDashboardStats, getRevenueSeries, getChannelRevenue } from "@/lib/queries";
 import { getSession } from "@/lib/auth/actions";
-import { CHANNEL_CONFIG, rangeToDays } from "@/lib/constants";
+import { REPORT_CHANNEL_PALETTE, rangeToDays } from "@/lib/constants";
 import { formatCurrency } from "@/lib/formatters";
-import type { Platform } from "@/types";
-
 export const dynamic = "force-dynamic";
 
 function formatDateLabel(dateStr: string): string {
@@ -87,13 +85,11 @@ export default async function RevenuePage({ searchParams }: { searchParams: Prom
   ];
 
   const barChartData = channelData.map((ch) => ({
-    channel: CHANNEL_CONFIG[ch.channel as Platform]?.label ?? ch.label,
+    channel: ch.label,
     Revenue: ch.revenue,
   }));
 
-  const barColors = channelData.map((ch) =>
-    CHANNEL_CONFIG[ch.channel as Platform]?.color ?? "#6b7280"
-  );
+  const barColors = channelData.map((_, i) => REPORT_CHANNEL_PALETTE[i % REPORT_CHANNEL_PALETTE.length]!);
 
   return (
     <>

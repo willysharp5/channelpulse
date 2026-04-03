@@ -14,7 +14,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ChannelPulse — Multichannel Sales Analytics",
+  title: "ChannelPulse | Multichannel Sales Analytics",
   description:
     "See all your Shopify, Amazon, eBay, and Etsy sales in one beautiful dashboard. Revenue, orders, profit & more.",
   icons: {

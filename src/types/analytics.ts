@@ -25,6 +25,8 @@ export interface RevenueTimeSeriesPoint {
 }
 
 export interface ChannelRevenue {
+  /** Channel row id (for stable React keys when multiple stores share a platform). */
+  channelId: string;
   channel: Platform;
   label: string;
   revenue: number;

@@ -1,52 +1,62 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { CalendarDays } from "lucide-react";
 import { format } from "date-fns";
+import type { DateRange } from "react-day-picker";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { usePageLoading } from "./page-loading-provider";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
 import { DATE_RANGE_PRESETS } from "@/lib/constants";
-import type { DateRange } from "@/types";
+import type { DateRange as DashboardDateRange } from "@/types";
+
+/** Dashboard uses `range` / `from` / `to`; orders & inventory table filters also use `from`/`to` — hide here to avoid clashes. */
+const HIDE_HEADER_PICKER_PREFIXES = ["/orders", "/inventory"];
 
 export function DateRangePicker() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const currentRange = searchParams.get("range") as DateRange | null;
+  const currentRange = searchParams.get("range") as DashboardDateRange | null;
   const currentFrom = searchParams.get("from");
   const currentTo = searchParams.get("to");
   const { startTransition } = usePageLoading();
   const [open, setOpen] = useState(false);
-  const [customFrom, setCustomFrom] = useState<Date | undefined>(
-    currentFrom ? new Date(currentFrom) : undefined
-  );
-  const [customTo, setCustomTo] = useState<Date | undefined>(
-    currentTo ? new Date(currentTo) : undefined
-  );
   const [showCalendar, setShowCalendar] = useState(false);
+  const [customRange, setCustomRange] = useState<DateRange | undefined>(undefined);
 
-  const isCustom = !!(currentFrom && currentTo);
-  const selectedPreset = !isCustom
-    ? DATE_RANGE_PRESETS.find((p) => p.value === (currentRange ?? "30d"))
-    : null;
+  useEffect(() => {
+    if (!open) return;
+    if (currentFrom && currentTo) {
+      setCustomRange({
+        from: new Date(currentFrom + "T12:00:00"),
+        to: new Date(currentTo + "T12:00:00"),
+      });
+    } else {
+      setCustomRange(undefined);
+    }
+  }, [open, currentFrom, currentTo]);
 
-  const displayLabel = isCustom && currentFrom && currentTo
-    ? `${formatShort(currentFrom)} – ${formatShort(currentTo)}`
-    : selectedPreset?.label ?? "Last 30 days";
-
-  function formatShort(dateStr: string) {
-    return format(new Date(dateStr), "MMM d");
+  if (HIDE_HEADER_PICKER_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`))) {
+    return null;
   }
 
-  function handlePresetSelect(value: DateRange) {
+  const isCustom = !!(currentFrom && currentTo);
+  const selectedPreset = !isCustom ? DATE_RANGE_PRESETS.find((p) => p.value === (currentRange ?? "30d")) : null;
+
+  const displayLabel =
+    isCustom && currentFrom && currentTo
+      ? `${formatShort(currentFrom)} – ${formatShort(currentTo)}`
+      : selectedPreset?.label ?? "Last 30 days";
+
+  function formatShort(dateStr: string) {
+    return format(new Date(dateStr + "T12:00:00"), "MMM d");
+  }
+
+  function handlePresetSelect(value: DashboardDateRange) {
     const params = new URLSearchParams(searchParams.toString());
     params.delete("from");
     params.delete("to");
@@ -58,16 +68,17 @@ export function DateRangePicker() {
     setOpen(false);
     setShowCalendar(false);
     startTransition(() => {
-      router.push(`${pathname}${params.toString() ? `?${params}` : ""}`);
+      const qs = params.toString();
+      router.push(qs ? `${pathname}?${qs}` : pathname);
     });
   }
 
   function handleCustomApply() {
-    if (!customFrom || !customTo) return;
+    if (!customRange?.from || !customRange?.to) return;
     const params = new URLSearchParams(searchParams.toString());
     params.delete("range");
-    params.set("from", format(customFrom, "yyyy-MM-dd"));
-    params.set("to", format(customTo, "yyyy-MM-dd"));
+    params.set("from", format(customRange.from, "yyyy-MM-dd"));
+    params.set("to", format(customRange.to, "yyyy-MM-dd"));
     setOpen(false);
     setShowCalendar(false);
     startTransition(() => {
@@ -76,18 +87,27 @@ export function DateRangePicker() {
   }
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger render={<Button variant="outline" size="sm" className="gap-2 text-sm" />}>
-        <CalendarDays className="h-4 w-4" />
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (!next) setShowCalendar(false);
+      }}
+    >
+      <PopoverTrigger
+        render={<Button variant="outline" size="sm" className="gap-2 text-sm bg-background" />}
+      >
+        <CalendarDays className="h-4 w-4 shrink-0" />
         <span className="truncate max-w-[160px]">{displayLabel}</span>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="end">
+      <PopoverContent className="w-auto border bg-popover p-0 shadow-md" align="end" sideOffset={6}>
         {!showCalendar ? (
-          <div className="p-2 w-48">
+          <div className="flex w-52 flex-col p-2">
             <div className="flex flex-col gap-0.5">
               {DATE_RANGE_PRESETS.map((preset) => (
                 <button
                   key={preset.value}
+                  type="button"
                   onClick={() => handlePresetSelect(preset.value)}
                   className={`rounded-md px-3 py-1.5 text-left text-sm transition-colors hover:bg-accent ${
                     !isCustom && (currentRange ?? "30d") === preset.value
@@ -101,56 +121,45 @@ export function DateRangePicker() {
             </div>
             <Separator className="my-2" />
             <button
+              type="button"
               onClick={() => setShowCalendar(true)}
               className={`w-full rounded-md px-3 py-1.5 text-left text-sm transition-colors hover:bg-accent ${
                 isCustom ? "bg-accent font-medium text-accent-foreground" : "text-muted-foreground"
               }`}
             >
-              Custom Range...
+              Custom range…
             </button>
           </div>
         ) : (
-          <div className="p-3 space-y-3">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-medium">Select date range</p>
-              <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => setShowCalendar(false)}>
+          <div className="flex flex-col gap-2 p-2">
+            <div className="flex items-center justify-between px-1">
+              <p className="text-sm font-medium">Select range</p>
+              <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setShowCalendar(false)}>
                 Back
               </Button>
             </div>
-            <div className="flex gap-4">
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">From</p>
-                <Calendar
-                  mode="single"
-                  selected={customFrom}
-                  onSelect={(d) => setCustomFrom(d ?? undefined)}
-                  disabled={(date) => date > new Date()}
-                  className="rounded-md border"
-                />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">To</p>
-                <Calendar
-                  mode="single"
-                  selected={customTo}
-                  onSelect={(d) => setCustomTo(d ?? undefined)}
-                  disabled={(date) => date > new Date() || (customFrom ? date < customFrom : false)}
-                  className="rounded-md border"
-                />
-              </div>
-            </div>
-            {customFrom && customTo && (
-              <p className="text-xs text-muted-foreground text-center">
-                {format(customFrom, "MMM d, yyyy")} – {format(customTo, "MMM d, yyyy")}
+            <Calendar
+              mode="range"
+              numberOfMonths={2}
+              defaultMonth={customRange?.from}
+              selected={customRange}
+              onSelect={setCustomRange}
+              disabled={(date) => date > new Date()}
+              className="rounded-md border border-border bg-background p-1"
+            />
+            {customRange?.from && customRange?.to ? (
+              <p className="px-1 text-center text-xs text-muted-foreground">
+                {format(customRange.from, "MMM d, yyyy")} – {format(customRange.to, "MMM d, yyyy")}
               </p>
-            )}
+            ) : null}
             <Button
+              type="button"
               onClick={handleCustomApply}
-              disabled={!customFrom || !customTo}
-              className="w-full bg-amber-500 hover:bg-amber-600 text-white"
+              disabled={!customRange?.from || !customRange?.to}
+              className="w-full"
               size="sm"
             >
-              Apply Range
+              Apply range
             </Button>
           </div>
         )}

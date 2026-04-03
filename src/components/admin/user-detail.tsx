@@ -27,6 +27,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { AdminUserDetail, SubscriptionPlan } from "@/types/admin";
+import { CHANNEL_CONFIG } from "@/lib/constants";
+import type { Platform } from "@/types";
 
 interface PlanLimits {
   channels: number;
@@ -270,7 +272,7 @@ export function UserDetailClient({ user, planLimits, availablePlans }: Props) {
             <Row
               label="Channels"
               value={
-                <span className="flex items-center gap-1.5">
+                <span className="flex flex-wrap items-center gap-1.5 justify-end">
                   <span className={user.channels_count > limits.channels ? "text-red-600 font-semibold" : ""}>
                     {user.channels_count} connected
                   </span>
@@ -285,6 +287,32 @@ export function UserDetailClient({ user, planLimits, availablePlans }: Props) {
                 </span>
               }
             />
+            {user.channels.length > 0 ? (
+              <div className="rounded-md border border-border/80 bg-muted/30 p-3 pt-2">
+                <p className="mb-2 text-xs font-medium text-muted-foreground">Connected stores</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {user.channels.map((ch, i) => {
+                    const config = CHANNEL_CONFIG[ch.platform as Platform];
+                    return (
+                      <span
+                        key={`${ch.platform}-${i}`}
+                        className="inline-flex items-center gap-1.5 rounded-full border bg-background px-2.5 py-1 text-xs font-medium"
+                        title={`${ch.name} · ${ch.status}`}
+                      >
+                        <span
+                          className="size-2 shrink-0 rounded-full"
+                          style={{ backgroundColor: config?.color ?? "#6B7280" }}
+                        />
+                        <span>{config?.label ?? ch.platform}</span>
+                        <span className="max-w-[140px] truncate text-muted-foreground font-normal">{ch.name}</span>
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">No channels connected.</p>
+            )}
             <Row label="Total Orders" value={formatNumber(user.orders_count)} />
             <Row label="Total Revenue" value={formatCurrency(user.total_revenue)} />
             {user.subscription?.current_period_end && (

@@ -1,13 +1,20 @@
 import { Header } from "@/components/layout/header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSession } from "@/lib/auth/actions";
-import { getInventoryRows } from "@/lib/queries";
+import { getInventoryPage, parseInventoryListParams } from "@/lib/inventory-list";
 import { InventoryTable } from "@/components/inventory/inventory-table";
 
 export const dynamic = "force-dynamic";
 
-export default async function InventoryPage() {
-  const [user, rows] = await Promise.all([getSession(), getInventoryRows()]);
+export default async function InventoryPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const sp = await searchParams;
+  const params = parseInventoryListParams(sp);
+  const lastRefreshAt = new Date().toISOString();
+  const [user, data] = await Promise.all([getSession(), getInventoryPage(params)]);
 
   return (
     <>
@@ -16,7 +23,8 @@ export default async function InventoryPage() {
         <div>
           <h2 className="text-lg font-semibold">Stock levels</h2>
           <p className="text-sm text-muted-foreground">
-            Read-only view from your connected stores. Green &gt; 20, yellow 5–20, red &lt; 5 units.
+            Read-only view from your connected stores. Green &gt; 20, yellow 5–20, red &lt; 5 units. Search and
+            filters run on the server.
           </p>
         </div>
         <Card>
@@ -24,7 +32,15 @@ export default async function InventoryPage() {
             <CardTitle className="text-base font-semibold">Catalog inventory</CardTitle>
           </CardHeader>
           <CardContent>
-            <InventoryTable rows={rows} />
+            <InventoryTable
+              rows={data.rows}
+              totalCount={data.totalCount}
+              histogram={data.histogram}
+              platformOptions={data.platformOptions}
+              effectivePage={data.effectivePage}
+              requestedPage={params.page}
+              lastRefreshAt={lastRefreshAt}
+            />
           </CardContent>
         </Card>
       </div>

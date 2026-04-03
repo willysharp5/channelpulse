@@ -1,42 +1,37 @@
 "use client";
 
-import { useState, useCallback, Suspense } from "react";
+import { useCallback, Suspense } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { KPICard } from "@/components/dashboard/kpi-card";
 import { CategoryBar } from "@/components/tremor/category-bar";
+import { formatCurrency, formatNumber } from "@/lib/formatters";
 import { ProductsTable } from "./products-table";
 import { CogsImport } from "./cogs-import";
-import { formatCurrency, formatNumber } from "@/lib/formatters";
 import type { KPIData } from "@/types";
-
-interface Product {
-  id: string;
-  title: string;
-  sku: string | null;
-  image_url: string | null;
-  cogs: number | null;
-  category: string | null;
-  status: string | null;
-  unitsSold: number;
-  revenue: number;
-  channelLabel: string;
-  salesPlatform: string;
-}
+import type { ProductsCatalogSummary, ProductsPageResult } from "@/lib/products-list";
 
 interface ProductsPageContentProps {
-  initialProducts: Product[];
+  catalogSummary: ProductsCatalogSummary;
+  cogsTemplate: Array<{ id: string; title: string; sku: string | null; cogs: number | null }>;
+  pageData: ProductsPageResult;
+  requestedPage: number;
 }
 
-export function ProductsPageContent({ initialProducts }: ProductsPageContentProps) {
-  const [products, setProducts] = useState(initialProducts);
+export function ProductsPageContent({
+  catalogSummary,
+  cogsTemplate,
+  pageData,
+  requestedPage,
+}: ProductsPageContentProps) {
+  const router = useRouter();
 
-  const totalProducts = products.length;
-  const activeProducts = products.filter((p) => p.status === "active").length;
-  const draftProducts = products.filter((p) => p.status === "draft").length;
-  const archivedProducts = products.filter((p) => p.status === "archived").length;
-  const inactiveProducts = totalProducts - activeProducts;
-  const totalCogs = products.reduce((s, p) => s + Number(p.cogs ?? 0), 0);
+  const totalProducts = catalogSummary.total;
+  const activeProducts = catalogSummary.active;
+  const draftProducts = catalogSummary.draft;
+  const archivedProducts = catalogSummary.archived;
+  const totalCogs = catalogSummary.totalCogs;
 
   const kpis: KPIData[] = [
     {
@@ -52,9 +47,8 @@ export function ProductsPageContent({ initialProducts }: ProductsPageContentProp
       value: activeProducts,
       formattedValue: formatNumber(activeProducts),
       change: 0,
-      changeLabel: totalProducts > 0
-        ? `${((activeProducts / totalProducts) * 100).toFixed(0)}% of catalog`
-        : "",
+      changeLabel:
+        totalProducts > 0 ? `${((activeProducts / totalProducts) * 100).toFixed(0)}% of catalog` : "",
       sparklineData: [],
     },
     {
@@ -73,46 +67,37 @@ export function ProductsPageContent({ initialProducts }: ProductsPageContentProp
     { label: "Archived", value: archivedProducts, color: "#94a3b8" },
   ].filter((d) => d.value > 0);
 
-  const handleCogsUpdate = useCallback((productId: string, newCogs: number) => {
-    setProducts((prev) =>
-      prev.map((p) => (p.id === productId ? { ...p, cogs: newCogs } : p))
-    );
-  }, []);
+  const handleCogsUpdate = useCallback(() => {
+    router.refresh();
+  }, [router]);
 
   const handleBatchImportComplete = useCallback(() => {
-    fetch("/api/products/list")
-      .then((r) => (r.ok ? r.json() : []))
-      .then((data) => {
-        if (Array.isArray(data) && data.length > 0) setProducts(data);
-      })
-      .catch(() => {});
-  }, []);
+    router.refresh();
+  }, [router]);
 
   return (
-    <div className="flex-1 space-y-6 p-6">
-      <div className="grid gap-4 md:grid-cols-3">
+    <div className="flex-1 min-w-0 max-w-full space-y-6 p-6">
+      <div className="grid min-w-0 gap-4 md:grid-cols-3">
         {kpis.map((kpi) => (
           <KPICard key={kpi.title} data={kpi} />
         ))}
       </div>
 
       {statusBreakdown.length > 0 && (
-        <Card>
-          <CardContent className="pt-5 pb-4">
-            <p className="text-sm font-medium text-muted-foreground mb-3">
-              Product Status Breakdown
-            </p>
-            <CategoryBar data={statusBreakdown} />
+        <Card className="min-w-0 max-w-full">
+          <CardContent className="min-w-0 pt-5 pb-4">
+            <p className="text-sm font-medium text-muted-foreground mb-3">Product Status Breakdown</p>
+            <CategoryBar data={statusBreakdown} formatValue={formatNumber} amountLabel="Products" />
           </CardContent>
         </Card>
       )}
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+      <Card className="min-w-0 max-w-full">
+        <CardHeader className="flex min-w-0 flex-row flex-wrap items-center justify-between gap-3">
           <CardTitle className="text-base font-semibold">All Products</CardTitle>
-          <CogsImport products={products} onImportComplete={handleBatchImportComplete} />
+          <CogsImport products={cogsTemplate} onImportComplete={handleBatchImportComplete} />
         </CardHeader>
-        <CardContent>
+        <CardContent className="min-w-0 max-w-full">
           <Suspense
             fallback={
               <div className="space-y-3">
@@ -121,7 +106,16 @@ export function ProductsPageContent({ initialProducts }: ProductsPageContentProp
               </div>
             }
           >
-            <ProductsTable products={products} onCogsUpdate={handleCogsUpdate} />
+            <ProductsTable
+              rows={pageData.rows}
+              totalCount={pageData.totalCount}
+              pageableTotalCount={pageData.pageableTotalCount}
+              effectivePage={pageData.effectivePage}
+              requestedPage={requestedPage}
+              platformOptions={pageData.platformOptions}
+              sortTruncated={pageData.sortTruncated}
+              onCogsUpdate={handleCogsUpdate}
+            />
           </Suspense>
         </CardContent>
       </Card>

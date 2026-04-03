@@ -1,10 +1,25 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import { useDebouncedUrlSearch, useSyncEffectivePage } from "@/hooks/use-debounced-url-search";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { Search, ChevronLeft, ChevronRight, X, Check, Loader2, Download, ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
-import { downloadCSV } from "@/lib/csv-export";
+import {
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  X,
+  Check,
+  Loader2,
+  Download,
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  Eye,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { ResultPendingShell } from "@/components/ui/result-pending-shell";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -25,346 +40,596 @@ import {
 import { formatCurrency, formatNumber } from "@/lib/formatters";
 import { ChannelBadge } from "@/components/layout/channel-badge";
 import type { Platform } from "@/types";
-
-interface Product {
-  id: string;
-  title: string;
-  sku: string | null;
-  image_url: string | null;
-  cogs: number | null;
-  category: string | null;
-  status: string | null;
-  unitsSold: number;
-  revenue: number;
-  channelLabel: string;
-  salesPlatform: string;
-}
-
-interface ProductsTableProps {
-  products: Product[];
-  onCogsUpdate?: (productId: string, newCogs: number) => void;
-}
+import type { ProductTableRow } from "@/lib/products-list";
+import { BulkCogsSheet } from "@/components/products/bulk-cogs-sheet";
+import { ProductDetailSheet } from "@/components/products/product-detail-sheet";
 
 const PAGE_SIZES = [10, 20, 50];
 
-export function ProductsTable({ products, onCogsUpdate }: ProductsTableProps) {
+function normalizeProductsQuery(pathname: string, cur: URLSearchParams): string {
+  const n = new URLSearchParams(cur.toString());
+  if (!n.get("search")) n.delete("search");
+  if (!n.get("page") || n.get("page") === "1") n.delete("page");
+  if (!n.get("pageSize") || n.get("pageSize") === "10") n.delete("pageSize");
+  if (!n.get("status") || n.get("status") === "all") n.delete("status");
+  if (!n.get("channel") || n.get("channel") === "all") n.delete("channel");
+  const sort = n.get("sort");
+  if (!sort || sort === "none") {
+    n.delete("sort");
+    n.delete("dir");
+  } else if (n.get("dir") === "desc") {
+    n.delete("dir");
+  }
+  const qs = n.toString();
+  return `${pathname}${qs ? `?${qs}` : ""}`;
+}
+
+interface ProductsTableProps {
+  rows: ProductTableRow[];
+  totalCount: number;
+  /** Total rows used for pagination (may cap when sorting large catalogs). */
+  pageableTotalCount: number;
+  effectivePage: number;
+  requestedPage: number;
+  platformOptions: string[];
+  sortTruncated: boolean;
+  onCogsUpdate?: () => void;
+}
+
+export function ProductsTable({
+  rows,
+  totalCount,
+  pageableTotalCount,
+  effectivePage,
+  requestedPage,
+  platformOptions,
+  sortTruncated,
+  onCogsUpdate,
+}: ProductsTableProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
 
-  const initialSearch = searchParams.get("search") ?? "";
-  const initialStatus = searchParams.get("status") ?? "all";
-  const initialPage = parseInt(searchParams.get("page") ?? "1", 10);
+  const pageFromUrl = Math.max(1, parseInt(searchParams.get("page") ?? "1", 10) || 1);
+  const pageSizeRaw = parseInt(searchParams.get("pageSize") ?? "10", 10);
+  const pageSize = PAGE_SIZES.includes(pageSizeRaw) ? pageSizeRaw : 10;
+  const statusFilter = searchParams.get("status") ?? "all";
+  const channelFromUrl = searchParams.get("channel") ?? "all";
+  const sortRaw = searchParams.get("sort") ?? "none";
+  const sortKey = sortRaw === "units" || sortRaw === "revenue" ? sortRaw : "none";
+  const sortDir = searchParams.get("dir") === "asc" ? "asc" : "desc";
 
-  const [search, setSearch] = useState(initialSearch);
-  const [page, setPage] = useState(initialPage);
-  const [pageSize, setPageSize] = useState(10);
-  const [statusFilter, setStatusFilter] = useState(initialStatus);
-  const [channelFilter, setChannelFilter] = useState<string>("all");
-  const [sortKey, setSortKey] = useState<"none" | "units" | "revenue">("none");
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const searchFromUrl = searchParams.get("search") ?? "";
+  const [searchDraft, setSearchDraft] = useState(searchFromUrl);
+  const [pendingChannel, setPendingChannel] = useState<string | null>(null);
+  const channelFilter = pendingChannel ?? channelFromUrl;
 
-  const updateUrl = useCallback(
-    (params: Record<string, string>) => {
-      const sp = new URLSearchParams();
-      for (const [k, v] of Object.entries(params)) {
-        if (v && v !== "all" && v !== "1") sp.set(k, v);
-      }
-      const qs = sp.toString();
-      router.replace(`${pathname}${qs ? `?${qs}` : ""}`, { scroll: false });
-    },
-    [router, pathname]
+  const [isFilterPending, startTransition] = useTransition();
+
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+  const [bulkCogsOpen, setBulkCogsOpen] = useState(false);
+  const [detailProduct, setDetailProduct] = useState<ProductTableRow | null>(null);
+
+  const rowIdsKey = useMemo(() => rows.map((r) => r.id).join(","), [rows]);
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [rowIdsKey]);
+
+  useEffect(() => {
+    setSearchDraft(searchFromUrl);
+  }, [searchFromUrl]);
+
+  useEffect(() => {
+    if (pendingChannel === null) return;
+    if (pendingChannel === channelFromUrl) setPendingChannel(null);
+  }, [channelFromUrl, pendingChannel]);
+
+  useDebouncedUrlSearch(
+    searchDraft,
+    searchFromUrl,
+    pathname,
+    searchParams,
+    router,
+    normalizeProductsQuery,
+    400,
+    startTransition
+  );
+  useSyncEffectivePage(
+    effectivePage,
+    requestedPage,
+    pathname,
+    searchParams,
+    router,
+    normalizeProductsQuery,
+    startTransition
   );
 
-  function handleSearchChange(value: string) {
-    setSearch(value);
-    setPage(1);
-    updateUrl({ search: value, status: statusFilter, page: "1" });
-  }
+  const replaceQuery = useCallback(
+    (mutate: (n: URLSearchParams) => void) => {
+      const n = new URLSearchParams(searchParams.toString());
+      mutate(n);
+      startTransition(() => {
+        router.replace(normalizeProductsQuery(pathname, n), { scroll: false });
+      });
+    },
+    [pathname, router, searchParams, startTransition]
+  );
 
-  function handleStatusChange(value: string) {
-    setStatusFilter(value);
-    setPage(1);
-    updateUrl({ search, status: value, page: "1" });
-  }
-
-  function handleClearAll() {
-    setSearch("");
-    setStatusFilter("all");
-    setChannelFilter("all");
-    setSortKey("none");
-    setPage(1);
-    router.replace(pathname, { scroll: false });
-  }
-
-  const channelOptions = useMemo(() => {
-    const set = new Set<string>();
-    for (const p of products) {
-      if (p.salesPlatform) set.add(p.salesPlatform);
-      if (p.channelLabel && p.channelLabel !== "—") set.add(p.channelLabel);
-    }
-    return [...set].sort();
-  }, [products]);
-
-  const filtered = useMemo(() => {
-    let result = products;
-    if (statusFilter !== "all") {
-      result = result.filter((p) => p.status === statusFilter);
-    }
-    if (channelFilter !== "all") {
-      result = result.filter(
-        (p) => p.salesPlatform === channelFilter || p.channelLabel === channelFilter
-      );
-    }
-    if (search.length >= 1) {
-      const q = search.toLowerCase();
-      result = result.filter(
-        (p) =>
-          p.title.toLowerCase().includes(q) ||
-          (p.sku && p.sku.toLowerCase().includes(q)) ||
-          (p.category && p.category.toLowerCase().includes(q))
-      );
-    }
-    if (sortKey === "units") {
-      result = [...result].sort((a, b) =>
-        sortDir === "desc" ? b.unitsSold - a.unitsSold : a.unitsSold - b.unitsSold
-      );
-    } else if (sortKey === "revenue") {
-      result = [...result].sort((a, b) =>
-        sortDir === "desc" ? b.revenue - a.revenue : a.revenue - b.revenue
-      );
-    }
-    return result;
-  }, [products, search, statusFilter, channelFilter, sortKey, sortDir]);
+  const totalPages = Math.max(1, Math.ceil(pageableTotalCount / pageSize));
+  const safePage = Math.min(pageFromUrl, totalPages);
+  const hasFilters =
+    searchFromUrl.length > 0 || statusFilter !== "all" || channelFilter !== "all" || sortKey !== "none";
 
   function toggleSort(key: "units" | "revenue") {
-    if (sortKey !== key) {
-      setSortKey(key);
-      setSortDir("desc");
-    } else {
-      setSortDir((d) => (d === "desc" ? "asc" : "desc"));
-    }
+    replaceQuery((n) => {
+      const current = n.get("sort");
+      const currentDir = n.get("dir") === "asc" ? "asc" : "desc";
+      if (current !== key) {
+        n.set("sort", key);
+        n.set("dir", "desc");
+      } else {
+        n.set("dir", currentDir === "desc" ? "asc" : "desc");
+      }
+      n.set("page", "1");
+    });
   }
 
   function SortIcon({ active, dir }: { active: boolean; dir: "asc" | "desc" }) {
-    if (!active) return <ArrowUpDown className="h-3 w-3 opacity-40" />;
-    return dir === "desc" ? <ArrowDown className="h-3 w-3" /> : <ArrowUp className="h-3 w-3" />;
+    if (!active) return <ArrowUpDown className="h-3 w-3 shrink-0 text-muted-foreground/70" />;
+    return dir === "desc" ? (
+      <ArrowDown className="h-3 w-3 shrink-0 text-muted-foreground" />
+    ) : (
+      <ArrowUp className="h-3 w-3 shrink-0 text-muted-foreground" />
+    );
   }
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const safePage = Math.min(page, totalPages);
-  const start = (safePage - 1) * pageSize;
-  const paged = filtered.slice(start, start + pageSize);
-  const hasFilters = search.length > 0 || statusFilter !== "all" || channelFilter !== "all";
+  const searchTypingPending = searchDraft !== searchFromUrl;
+  const showSearchLoader =
+    searchTypingPending || (isFilterPending && searchFromUrl.trim().length > 0);
 
   function highlightMatch(text: string): React.ReactNode {
-    if (!search || search.length < 1) return text;
-    const idx = text.toLowerCase().indexOf(search.toLowerCase());
+    const q = searchFromUrl.trim();
+    if (!q || q.length < 1) return text;
+    const idx = text.toLowerCase().indexOf(q.toLowerCase());
     if (idx === -1) return text;
     return (
       <>
         {text.slice(0, idx)}
-        <mark className="bg-amber-200 dark:bg-amber-800 text-inherit rounded-sm px-0.5">
-          {text.slice(idx, idx + search.length)}
+        <mark className="rounded-sm bg-amber-200 px-0.5 text-inherit dark:bg-amber-800/90">
+          {text.slice(idx, idx + q.length)}
         </mark>
-        {text.slice(idx + search.length)}
+        {text.slice(idx + q.length)}
       </>
     );
   }
 
+  function exportCsv() {
+    const qs = searchParams.toString();
+    window.location.assign(`/api/products/export${qs ? `?${qs}` : ""}`);
+  }
+
+  const allPageSelected = rows.length > 0 && rows.every((r) => selectedIds.has(r.id));
+  const somePageSelected = rows.some((r) => selectedIds.has(r.id));
+
+  function toggleSelectAllPage() {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (allPageSelected) {
+        rows.forEach((r) => next.delete(r.id));
+      } else {
+        rows.forEach((r) => next.add(r.id));
+      }
+      return next;
+    });
+  }
+
+  function toggleRowSelected(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  const selectedCount = selectedIds.size;
+  const selectedIdList = useMemo(() => [...selectedIds], [selectedIds]);
+
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search products by name, SKU, category..."
-            value={search}
-            onChange={(e) => handleSearchChange(e.target.value)}
-            className="pl-8 pr-8 h-9"
-          />
-          {search && (
-            <button
-              onClick={() => handleSearchChange("")}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+    <div className="min-w-0 max-w-full space-y-4">
+      {sortTruncated ? (
+        <p className="text-xs text-amber-700 dark:text-amber-400">
+          Sorting uses the first 8,000 matching products. Narrow filters for full-list sort.
+        </p>
+      ) : null}
+      <div
+        className={cn(
+          "min-w-0 max-w-full rounded-xl border border-border/80 bg-slate-50/90 p-4 shadow-sm transition-opacity duration-200",
+          "dark:bg-muted/25",
+          isFilterPending && "opacity-80"
+        )}
+      >
+        <div className="flex min-w-0 flex-col gap-4 lg:flex-row lg:flex-wrap lg:items-end lg:gap-x-6 lg:gap-y-4">
+          <div className="min-w-[min(100%,220px)] flex-1 space-y-1.5">
+            <Label className="text-xs font-medium text-muted-foreground">Search</Label>
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Product, SKU, category…"
+                value={searchDraft}
+                onChange={(e) => setSearchDraft(e.target.value)}
+                aria-busy={showSearchLoader || isFilterPending}
+                className={cn(
+                  "h-9 bg-background pl-8",
+                  showSearchLoader && searchDraft ? "pr-16" : showSearchLoader ? "pr-10" : searchDraft ? "pr-8" : "pr-8"
+                )}
+              />
+              {showSearchLoader ? (
+                <span
+                  className={cn(
+                    "absolute top-1/2 -translate-y-1/2 text-muted-foreground",
+                    searchDraft ? "right-9" : "right-3"
+                  )}
+                  title="Updating results…"
+                >
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                </span>
+              ) : null}
+              {searchDraft ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchDraft("");
+                    replaceQuery((n) => {
+                      n.delete("search");
+                      n.set("page", "1");
+                    });
+                  }}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  aria-label="Clear search"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="w-full space-y-1.5 sm:w-[160px]">
+            <Label className="text-xs font-medium text-muted-foreground">Channel</Label>
+            <Select
+              value={channelFilter}
+              onValueChange={(v: string | null) => {
+                const next = v ?? "all";
+                setPendingChannel(next);
+                replaceQuery((n) => {
+                  if (next === "all") n.delete("channel");
+                  else n.set("channel", next);
+                  n.set("page", "1");
+                });
+              }}
             >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          )}
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Select value={channelFilter} onValueChange={(v: string | null) => { setChannelFilter(v ?? "all"); setPage(1); }}>
-            <SelectTrigger className="w-[140px] h-9">
-              <SelectValue placeholder="Channel" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All channels</SelectItem>
-              {channelOptions.map((c) => (
-                <SelectItem key={c} value={c}>{c}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={statusFilter} onValueChange={(v: string | null) => handleStatusChange(v ?? "all")}>
-            <SelectTrigger className="w-[130px] h-9">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="active">Active</SelectItem>
-              <SelectItem value="draft">Draft</SelectItem>
-              <SelectItem value="archived">Archived</SelectItem>
-            </SelectContent>
-          </Select>
-          {hasFilters && (
-            <Button variant="ghost" size="sm" className="h-9 text-xs gap-1" onClick={handleClearAll}>
-              <X className="h-3 w-3" /> Clear
+              <SelectTrigger className="h-9 w-full bg-background">
+                <SelectValue placeholder="Channel" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                {platformOptions.map((c) => (
+                  <SelectItem key={c} value={c}>
+                    {c}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="w-full space-y-1.5 sm:w-[200px]">
+            <Label className="text-xs font-medium text-muted-foreground">Status</Label>
+            <Select
+              value={statusFilter}
+              onValueChange={(v: string | null) => {
+                const next = v ?? "all";
+                replaceQuery((n) => {
+                  if (next === "all") n.delete("status");
+                  else n.set("status", next);
+                  n.set("page", "1");
+                });
+              }}
+            >
+              <SelectTrigger className="h-9 w-full bg-background">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="draft">Draft</SelectItem>
+                <SelectItem value="archived">Archived</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex flex-wrap gap-2 pb-0.5 lg:ml-auto">
+            {hasFilters ? (
+              <Button
+                variant="secondary"
+                size="sm"
+                className="h-9"
+                onClick={() => {
+                  setPendingChannel(null);
+                  startTransition(() => router.replace(pathname, { scroll: false }));
+                }}
+              >
+                Reset
+              </Button>
+            ) : null}
+            <Button variant="outline" size="sm" className="h-9 gap-1" onClick={exportCsv}>
+              <Download className="h-3.5 w-3.5" />
+              Export CSV
             </Button>
-          )}
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-9 text-xs gap-1"
-            onClick={() => {
-              downloadCSV(
-                `channelpulse-products-${new Date().toISOString().split("T")[0]}.csv`,
-                ["Product", "SKU", "Channel", "Units sold", "Revenue", "Category", "COGS", "Status"],
-                filtered.map((p) => [
-                  p.title,
-                  p.sku ?? "",
-                  p.channelLabel,
-                  String(p.unitsSold),
-                  String(p.revenue.toFixed(2)),
-                  p.category ?? "",
-                  String(Number(p.cogs ?? 0).toFixed(2)),
-                  p.status ?? "",
-                ])
-              );
-            }}
-          >
-            <Download className="h-3 w-3" /> Export
-          </Button>
-          <span className="text-xs text-muted-foreground whitespace-nowrap">
-            {filtered.length} product{filtered.length !== 1 ? "s" : ""}
-          </span>
+          </div>
         </div>
       </div>
 
-      <div className="rounded-md border">
-        <Table>
+      <BulkCogsSheet
+        open={bulkCogsOpen}
+        onOpenChange={setBulkCogsOpen}
+        productIds={selectedIdList}
+        onApplied={() => {
+          onCogsUpdate?.();
+          setSelectedIds(new Set());
+        }}
+      />
+
+      <ProductDetailSheet product={detailProduct} onDismiss={() => setDetailProduct(null)} />
+
+      <ResultPendingShell pending={isFilterPending} className="min-w-0 space-y-5">
+        <div className="min-w-0 rounded-xl border border-border/80 bg-background px-5 py-4 shadow-sm">
+          <p className="text-xs font-medium text-muted-foreground">Matching products</p>
+          <p className="mt-1 text-3xl font-semibold tabular-nums tracking-tight">{totalCount}</p>
+        </div>
+
+        {selectedCount > 0 ? (
+          <div className="flex min-w-0 flex-col gap-2 rounded-xl border border-blue-200 bg-blue-50/90 px-4 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between dark:border-blue-900/60 dark:bg-blue-950/35">
+            <p className="text-sm font-medium text-foreground">
+              {selectedCount} product{selectedCount !== 1 ? "s" : ""} selected
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="outline" size="sm" className="h-9" onClick={() => setSelectedIds(new Set())}>
+                Clear selection
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                className="h-9 bg-blue-600 text-white hover:bg-blue-700"
+                onClick={() => setBulkCogsOpen(true)}
+              >
+                Edit COGS
+              </Button>
+            </div>
+          </div>
+        ) : null}
+
+        <div className="min-w-0 max-w-full overflow-hidden rounded-md border">
+          <Table className="table-fixed">
           <TableHeader>
             <TableRow>
-              <TableHead>Product</TableHead>
-              <TableHead>SKU</TableHead>
-              <TableHead>Channel</TableHead>
-              <TableHead className="text-right">
-                <button
-                  type="button"
-                  className="inline-flex items-center gap-1 font-medium hover:text-foreground"
-                  onClick={() => toggleSort("units")}
-                >
-                  Units sold
-                  <SortIcon active={sortKey === "units"} dir={sortDir} />
-                </button>
+              <TableHead className="w-9 min-w-0 px-1 pl-0">
+                <div className="flex items-center justify-center py-1">
+                  <TableCheckbox
+                    checked={allPageSelected}
+                    indeterminate={somePageSelected && !allPageSelected}
+                    ariaLabel="Select all on this page"
+                    onToggle={toggleSelectAllPage}
+                  />
+                </div>
               </TableHead>
-              <TableHead className="text-right">
-                <button
-                  type="button"
-                  className="inline-flex items-center gap-1 font-medium hover:text-foreground"
-                  onClick={() => toggleSort("revenue")}
-                >
-                  Revenue
-                  <SortIcon active={sortKey === "revenue"} dir={sortDir} />
-                </button>
+              <TableHead className="min-w-0 max-w-0 w-[30%] whitespace-normal">
+                Product
               </TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead className="text-right">
-                <span className="flex items-center justify-end gap-1">
+              <TableHead className="hidden min-w-0 max-w-0 w-[9%] sm:table-cell">SKU</TableHead>
+              <TableHead className="min-w-0 max-w-0 w-[14%] whitespace-normal">Channel</TableHead>
+              <TableHead className="w-16 min-w-0 px-1 text-right">
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    className="inline-flex max-w-full items-center gap-0.5 font-medium leading-tight text-foreground hover:opacity-90"
+                    onClick={() => toggleSort("units")}
+                  >
+                    <span className="sm:hidden">Units</span>
+                    <span className="hidden sm:inline">Units sold</span>
+                    <SortIcon active={sortKey === "units"} dir={sortDir} />
+                  </button>
+                </div>
+              </TableHead>
+              <TableHead className="w-[4.5rem] min-w-0 px-1 text-right sm:w-24">
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-0.5 font-medium text-foreground hover:opacity-90"
+                    onClick={() => toggleSort("revenue")}
+                  >
+                    Revenue
+                    <SortIcon active={sortKey === "revenue"} dir={sortDir} />
+                  </button>
+                </div>
+              </TableHead>
+              <TableHead className="hidden min-w-0 max-w-0 w-[12%] lg:table-cell whitespace-normal">
+                Category
+              </TableHead>
+              <TableHead
+                className="w-[7rem] min-w-[7rem] px-1 text-right sm:w-28"
+                title="Cost of Goods Sold (COGS). Values in this column are editable — click a cell to change it."
+              >
+                <span className="inline-block whitespace-normal border-b border-dotted border-muted-foreground/50 pb-px leading-tight">
                   COGS
-                  <span className="text-[10px] text-muted-foreground font-normal">(Cost of Goods)</span>
                 </span>
               </TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead className="w-[4.5rem] min-w-0 px-1 whitespace-normal">Status</TableHead>
+              <TableHead className="w-9 min-w-0 px-0 text-center">
+                <span className="sr-only">View</span>
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {paged.length === 0 ? (
+            {rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                  {search ? `No products matching "${search}"` : "No products found"}
+                <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+                  {searchFromUrl ? `No products matching "${searchFromUrl}"` : "No products found"}
                 </TableCell>
               </TableRow>
             ) : (
-              paged.map((product) => (
-                <TableRow key={product.id}>
-                  <TableCell className="font-medium max-w-[250px]">
-                    <div className="flex items-center gap-3">
-                      {product.image_url ? (
-                        <img src={product.image_url} alt="" className="h-8 w-8 rounded object-cover flex-shrink-0" />
-                      ) : (
-                        <div className="h-8 w-8 rounded bg-muted flex-shrink-0" />
-                      )}
-                      <span className="truncate">{highlightMatch(product.title)}</span>
+              rows.map((product) => {
+                const isSelected = selectedIds.has(product.id);
+                return (
+                <TableRow
+                  key={product.id}
+                  className={cn(
+                    isSelected && "bg-blue-50/50 dark:bg-blue-950/25"
+                  )}
+                >
+                  <TableCell className="relative w-12 p-0 align-middle">
+                    {isSelected ? (
+                      <div
+                        className="absolute left-0 top-0 bottom-0 w-[3px] rounded-r-sm bg-blue-600"
+                        aria-hidden
+                      />
+                    ) : null}
+                    <div className="flex items-center justify-center py-2 pl-3 pr-1">
+                      <TableCheckbox
+                        checked={isSelected}
+                        ariaLabel={`Select ${product.title}`}
+                        onToggle={() => toggleRowSelected(product.id)}
+                      />
                     </div>
                   </TableCell>
-                  <TableCell className="text-muted-foreground font-mono text-xs">
-                    {product.sku ? highlightMatch(product.sku) : "—"}
+                  <TableCell className="min-w-0 max-w-0 font-medium">
+                    <div className="flex min-w-0 items-center gap-2">
+                      {product.image_url ? (
+                        <img src={product.image_url} alt="" className="h-8 w-8 shrink-0 rounded object-cover" />
+                      ) : (
+                        <div className="h-8 w-8 shrink-0 rounded bg-muted" />
+                      )}
+                      <span className="min-w-0 truncate">{highlightMatch(product.title)}</span>
+                    </div>
                   </TableCell>
-                  <TableCell>
-                    <div className="flex flex-col gap-1">
-                      <span className="text-xs text-muted-foreground truncate max-w-[120px]">{product.channelLabel}</span>
+                  <TableCell className="hidden min-w-0 max-w-0 font-mono text-xs text-muted-foreground sm:table-cell">
+                    <span className="block truncate">{product.sku ? highlightMatch(product.sku) : "—"}</span>
+                  </TableCell>
+                  <TableCell className="min-w-0 max-w-0">
+                    <div className="flex min-w-0 flex-col gap-1">
+                      <span className="truncate text-xs text-muted-foreground">
+                        {highlightMatch(product.channelLabel)}
+                      </span>
                       {product.salesPlatform ? (
-                        <ChannelBadge platform={product.salesPlatform as Platform} className="w-fit text-[10px]" />
+                        <ChannelBadge platform={product.salesPlatform as Platform} className="w-fit max-w-full text-[10px]" />
                       ) : null}
                     </div>
                   </TableCell>
-                  <TableCell className="text-right tabular-nums text-sm">
+                  <TableCell className="px-1 text-right tabular-nums text-xs sm:text-sm">
                     {formatNumber(product.unitsSold)}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums text-sm font-medium">
+                  <TableCell className="px-1 text-right text-xs font-medium tabular-nums sm:text-sm">
                     {formatCurrency(product.revenue)}
                   </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {product.category ? highlightMatch(product.category) : "—"}
+                  <TableCell className="hidden min-w-0 max-w-0 text-muted-foreground lg:table-cell">
+                    <span className="block truncate">
+                      {product.category ? highlightMatch(product.category) : "—"}
+                    </span>
                   </TableCell>
-                  <TableCell className="text-right">
-                    <EditableCogs productId={product.id} initialCogs={Number(product.cogs ?? 0)} onSave={onCogsUpdate} />
+                  <TableCell className="px-1 text-right">
+                    <EditableCogs
+                      productId={product.id}
+                      initialCogs={Number(product.cogs ?? 0)}
+                      onSave={onCogsUpdate}
+                    />
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="px-1">
                     <Badge
-                      variant={product.status === "active" ? "secondary" : product.status === "draft" ? "outline" : "destructive"}
-                      className="text-[10px]"
+                      variant={
+                        product.status === "active" ? "secondary" : product.status === "draft" ? "outline" : "destructive"
+                      }
+                      className="max-w-full truncate text-[10px]"
                     >
                       {product.status}
                     </Badge>
                   </TableCell>
+                  <TableCell className="px-0 text-center">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                      aria-label={`View details for ${product.title}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDetailProduct(product);
+                      }}
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
                 </TableRow>
-              ))
+                );
+              })
             )}
           </TableBody>
         </Table>
-      </div>
+        </div>
+      </ResultPendingShell>
 
-      {filtered.length > PAGE_SIZES[0] && (
-        <div className="flex items-center justify-between">
+      {totalCount > PAGE_SIZES[0] && (
+        <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground">Rows per page</span>
-            <Select value={String(pageSize)} onValueChange={(v: string | null) => { setPageSize(Number(v ?? 10)); setPage(1); }}>
+            <Select
+              value={String(pageSize)}
+              onValueChange={(v: string | null) => {
+                const ps = Number(v ?? 10);
+                replaceQuery((n) => {
+                  n.set("pageSize", String(ps));
+                  n.set("page", "1");
+                });
+              }}
+            >
               <SelectTrigger className="h-8 w-[70px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 {PAGE_SIZES.map((s) => (
-                  <SelectItem key={s} value={String(s)}>{s}</SelectItem>
+                  <SelectItem key={s} value={String(s)}>
+                    {s}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">Page {safePage} of {totalPages}</span>
-            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={safePage <= 1}>
+            <span className="text-xs text-muted-foreground">
+              Page {safePage} of {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              disabled={safePage <= 1}
+              onClick={() =>
+                replaceQuery((n) => {
+                  n.set("page", String(Math.max(1, safePage - 1)));
+                })
+              }
+            >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={safePage >= totalPages}>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              disabled={safePage >= totalPages}
+              onClick={() =>
+                replaceQuery((n) => {
+                  n.set("page", String(Math.min(totalPages, safePage + 1)));
+                })
+              }
+            >
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
@@ -374,12 +639,64 @@ export function ProductsTable({ products, onCogsUpdate }: ProductsTableProps) {
   );
 }
 
-function EditableCogs({ productId, initialCogs, onSave }: { productId: string; initialCogs: number; onSave?: (productId: string, newCogs: number) => void }) {
+function TableCheckbox({
+  checked,
+  indeterminate,
+  onToggle,
+  ariaLabel,
+}: {
+  checked: boolean;
+  indeterminate?: boolean;
+  onToggle: () => void;
+  ariaLabel: string;
+}) {
+  const showCheck = checked && !indeterminate;
+  return (
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={indeterminate ? "mixed" : checked}
+      aria-label={ariaLabel}
+      onClick={(e) => {
+        e.stopPropagation();
+        onToggle();
+      }}
+      className={cn(
+        "flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded border-2 transition-colors",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+        checked || indeterminate
+          ? "border-blue-600 bg-blue-600 text-white"
+          : "border-muted-foreground/35 bg-background hover:border-blue-500/60"
+      )}
+    >
+      {indeterminate ? (
+        <span className="h-0.5 w-2.5 rounded-sm bg-white" aria-hidden />
+      ) : showCheck ? (
+        <Check className="h-2.5 w-2.5 stroke-[3]" />
+      ) : null}
+    </button>
+  );
+}
+
+function EditableCogs({
+  productId,
+  initialCogs,
+  onSave,
+}: {
+  productId: string;
+  initialCogs: number;
+  onSave?: () => void;
+}) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(String(initialCogs || ""));
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [displayValue, setDisplayValue] = useState(initialCogs);
+
+  useEffect(() => {
+    setDisplayValue(initialCogs);
+    if (!editing) setValue(String(initialCogs || ""));
+  }, [initialCogs, editing]);
 
   async function handleSave() {
     const numValue = parseFloat(value) || 0;
@@ -394,7 +711,7 @@ function EditableCogs({ productId, initialCogs, onSave }: { productId: string; i
         setDisplayValue(numValue);
         setEditing(false);
         setSaved(true);
-        onSave?.(productId, numValue);
+        onSave?.();
         setTimeout(() => setSaved(false), 2000);
       }
     } finally {
@@ -404,21 +721,24 @@ function EditableCogs({ productId, initialCogs, onSave }: { productId: string; i
 
   if (editing) {
     return (
-      <div className="flex items-center gap-1 justify-end">
+      <div className="flex flex-wrap items-center justify-end gap-1">
         <span className="text-muted-foreground text-xs">$</span>
         <Input
           type="number"
           step="0.01"
           value={value}
           onChange={(e) => setValue(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") handleSave(); if (e.key === "Escape") setEditing(false); }}
-          className="h-7 w-20 text-right text-xs tabular-nums"
+          onKeyDown={(e) => {
+            if (e.key === "Enter") handleSave();
+            if (e.key === "Escape") setEditing(false);
+          }}
+          className="h-7 w-[4.25rem] min-w-0 text-right text-xs tabular-nums sm:w-20"
           autoFocus
         />
-        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleSave} disabled={saving}>
+        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={handleSave} disabled={saving}>
           {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3 text-emerald-500" />}
         </Button>
-        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditing(false)}>
+        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => setEditing(false)}>
           <X className="h-3 w-3" />
         </Button>
       </div>
@@ -427,13 +747,22 @@ function EditableCogs({ productId, initialCogs, onSave }: { productId: string; i
 
   return (
     <button
-      onClick={() => { setValue(String(displayValue || "")); setEditing(true); }}
-      className={`tabular-nums text-right w-full hover:bg-muted/50 rounded px-1 py-0.5 transition-colors ${
-        displayValue > 0 ? "" : "text-muted-foreground/50 italic"
-      } ${saved ? "text-emerald-500" : ""}`}
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        setValue(String(displayValue || ""));
+        setEditing(true);
+      }}
+      className="group max-w-full cursor-pointer rounded px-1 py-0.5 text-right transition-colors hover:bg-muted/50"
       title="Click to edit COGS (Cost of Goods Sold)"
     >
-      {displayValue > 0 ? formatCurrency(displayValue) : "Set cost"}
+      <span
+        className={`inline-block max-w-full truncate border-b border-dotted border-muted-foreground/45 pb-px tabular-nums transition-colors group-hover:border-muted-foreground/70 ${
+          displayValue > 0 ? "" : "text-muted-foreground/50 italic"
+        } ${saved ? "border-emerald-500/60 text-emerald-500" : ""}`}
+      >
+        {displayValue > 0 ? formatCurrency(displayValue) : "Set cost"}
+      </span>
     </button>
   );
 }
