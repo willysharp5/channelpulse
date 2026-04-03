@@ -39,6 +39,7 @@ interface SettingsContentProps {
     platform: string;
     name: string;
     status: string | null;
+    platform_store_id: string | null;
     created_at: string | null;
   }>;
 }
@@ -137,12 +138,33 @@ export function SettingsContent({ email, businessName, plan, channels, notificat
                         className={
                           ch.status === "active"
                             ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-400"
-                            : ""
+                            : ch.status === "disconnected"
+                              ? "border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-400"
+                              : ch.status === "error"
+                                ? "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-400"
+                                : ""
                         }
                       >
-                        {ch.status === "active" ? "Active" : ch.status}
+                        {ch.status === "active" ? "Connected" : ch.status === "disconnected" ? "Disconnected" : ch.status === "syncing" ? "Syncing" : ch.status}
                       </Badge>
-                      <DisconnectButton channelId={ch.id} channelName={ch.name} />
+                      {ch.status === "disconnected" ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-xs border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-950"
+                          onClick={() => {
+                            if (ch.platform === "shopify" && ch.platform_store_id) {
+                              window.location.href = `/api/auth/shopify?shop=${encodeURIComponent(ch.platform_store_id)}`;
+                            } else {
+                              window.location.href = `/api/auth/${ch.platform}`;
+                            }
+                          }}
+                        >
+                          Reconnect
+                        </Button>
+                      ) : (
+                        <DisconnectButton channelId={ch.id} channelName={ch.name} />
+                      )}
                     </div>
                   </div>
                 );

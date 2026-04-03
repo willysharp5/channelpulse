@@ -158,7 +158,8 @@ export function AiSettingsClient({
 
   // ---- Model config handlers ----
 
-  function handleSelectPreset(modelId: string) {
+  function handleSelectPreset(modelId: string | null) {
+    if (!modelId) return;
     if (modelId === "custom" || !config) return;
     const preset = presets.find((p) => p.model_id === modelId);
     if (!preset) return;
@@ -970,7 +971,7 @@ export function AiSettingsClient({
               </div>
               <div>
                 <Label>Icon</Label>
-                <Select value={formIcon} onValueChange={setFormIcon}>
+                <Select value={formIcon} onValueChange={(v) => setFormIcon(v ?? "")}>
                   <SelectTrigger className="mt-1">
                     <SelectValue />
                   </SelectTrigger>
@@ -1016,7 +1017,7 @@ export function AiSettingsClient({
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>Accent Color</Label>
-                <Select value={formAccent} onValueChange={setFormAccent}>
+                <Select value={formAccent} onValueChange={(v) => setFormAccent(v ?? "")}>
                   <SelectTrigger className="mt-1">
                     <div className="flex items-center gap-2">
                       <div

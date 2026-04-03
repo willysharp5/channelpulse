@@ -8,20 +8,17 @@ import { KPICard } from "@/components/dashboard/kpi-card";
 import { CategoryBar } from "@/components/tremor/category-bar";
 import { formatCurrency, formatNumber } from "@/lib/formatters";
 import { ProductsTable } from "./products-table";
-import { CogsImport } from "./cogs-import";
 import type { KPIData } from "@/types";
 import type { ProductsCatalogSummary, ProductsPageResult } from "@/lib/products-list";
 
 interface ProductsPageContentProps {
   catalogSummary: ProductsCatalogSummary;
-  cogsTemplate: Array<{ id: string; title: string; sku: string | null; cogs: number | null }>;
   pageData: ProductsPageResult;
   requestedPage: number;
 }
 
 export function ProductsPageContent({
   catalogSummary,
-  cogsTemplate,
   pageData,
   requestedPage,
 }: ProductsPageContentProps) {
@@ -95,7 +92,6 @@ export function ProductsPageContent({
       <Card className="min-w-0 max-w-full">
         <CardHeader className="flex min-w-0 flex-row flex-wrap items-center justify-between gap-3">
           <CardTitle className="text-base font-semibold">All Products</CardTitle>
-          <CogsImport products={cogsTemplate} onImportComplete={handleBatchImportComplete} />
         </CardHeader>
         <CardContent className="min-w-0 max-w-full">
           <Suspense

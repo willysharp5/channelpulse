@@ -2,7 +2,14 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Unplug } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 
 export function DisconnectButton({
@@ -12,13 +19,11 @@ export function DisconnectButton({
   channelId: string;
   channelName: string;
 }) {
+  const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
   async function handleDisconnect() {
-    if (!confirm(`Disconnect "${channelName}"? You can reconnect later without losing historical data.`)) {
-      return;
-    }
     setLoading(true);
     try {
       const res = await fetch(`/api/channels/${channelId}/disconnect`, {
@@ -26,6 +31,7 @@ export function DisconnectButton({
       });
       if (!res.ok) throw new Error();
       toast.success(`"${channelName}" disconnected`);
+      setOpen(false);
       router.refresh();
     } catch {
       toast.error("Failed to disconnect channel");
@@ -35,14 +41,46 @@ export function DisconnectButton({
   }
 
   return (
-    <Button
-      variant="outline"
-      size="sm"
-      className="text-xs"
-      onClick={handleDisconnect}
-      disabled={loading}
-    >
-      {loading ? "Disconnecting…" : "Disconnect"}
-    </Button>
+    <>
+      <Button
+        variant="outline"
+        size="sm"
+        className="text-xs"
+        onClick={() => setOpen(true)}
+      >
+        Disconnect
+      </Button>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Disconnect {channelName}?</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="flex items-center justify-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-50 dark:bg-red-950">
+                <Unplug className="size-5 text-red-500" />
+              </div>
+            </div>
+            <p className="text-center text-sm text-muted-foreground">
+              This will stop syncing data from <strong>{channelName}</strong>.
+              Your historical data will be preserved and you can reconnect anytime.
+            </p>
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDisconnect}
+              disabled={loading}
+            >
+              {loading ? "Disconnecting…" : "Disconnect"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

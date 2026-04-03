@@ -1,6 +1,5 @@
 import { Suspense } from "react";
 import { Header } from "@/components/layout/header";
-import { ExportButton } from "@/components/export-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { KPICard } from "@/components/dashboard/kpi-card";
@@ -45,10 +44,6 @@ export default async function OrdersPage({
     <>
       <Header title="Orders" userEmail={user?.email ?? undefined} />
       <div className="flex-1 space-y-6 p-6">
-        <div className="flex items-center justify-between">
-          <div />
-          <ExportButton endpoint="/api/export/orders" label="Export Orders" />
-        </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <KPICard
             data={{

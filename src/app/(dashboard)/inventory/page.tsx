@@ -21,12 +21,10 @@ export default async function InventoryPage({
     <>
       <Header title="Inventory" userEmail={user?.email ?? undefined} />
       <div className="flex-1 space-y-6 p-6">
-        <div className="flex items-center justify-between">
+        <div>
           <h2 className="text-lg font-semibold">Stock levels</h2>
-          <ExportButton endpoint="/api/export/inventory" label="Export Inventory" />
           <p className="text-sm text-muted-foreground">
-            Read-only view from your connected stores. Green &gt; 20, yellow 5–20, red &lt; 5 units. Search and
-            filters run on the server.
+            Read-only view from your connected stores. Green &gt; 20, yellow 5–20, red &lt; 5 units.
           </p>
         </div>
         <Card>

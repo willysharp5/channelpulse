@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { format, parseISO } from "date-fns";
-import { Eye, Ban, ShieldCheck, ArrowLeft, Sparkles, Loader2 } from "lucide-react";
+import { Eye, Ban, Shield, ShieldCheck, ArrowLeft, Sparkles, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -136,6 +136,25 @@ export function UserDetailClient({ user, planLimits, availablePlans }: Props) {
     }
   }
 
+  async function handleToggleAdmin() {
+    setLoading(true);
+    const newRole = user.role === "super_admin" ? "owner" : "super_admin";
+    try {
+      const res = await fetch(`/api/admin/users/${user.id}/role`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role: newRole }),
+      });
+      if (!res.ok) throw new Error();
+      toast.success(newRole === "super_admin" ? "User promoted to admin" : "Admin access removed");
+      router.refresh();
+    } catch {
+      toast.error("Failed to change role");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <>
       <Link
@@ -154,6 +173,14 @@ export function UserDetailClient({ user, planLimits, availablePlans }: Props) {
           <p className="text-muted-foreground">{user.email}</p>
         </div>
         <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={handleToggleAdmin}
+            disabled={loading}
+          >
+            <Shield className="mr-2 size-4" />
+            {user.role === "super_admin" ? "Remove Admin" : "Make Admin"}
+          </Button>
           <Button
             variant="outline"
             onClick={handleImpersonate}
