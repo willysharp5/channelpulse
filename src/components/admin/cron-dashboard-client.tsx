@@ -200,6 +200,70 @@ export function CronDashboardClient() {
 
   return (
     <>
+      {/* How It Works */}
+      <Card className="border-blue-200/50 bg-blue-50/30 dark:border-blue-900/50 dark:bg-blue-950/20">
+        <CardContent className="py-4">
+          <div className="space-y-3 text-sm">
+            <p className="font-semibold text-blue-900 dark:text-blue-300">How automatic syncing works</p>
+            <div className="grid gap-3 sm:grid-cols-2 text-blue-800/80 dark:text-blue-300/70">
+              <div className="space-y-2">
+                <p>
+                  <strong>Every 15 minutes</strong>, the cron job checks all connected channels and syncs
+                  any that haven&apos;t been updated recently. Each channel syncs in parallel — a slow
+                  Amazon sync won&apos;t block a fast Shopify sync.
+                </p>
+                <p>
+                  <strong>Etsy</strong> syncs every 60 minutes instead of 15 due to tighter API rate limits.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <p>
+                  <strong>If a sync fails</strong>, the channel is marked as &quot;error&quot; and retried automatically
+                  on the next cycle. The user gets one email alert. No manual action is needed — it keeps
+                  retrying until it succeeds.
+                </p>
+                <p>
+                  <strong>If a channel keeps failing</strong>, the user should reconnect their account
+                  from Settings (expired tokens are the most common cause).
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-x-6 gap-y-1 text-[12px] text-blue-700/60 dark:text-blue-400/50 pt-1">
+              <span><strong>Sync All Now</strong> — triggers all channels immediately</span>
+              <span><strong>Pause</strong> — stops the 15-min auto-sync</span>
+              <span><strong>Resume</strong> — re-enables it</span>
+              <span><strong>Disconnected</strong> channels are always skipped</span>
+            </div>
+            <div className="flex flex-wrap gap-2 pt-2">
+              <a
+                href="https://supabase.com/dashboard/project/ixbvakwxuwayzfvnxucl/integrations/cron/jobs"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 rounded-md border border-blue-200 bg-white/60 px-2.5 py-1 text-[11px] font-medium text-blue-700 hover:bg-white dark:border-blue-800 dark:bg-blue-950/50 dark:text-blue-300 dark:hover:bg-blue-900/50"
+              >
+                Supabase Cron Jobs ↗
+              </a>
+              <a
+                href="https://supabase.com/dashboard/project/ixbvakwxuwayzfvnxucl/editor/17714?schema=public"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 rounded-md border border-blue-200 bg-white/60 px-2.5 py-1 text-[11px] font-medium text-blue-700 hover:bg-white dark:border-blue-800 dark:bg-blue-950/50 dark:text-blue-300 dark:hover:bg-blue-900/50"
+              >
+                Sync Jobs Table ↗
+              </a>
+              <a
+                href="https://vercel.com/edowilliams-projects/channelpulse/logs"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 rounded-md border border-blue-200 bg-white/60 px-2.5 py-1 text-[11px] font-medium text-blue-700 hover:bg-white dark:border-blue-800 dark:bg-blue-950/50 dark:text-blue-300 dark:hover:bg-blue-900/50"
+              >
+                Vercel Function Logs ↗
+              </a>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Cron Status */}
       <Card>
         <CardHeader>
