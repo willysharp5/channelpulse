@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 import { createServerClient } from "@supabase/ssr";
 
-const PUBLIC_ROUTES = ["/login", "/signup", "/auth/callback", "/landing", "/api/webhooks", "/api/gdpr", "/api/stripe/webhook"];
+const PUBLIC_ROUTES = ["/login", "/signup", "/auth/callback", "/landing", "/api/webhooks", "/api/gdpr", "/api/stripe/webhook", "/api/sync/cron"];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
