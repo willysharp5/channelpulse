@@ -114,7 +114,7 @@ export function CronDashboardClient() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [fetching, setFetching] = useState(false);
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const fetchData = useCallback(
     async (p = page, s = search, sf = statusFilter) => {
