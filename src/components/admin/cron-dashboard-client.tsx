@@ -430,7 +430,7 @@ export function CronDashboardClient() {
               <Select
                 value={statusFilter}
                 onValueChange={(v) => {
-                  setStatusFilter(v);
+                  setStatusFilter(v ?? "all");
                   setPage(1);
                 }}
               >
