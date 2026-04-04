@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAdmin, logAuditEvent } from "@/lib/admin/queries";
+import { requireAdmin } from "@/lib/admin/queries";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function PATCH(
@@ -7,7 +7,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const admin = await requireAdmin();
+    await requireAdmin();
     const { id } = await params;
     const sb = createAdminClient();
     const body = await request.json();
@@ -25,10 +25,6 @@ export async function PATCH(
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-    await logAuditEvent(admin.id, "update_email_template", undefined, {
-      template_id: id,
-      changes: Object.keys(updates).filter((k) => k !== "updated_at"),
-    });
     return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });

@@ -15,6 +15,7 @@ import {
   Receipt,
   Sparkles,
   Mail,
+  RefreshCw,
   type LucideIcon,
 } from "lucide-react";
 
@@ -98,6 +99,7 @@ export const ADMIN_NAV_ITEMS: NavItem[] = [
   { title: "Subscriptions", href: "/admin/subscriptions", icon: CreditCard },
   { title: "AI Settings", href: "/admin/ai-settings", icon: Sparkles },
   { title: "Email", href: "/admin/email", icon: Mail },
+  { title: "Sync & Cron", href: "/admin/cron", icon: RefreshCw },
   { title: "Audit Log", href: "/admin/audit-log", icon: ClipboardList },
   { title: "Settings", href: "/admin/settings", icon: Settings },
 ];

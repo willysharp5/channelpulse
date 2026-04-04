@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAdmin, logAuditEvent } from "@/lib/admin/queries";
+import { requireAdmin } from "@/lib/admin/queries";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function GET() {
@@ -21,7 +21,7 @@ export async function GET() {
 
 export async function PATCH(request: Request) {
   try {
-    const admin = await requireAdmin();
+    await requireAdmin();
     const sb = createAdminClient();
     const body = await request.json();
 
@@ -56,7 +56,6 @@ export async function PATCH(request: Request) {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-    await logAuditEvent(admin.id, "update_ai_config", undefined, { changes: updates });
     return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
