@@ -1,5 +1,5 @@
-import { createClient } from "@/lib/supabase/server";
-import { getOrgId } from "@/lib/queries";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { resolveOrgScope } from "@/lib/queries";
 import {
   buildReportingChannelsFilter,
   rpcChannelIdsParam,
@@ -156,7 +156,7 @@ function applyOrderFilters(q: any, orgId: string, input: OrdersListParams, repor
 }
 
 async function loadOrdersStats(
-  supabase: Awaited<ReturnType<typeof createClient>>,
+  supabase: SupabaseClient,
   orgId: string,
   input: OrdersListParams,
   reportFilter: ReportingChannelsFilter
@@ -213,26 +213,7 @@ async function loadOrdersStats(
   return { totalCount, totalRevenue, totalProfit, totalFees };
 }
 
-export async function getOrdersOrgTotalCount(): Promise<number> {
-  const orgId = await getOrgId();
-  if (!orgId) return 0;
-  const supabase = await createClient();
-  const reportFilter = await buildReportingChannelsFilter(supabase, orgId);
-  if (reportFilter.kind === "include_only" && reportFilter.channelIds.length === 0) {
-    return 0;
-  }
-  let q = supabase.from("orders").select("id", { count: "exact", head: true }).eq("org_id", orgId);
-  if (reportFilter.kind === "include_only") {
-    q = q.in("channel_id", reportFilter.channelIds);
-  }
-  const { count } = await q;
-  return count ?? 0;
-}
-
-export async function getOrdersPlatformOptions(): Promise<string[]> {
-  const orgId = await getOrgId();
-  if (!orgId) return [];
-  const supabase = await createClient();
+async function getOrdersPlatformOptionsScoped(orgId: string, supabase: SupabaseClient): Promise<string[]> {
   const reportFilter = await buildReportingChannelsFilter(supabase, orgId);
   if (reportFilter.kind === "include_only" && reportFilter.channelIds.length === 0) {
     return [];
@@ -258,9 +239,31 @@ export async function getOrdersPlatformOptions(): Promise<string[]> {
   return sortPlatformsForUi([...set]);
 }
 
-export async function getOrdersPage(input: OrdersListParams): Promise<OrdersPageResult> {
-  const orgId = await getOrgId();
-  if (!orgId) {
+export async function getOrdersOrgTotalCount(demoOrgId?: string | null): Promise<number> {
+  const scope = await resolveOrgScope(demoOrgId);
+  if (!scope) return 0;
+  const { orgId, supabase } = scope;
+  const reportFilter = await buildReportingChannelsFilter(supabase, orgId);
+  if (reportFilter.kind === "include_only" && reportFilter.channelIds.length === 0) {
+    return 0;
+  }
+  let q = supabase.from("orders").select("id", { count: "exact", head: true }).eq("org_id", orgId);
+  if (reportFilter.kind === "include_only") {
+    q = q.in("channel_id", reportFilter.channelIds);
+  }
+  const { count } = await q;
+  return count ?? 0;
+}
+
+export async function getOrdersPlatformOptions(): Promise<string[]> {
+  const scope = await resolveOrgScope();
+  if (!scope) return [];
+  return getOrdersPlatformOptionsScoped(scope.orgId, scope.supabase);
+}
+
+export async function getOrdersPage(input: OrdersListParams, demoOrgId?: string | null): Promise<OrdersPageResult> {
+  const scope = await resolveOrgScope(demoOrgId);
+  if (!scope) {
     return {
       rows: [],
       totalCount: 0,
@@ -271,8 +274,8 @@ export async function getOrdersPage(input: OrdersListParams): Promise<OrdersPage
       platformOptions: [],
     };
   }
+  const { orgId, supabase } = scope;
 
-  const supabase = await createClient();
   const reportFilter = await buildReportingChannelsFilter(supabase, orgId);
   if (reportFilter.kind === "include_only" && reportFilter.channelIds.length === 0) {
     return {
@@ -288,7 +291,7 @@ export async function getOrdersPage(input: OrdersListParams): Promise<OrdersPage
 
   const [stats, platformOptions] = await Promise.all([
     loadOrdersStats(supabase, orgId, input, reportFilter),
-    getOrdersPlatformOptions(),
+    getOrdersPlatformOptionsScoped(orgId, supabase),
   ]);
 
   const totalPages = Math.max(1, Math.ceil(stats.totalCount / input.pageSize));
@@ -343,10 +346,14 @@ function mapOrderRow(o: Record<string, unknown>): OrderListRow {
   };
 }
 
-export async function fetchOrdersExportRows(input: OrdersListParams, maxRows = 25_000): Promise<OrderListRow[]> {
-  const orgId = await getOrgId();
-  if (!orgId) return [];
-  const supabase = await createClient();
+export async function fetchOrdersExportRows(
+  input: OrdersListParams,
+  maxRows = 25_000,
+  demoOrgId?: string | null
+): Promise<OrderListRow[]> {
+  const scope = await resolveOrgScope(demoOrgId);
+  if (!scope) return [];
+  const { orgId, supabase } = scope;
   const reportFilter = await buildReportingChannelsFilter(supabase, orgId);
   if (reportFilter.kind === "include_only" && reportFilter.channelIds.length === 0) {
     return [];

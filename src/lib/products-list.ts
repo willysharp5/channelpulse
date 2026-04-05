@@ -1,5 +1,5 @@
-import { createClient } from "@/lib/supabase/server";
-import { getOrgId, getDateRange, type DateParams } from "@/lib/queries";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { resolveOrgScope, getDateRange, type DateParams } from "@/lib/queries";
 import {
   buildReportingChannelsFilter,
   rpcChannelIdsParam,
@@ -84,7 +84,7 @@ export function parseProductsParamsFromURLSearchParams(sp: URLSearchParams): Pro
 }
 
 async function resolveChannelIds(
-  supabase: Awaited<ReturnType<typeof createClient>>,
+  supabase: SupabaseClient,
   orgId: string,
   input: ProductsListParams
 ): Promise<{ forPlatform: string[]; forSearch: string[] }> {
@@ -142,10 +142,7 @@ function applyProductFilters(
   return q;
 }
 
-export async function getProductsPlatformOptions(): Promise<string[]> {
-  const orgId = await getOrgId();
-  if (!orgId) return [];
-  const supabase = await createClient();
+async function getProductsPlatformOptionsScoped(orgId: string, supabase: SupabaseClient): Promise<string[]> {
   const reportFilter = await buildReportingChannelsFilter(supabase, orgId);
   if (reportFilter.kind === "include_only" && reportFilter.channelIds.length === 0) {
     return [];
@@ -170,8 +167,14 @@ export async function getProductsPlatformOptions(): Promise<string[]> {
   return sortPlatformsForUi([...set]);
 }
 
+export async function getProductsPlatformOptions(): Promise<string[]> {
+  const scope = await resolveOrgScope();
+  if (!scope) return [];
+  return getProductsPlatformOptionsScoped(scope.orgId, scope.supabase);
+}
+
 async function loadCatalogSummary(
-  supabase: Awaited<ReturnType<typeof createClient>>,
+  supabase: SupabaseClient,
   orgId: string,
   reportFilter: ReportingChannelsFilter
 ): Promise<ProductsCatalogSummary> {
@@ -240,20 +243,20 @@ function mapProductToRow(
   };
 }
 
-export async function getProductsCatalogSummary(): Promise<ProductsCatalogSummary> {
-  const orgId = await getOrgId();
-  if (!orgId) {
+export async function getProductsCatalogSummary(demoOrgId?: string | null): Promise<ProductsCatalogSummary> {
+  const scope = await resolveOrgScope(demoOrgId);
+  if (!scope) {
     return { total: 0, active: 0, draft: 0, archived: 0, totalCogs: 0 };
   }
-  const supabase = await createClient();
+  const { orgId, supabase } = scope;
   const reportFilter = await buildReportingChannelsFilter(supabase, orgId);
   return loadCatalogSummary(supabase, orgId, reportFilter);
 }
 
 export async function getProductsCogsTemplateRows(): Promise<Array<{ id: string; title: string; sku: string | null; cogs: number | null }>> {
-  const orgId = await getOrgId();
-  if (!orgId) return [];
-  const supabase = await createClient();
+  const scope = await resolveOrgScope();
+  if (!scope) return [];
+  const { orgId, supabase } = scope;
   const reportFilter = await buildReportingChannelsFilter(supabase, orgId);
   if (reportFilter.kind === "include_only" && reportFilter.channelIds.length === 0) {
     return [];
@@ -271,9 +274,9 @@ export async function getProductsCogsTemplateRows(): Promise<Array<{ id: string;
   }));
 }
 
-export async function getProductsPage(input: ProductsListParams): Promise<ProductsPageResult> {
-  const orgId = await getOrgId();
-  if (!orgId) {
+export async function getProductsPage(input: ProductsListParams, demoOrgId?: string | null): Promise<ProductsPageResult> {
+  const scope = await resolveOrgScope(demoOrgId);
+  if (!scope) {
     return {
       rows: [],
       totalCount: 0,
@@ -283,6 +286,7 @@ export async function getProductsPage(input: ProductsListParams): Promise<Produc
       sortTruncated: false,
     };
   }
+  const { orgId, supabase } = scope;
 
   const days = rangeToDays(input.rangeKey);
   const dateParams: DateParams = { days };
@@ -290,7 +294,6 @@ export async function getProductsPage(input: ProductsListParams): Promise<Produc
   const fromIso = `${fromStr}T00:00:00.000Z`;
   const toIso = `${toStr}T23:59:59.999Z`;
 
-  const supabase = await createClient();
   const reportFilter = await buildReportingChannelsFilter(supabase, orgId);
   if (reportFilter.kind === "include_only" && reportFilter.channelIds.length === 0) {
     return {
@@ -317,7 +320,7 @@ export async function getProductsPage(input: ProductsListParams): Promise<Produc
   const [{ data: orders }, { forPlatform, forSearch }, platformOptions, { data: channels }] = await Promise.all([
     orderQ,
     resolveChannelIds(supabase, orgId, input),
-    getProductsPlatformOptions(),
+    getProductsPlatformOptionsScoped(orgId, supabase),
     supabase.from("channels").select("id, platform, name").eq("org_id", orgId),
   ]);
 
@@ -384,15 +387,19 @@ export async function getProductsPage(input: ProductsListParams): Promise<Produc
   };
 }
 
-export async function fetchProductsExportRows(input: ProductsListParams, maxRows = 25_000): Promise<ProductTableRow[]> {
-  const orgId = await getOrgId();
-  if (!orgId) return [];
+export async function fetchProductsExportRows(
+  input: ProductsListParams,
+  maxRows = 25_000,
+  demoOrgId?: string | null
+): Promise<ProductTableRow[]> {
+  const scope = await resolveOrgScope(demoOrgId);
+  if (!scope) return [];
+  const { orgId, supabase } = scope;
   const days = rangeToDays(input.rangeKey);
   const { fromStr, toStr } = getDateRange({ days });
   const fromIso = `${fromStr}T00:00:00.000Z`;
   const toIso = `${toStr}T23:59:59.999Z`;
 
-  const supabase = await createClient();
   const reportFilter = await buildReportingChannelsFilter(supabase, orgId);
   if (reportFilter.kind === "include_only" && reportFilter.channelIds.length === 0) {
     return [];

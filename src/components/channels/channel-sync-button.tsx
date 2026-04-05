@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { useDemo } from "@/contexts/demo-context";
 
 export function ChannelSyncButton({
   channelId,
@@ -14,12 +16,19 @@ export function ChannelSyncButton({
   platform: string;
   disabled?: boolean;
 }) {
+  const isDemo = useDemo();
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const supportedPlatforms = ["shopify", "amazon", "etsy", "tiktok"];
   const canSync = supportedPlatforms.includes(platform) && !disabled;
 
   async function onSync() {
+    if (isDemo) {
+      toast.message("Sign up to sync your stores", {
+        description: "Live sync runs on your connected channels after you sign up.",
+      });
+      return;
+    }
     if (!canSync || loading) return;
     setLoading(true);
     try {

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { useDemo } from "@/contexts/demo-context";
 
 interface ExportButtonProps {
   endpoint: string;
@@ -11,6 +12,8 @@ interface ExportButtonProps {
   variant?: "default" | "outline" | "ghost" | "secondary";
   size?: "default" | "sm" | "lg" | "icon";
   className?: string;
+  /** When true, show sign-up toast instead of calling the API (public demo). */
+  isDemo?: boolean;
 }
 
 export function ExportButton({
@@ -19,10 +22,19 @@ export function ExportButton({
   variant = "outline",
   size = "sm",
   className,
+  isDemo: isDemoProp,
 }: ExportButtonProps) {
+  const ctxDemo = useDemo();
+  const isDemo = isDemoProp ?? ctxDemo;
   const [loading, setLoading] = useState(false);
 
   async function handleExport() {
+    if (isDemo) {
+      toast.message("Sign up to export your own data", {
+        description: "Exports are available once you connect your stores.",
+      });
+      return;
+    }
     setLoading(true);
     try {
       const res = await fetch(endpoint);

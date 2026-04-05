@@ -14,7 +14,7 @@ import { DATE_RANGE_PRESETS } from "@/lib/constants";
 import type { DateRange as DashboardDateRange } from "@/types";
 
 /** Dashboard uses `range` / `from` / `to`; orders & inventory table filters also use `from`/`to` — hide here to avoid clashes. */
-const HIDE_HEADER_PICKER_PREFIXES = ["/orders", "/inventory"];
+const HIDE_HEADER_PICKER_PREFIXES = ["/orders", "/inventory", "/demo/orders", "/demo/inventory"];
 
 export function DateRangePicker() {
   const router = useRouter();

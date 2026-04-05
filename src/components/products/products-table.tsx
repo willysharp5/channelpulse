@@ -43,6 +43,8 @@ import type { Platform } from "@/types";
 import type { ProductTableRow } from "@/lib/products-list";
 import { BulkCogsSheet } from "@/components/products/bulk-cogs-sheet";
 import { ProductDetailSheet } from "@/components/products/product-detail-sheet";
+import { toast } from "sonner";
+import { useDemo } from "@/contexts/demo-context";
 
 const PAGE_SIZES = [10, 20, 50];
 
@@ -86,6 +88,7 @@ export function ProductsTable({
   sortTruncated,
   onCogsUpdate,
 }: ProductsTableProps) {
+  const isDemo = useDemo();
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -204,6 +207,12 @@ export function ProductsTable({
   }
 
   function exportCsv() {
+    if (isDemo) {
+      toast.message("Sign up to export your catalog", {
+        description: "CSV export is available after you create an account.",
+      });
+      return;
+    }
     const qs = searchParams.toString();
     window.location.assign(`/api/products/export${qs ? `?${qs}` : ""}`);
   }
@@ -400,7 +409,15 @@ export function ProductsTable({
                 type="button"
                 size="sm"
                 className="h-9 bg-blue-600 text-white hover:bg-blue-700"
-                onClick={() => setBulkCogsOpen(true)}
+                onClick={() => {
+                  if (isDemo) {
+                    toast.message("Sign up to edit COGS", {
+                      description: "Bulk cost updates are available after you sign up.",
+                    });
+                    return;
+                  }
+                  setBulkCogsOpen(true);
+                }}
               >
                 Edit COGS
               </Button>
@@ -687,6 +704,7 @@ function EditableCogs({
   initialCogs: number;
   onSave?: () => void;
 }) {
+  const isDemo = useDemo();
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(String(initialCogs || ""));
   const [saving, setSaving] = useState(false);
@@ -699,6 +717,12 @@ function EditableCogs({
   }, [initialCogs, editing]);
 
   async function handleSave() {
+    if (isDemo) {
+      toast.message("Sign up to edit COGS", {
+        description: "Per-product costs are editable after you connect your stores.",
+      });
+      return;
+    }
     const numValue = parseFloat(value) || 0;
     setSaving(true);
     try {
@@ -750,6 +774,12 @@ function EditableCogs({
       type="button"
       onClick={(e) => {
         e.stopPropagation();
+        if (isDemo) {
+          toast.message("Sign up to edit COGS", {
+            description: "Per-product costs are editable after you connect your stores.",
+          });
+          return;
+        }
         setValue(String(displayValue || ""));
         setEditing(true);
       }}

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, ArrowUpRight, Check } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Check, Sparkles, LineChart } from "lucide-react";
 import {
   RiPulseFill,
   RiArrowUpSFill,
@@ -8,6 +8,7 @@ import {
   RiShoppingCart2Fill,
   RiLineChartFill,
   RiShieldCheckFill,
+  RiSparklingFill,
 } from "@remixicon/react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
@@ -62,11 +63,18 @@ export default function LandingPage() {
           </Link>
           <ul className="hidden items-center gap-8 text-sm font-medium text-gray-600 dark:text-gray-400 md:flex">
             <li><Link href="#features" className="transition-colors hover:text-gray-950 dark:hover:text-gray-50">Features</Link></li>
+            <li><Link href="#ai-analytics" className="transition-colors hover:text-gray-950 dark:hover:text-gray-50">AI &amp; Analytics</Link></li>
             <li><Link href="#analytics" className="transition-colors hover:text-gray-950 dark:hover:text-gray-50">Analytics</Link></li>
             <li><Link href="#pricing" className="transition-colors hover:text-gray-950 dark:hover:text-gray-50">Pricing</Link></li>
           </ul>
           <div className="flex items-center gap-3">
             <ThemeToggle />
+            <Link
+              href="/demo"
+              className="hidden text-sm font-medium text-amber-700 transition-colors hover:text-amber-900 dark:text-amber-400 dark:hover:text-amber-300 sm:inline"
+            >
+              View a demo store
+            </Link>
             <Link href="/login" className="hidden text-sm font-medium text-gray-600 transition-colors hover:text-gray-950 dark:text-gray-400 dark:hover:text-gray-50 sm:inline">
               Sign In
             </Link>
@@ -101,7 +109,7 @@ export default function LandingPage() {
             className="mb-10 inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white/80 px-4 py-1.5 text-sm shadow-sm backdrop-blur-sm transition-colors hover:bg-white dark:border-gray-800 dark:bg-gray-900/80 dark:hover:bg-gray-900"
           >
             <span className="font-semibold text-amber-600 dark:text-amber-400">New</span>
-            <span className="text-gray-600 dark:text-gray-400">Shopify &amp; Amazon now live</span>
+            <span className="text-gray-600 dark:text-gray-400">Shopify, Amazon, Etsy &amp; TikTok Shop</span>
             <ArrowUpRight className="h-3.5 w-3.5 text-gray-400" />
           </Link>
 
@@ -112,10 +120,18 @@ export default function LandingPage() {
           </h1>
 
           <p className="mx-auto mt-8 max-w-lg text-lg leading-relaxed text-gray-500 dark:text-gray-400">
-            Unify your Shopify, Amazon, eBay, and Etsy data into one analytics dashboard. Revenue, orders, and profit in real time.
+            Unify your Shopify, Amazon, Etsy, and TikTok Shop data into one analytics dashboard. Revenue, orders, and profit in real time—with AI-powered insights and deep multichannel analytics.
           </p>
 
-          <div className="mt-10">
+          <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
+            <Link href="/demo">
+              <Button
+                variant="outline"
+                className="h-12 rounded-xl border-amber-500/50 bg-white/90 px-8 text-base font-semibold text-amber-900 shadow-sm backdrop-blur-sm hover:bg-amber-50 dark:border-amber-500/40 dark:bg-gray-900/90 dark:text-amber-100 dark:hover:bg-amber-950/50"
+              >
+                View a demo store
+              </Button>
+            </Link>
             <Link href="/signup">
               <Button className="h-12 rounded-xl bg-amber-500 px-8 text-base font-semibold text-white shadow-lg shadow-amber-500/25 hover:bg-amber-600">
                 Start tracking free
@@ -130,7 +146,7 @@ export default function LandingPage() {
         <div className="mb-6 text-center">
           <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">Unified Dashboard</h2>
           <p className="mx-auto mt-3 max-w-xl text-gray-500 dark:text-gray-400">
-            A single pane of glass for all your sales channels. Real-time monitoring across Shopify, Amazon, eBay, and more.
+            A single pane of glass for all your sales channels. Real-time monitoring across Shopify, Amazon, Etsy, and TikTok Shop.
           </p>
         </div>
 
@@ -167,7 +183,7 @@ export default function LandingPage() {
                     <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Last 30 days</p>
                   </div>
                   <div className="flex gap-4">
-                    {[{ l: "Shopify", c: "#96BF48" }, { l: "Amazon", c: "#FF9900" }].map((ch) => (
+                    {[{ l: "Shopify", c: "#96BF48" }, { l: "Amazon", c: "#FF9900" }, { l: "TikTok", c: "#FE2C55" }].map((ch) => (
                       <div key={ch.l} className="flex items-center gap-1.5">
                         <div className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: ch.c }} />
                         <span className="text-xs text-gray-500 dark:text-gray-400">{ch.l}</span>
@@ -198,7 +214,7 @@ export default function LandingPage() {
                       <circle cx="50" cy="50" r="36" fill="none" strokeWidth="14" className="stroke-gray-100 dark:stroke-gray-800" />
                       <circle cx="50" cy="50" r="36" fill="none" stroke="#96BF48" strokeWidth="14" strokeDasharray={`${0.628 * 226.2} ${226.2}`} strokeLinecap="round" />
                       <circle cx="50" cy="50" r="36" fill="none" stroke="#FF9900" strokeWidth="14" strokeDasharray={`${0.284 * 226.2} ${226.2}`} strokeDashoffset={`${-0.628 * 226.2}`} strokeLinecap="round" />
-                      <circle cx="50" cy="50" r="36" fill="none" stroke="#E53238" strokeWidth="14" strokeDasharray={`${0.088 * 226.2} ${226.2}`} strokeDashoffset={`${-(0.628 + 0.284) * 226.2}`} strokeLinecap="round" />
+                      <circle cx="50" cy="50" r="36" fill="none" stroke="#FE2C55" strokeWidth="14" strokeDasharray={`${0.088 * 226.2} ${226.2}`} strokeDashoffset={`${-(0.628 + 0.284) * 226.2}`} strokeLinecap="round" />
                     </svg>
                     <div className="absolute inset-0 flex flex-col items-center justify-center">
                       <span className="text-lg font-bold tabular-nums">$45.2k</span>
@@ -210,7 +226,7 @@ export default function LandingPage() {
                   {[
                     { label: "Shopify", val: "$28,430", pct: "62.8%", color: "#96BF48" },
                     { label: "Amazon", val: "$12,870", pct: "28.4%", color: "#FF9900" },
-                    { label: "eBay", val: "$3,930", pct: "8.8%", color: "#E53238" },
+                    { label: "TikTok Shop", val: "$3,930", pct: "8.8%", color: "#FE2C55" },
                   ].map((ch) => (
                     <div key={ch.label} className="flex items-center justify-between text-sm">
                       <div className="flex items-center gap-2">
@@ -239,7 +255,7 @@ export default function LandingPage() {
               Connect your stores via secure OAuth. Orders, products, and revenue flow in automatically. Zero CSV uploads.
             </p>
             <p className="mt-6 text-gray-500 dark:text-gray-400 leading-relaxed">
-              Deploy real-time syncing across your Shopify, Amazon, and eBay stores with our integrated webhook pipeline. New orders appear in your dashboard within seconds of being placed.
+              Deploy real-time syncing across your Shopify, Amazon, Etsy, and TikTok Shop stores with our integrated webhook pipeline. New orders appear in your dashboard within seconds of being placed.
             </p>
           </div>
           <div className="overflow-hidden rounded-3xl border border-gray-200 bg-white p-1.5 shadow-xl shadow-gray-200/40 dark:border-gray-800 dark:bg-gray-900 dark:shadow-none">
@@ -247,9 +263,8 @@ export default function LandingPage() {
               {[
                 { name: "Shopify", color: "#96BF48", abbr: "S", status: "Syncing", orders: "1,247" },
                 { name: "Amazon", color: "#FF9900", abbr: "A", status: "Syncing", orders: "634" },
-                { name: "eBay", color: "#E53238", abbr: "E", status: "Syncing", orders: "200" },
-                { name: "Etsy", color: "#F16521", abbr: "Et", status: "Pending", orders: "" },
-                { name: "TikTok Shop", color: "#FE2C55", abbr: "TT", status: "Pending", orders: "" },
+                { name: "Etsy", color: "#F16521", abbr: "Et", status: "Syncing", orders: "312" },
+                { name: "TikTok Shop", color: "#FE2C55", abbr: "TT", status: "Syncing", orders: "156" },
               ].map((ch) => (
                 <div key={ch.name} className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3.5 dark:border-gray-700 dark:bg-gray-900">
                   <div className="flex items-center gap-3">
@@ -295,7 +310,7 @@ export default function LandingPage() {
                     { label: "Revenue", value: "$45,230", bold: true },
                     { label: "  Shopify Sales", value: "$28,430", indent: true },
                     { label: "  Amazon Sales", value: "$12,870", indent: true },
-                    { label: "  eBay Sales", value: "$3,930", indent: true },
+                    { label: "  TikTok Shop", value: "$3,930", indent: true },
                     { label: "COGS", value: "-$15,831", negative: true },
                     { label: "Gross Profit", value: "$29,399", bold: true },
                     { label: "Marketplace Fees", value: "-$5,877", negative: true },
@@ -329,13 +344,116 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ── AI & Analytics ── */}
+      <section
+        id="ai-analytics"
+        className="relative z-10 overflow-hidden border-y border-gray-200/60 bg-gradient-to-b from-white via-[#fafaf9] to-white py-32 dark:border-gray-800/60 dark:from-gray-950 dark:via-gray-900/40 dark:to-gray-950"
+      >
+        <div className="pointer-events-none absolute right-0 top-1/4 h-[320px] w-[320px] rounded-full bg-violet-400/[0.07] blur-3xl dark:bg-violet-500/[0.08]" />
+        <div className="pointer-events-none absolute -left-20 bottom-1/4 h-[280px] w-[280px] rounded-full bg-amber-400/[0.06] blur-3xl" />
+        <div className="relative z-10 mx-auto max-w-6xl px-6">
+          <div className="grid items-center gap-14 lg:grid-cols-2 lg:gap-16">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-widest text-amber-600 dark:text-amber-400">
+                Intelligence
+              </p>
+              <h2 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">AI insights &amp; deep analytics</h2>
+              <p className="mt-4 leading-relaxed text-gray-500 dark:text-gray-400">
+                Go beyond static charts. ChannelPulse combines interactive analytics across every connected store with an AI assistant that understands your synced orders, revenue, products, and P&amp;L—so you can explore trends and get answers without exporting to spreadsheets.
+              </p>
+              <ul className="mt-10 space-y-6">
+                <li className="flex gap-4">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                    <Sparkles className="h-5 w-5" aria-hidden />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-950 dark:text-gray-50">AI Insights</p>
+                    <p className="mt-1 text-sm leading-relaxed text-gray-500 dark:text-gray-400">
+                      Ask questions in plain language, use suggested reports, and dig into performance with context from your real channel data—not generic advice.
+                    </p>
+                  </div>
+                </li>
+                <li className="flex gap-4">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                    <LineChart className="h-5 w-5" aria-hidden />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-950 dark:text-gray-50">Multichannel analytics</p>
+                    <p className="mt-1 text-sm leading-relaxed text-gray-500 dark:text-gray-400">
+                      Revenue trends, order KPIs, channel comparisons, inventory views, and exportable reports—filtered by date range and store, all in one place.
+                    </p>
+                  </div>
+                </li>
+              </ul>
+              <div className="mt-10 flex flex-wrap gap-3">
+                <Link href="/demo">
+                  <Button
+                    variant="outline"
+                    className="rounded-xl border-amber-500/40 font-medium text-amber-900 hover:bg-amber-50 dark:text-amber-100 dark:hover:bg-amber-950/40"
+                  >
+                    View a demo store
+                  </Button>
+                </Link>
+                <Link href="/signup">
+                  <Button className="rounded-xl bg-amber-500 font-semibold text-white shadow-md shadow-amber-500/20 hover:bg-amber-600">
+                    Start with AI &amp; analytics
+                  </Button>
+                </Link>
+              </div>
+            </div>
+
+            <div className="overflow-hidden rounded-3xl border border-gray-200 bg-white p-1.5 shadow-xl shadow-gray-200/50 dark:border-gray-800 dark:bg-gray-900 dark:shadow-none">
+              <div className="space-y-4 rounded-2xl border border-gray-100 bg-gray-50 p-5 dark:border-gray-800 dark:bg-gray-900/60">
+                <div className="flex items-center justify-between border-b border-gray-200 pb-3 dark:border-gray-800">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-amber-500" />
+                    <span className="text-sm font-semibold">AI Insights</span>
+                  </div>
+                  <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-700 dark:text-emerald-400">
+                    Live on your data
+                  </span>
+                </div>
+                <div className="rounded-xl bg-white p-3 text-xs text-gray-600 shadow-sm dark:border dark:border-gray-800 dark:bg-gray-950 dark:text-gray-300">
+                  <p className="font-medium text-gray-950 dark:text-gray-50">You</p>
+                  <p className="mt-1 leading-relaxed">
+                    Which channel had the highest net profit last month, and how does it compare to the prior month?
+                  </p>
+                </div>
+                <div className="rounded-xl border border-amber-500/20 bg-amber-500/[0.06] p-3 text-xs leading-relaxed text-gray-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-gray-200">
+                  <p className="font-medium text-amber-900 dark:text-amber-200">ChannelPulse</p>
+                  <p className="mt-1">
+                    Based on your synced data, <strong>Shopify</strong> led net profit last month; it was up versus the prior period, driven by higher order volume and lower relative marketplace fees. I can break down fees by channel or SKU if you want to go deeper.
+                  </p>
+                </div>
+                <div className="grid grid-cols-3 gap-2 pt-1">
+                  {[
+                    { k: "Revenue (30d)", v: "$52.1k" },
+                    { k: "Orders", v: "2.3k" },
+                    { k: "Top channel", v: "Shopify" },
+                  ].map((m) => (
+                    <div
+                      key={m.k}
+                      className="rounded-lg border border-gray-200 bg-white px-2.5 py-2 dark:border-gray-800 dark:bg-gray-950"
+                    >
+                      <p className="text-[10px] font-medium text-gray-400">{m.k}</p>
+                      <p className="mt-0.5 text-sm font-semibold tabular-nums text-gray-950 dark:text-gray-50">{m.v}</p>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-center text-[10px] text-gray-400">Illustrative preview — connect your stores to run this on your own numbers.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ── Testimonial ── */}
       <section className="relative z-10 overflow-hidden border-y border-gray-200/60 bg-white/50 py-24 backdrop-blur-sm dark:border-gray-800/60 dark:bg-gray-900/30">
         <div className="pointer-events-none absolute left-1/2 top-1/2 h-[300px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-amber-300/[0.06] blur-3xl" />
         <div className="relative z-10 mx-auto max-w-4xl px-6">
         <blockquote className="rounded-3xl border border-gray-200 bg-white p-10 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-14">
           <p className="text-lg font-medium leading-relaxed text-gray-700 dark:text-gray-300 sm:text-xl">
-            <strong>&ldquo;ChannelPulse replaced three spreadsheets and two dashboards for us.</strong> Having Shopify and Amazon revenue in one view with real P&L numbers saved us hours every week. The setup took literally 2 minutes.&rdquo;
+            <strong>&ldquo;ChannelPulse replaced three spreadsheets and two dashboards for us.</strong> Having Shopify, Amazon, and TikTok Shop revenue in one view with real P&L numbers saved us hours every week. The setup took literally 2 minutes.&rdquo;
           </p>
           <div className="mt-8 flex items-center gap-4">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 text-lg font-bold text-amber-800 dark:bg-amber-900 dark:text-amber-200">
@@ -355,7 +473,11 @@ export default function LandingPage() {
         <div className="mb-6">
           <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">ChannelPulse Analytics</h2>
           <p className="mt-3 max-w-xl text-gray-500 dark:text-gray-400">
-            Turn raw order data into actionable insights with real-time channel performance analytics.
+            Turn raw order data into actionable insights with real-time channel performance analytics. Pair tables and charts with{" "}
+            <Link href="#ai-analytics" className="font-medium text-amber-700 underline-offset-2 hover:underline dark:text-amber-400">
+              AI Insights
+            </Link>{" "}
+            to explore trends and ask follow-up questions in natural language.
           </p>
         </div>
 
@@ -365,7 +487,7 @@ export default function LandingPage() {
             <div className="border-b border-gray-200 p-6 dark:border-gray-800">
               <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Combined Revenue</p>
               <div className="mt-1 flex items-end gap-3">
-                <span className="text-3xl font-bold tabular-nums tracking-tight">$45,230</span>
+                <span className="text-3xl font-bold tabular-nums tracking-tight">$52,070</span>
                 <span className="mb-1 inline-flex items-center gap-0.5 rounded-md bg-emerald-50 px-1.5 py-0.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">
                   <RiArrowUpSFill className="h-3 w-3" />+12.3%
                 </span>
@@ -393,7 +515,8 @@ export default function LandingPage() {
                   {[
                     { ch: "Shopify", color: "#96BF48", orders: "1,247", rev: "$28,430", aov: "$22.80", growth: "+14.2%", up: true, fees: "$852", profit: "$18,204" },
                     { ch: "Amazon", color: "#FF9900", orders: "634", rev: "$12,870", aov: "$20.30", growth: "+8.7%", up: true, fees: "$1,930", profit: "$6,122" },
-                    { ch: "eBay", color: "#E53238", orders: "200", rev: "$3,930", aov: "$19.65", growth: "-3.1%", up: false, fees: "$510", profit: "$2,099" },
+                    { ch: "Etsy", color: "#F16521", orders: "312", rev: "$6,840", aov: "$21.92", growth: "+22.4%", up: true, fees: "$548", profit: "$4,180" },
+                    { ch: "TikTok Shop", color: "#FE2C55", orders: "156", rev: "$3,930", aov: "$25.19", growth: "+31.6%", up: true, fees: "$510", profit: "$2,099" },
                   ].map((row) => (
                     <tr key={row.ch} className="transition-colors hover:bg-gray-100/50 dark:hover:bg-gray-800/50">
                       <td className="px-6 py-4">
@@ -422,12 +545,13 @@ export default function LandingPage() {
         </div>
 
         {/* Feature pills below table */}
-        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {[
             { icon: RiBarChartBoxFill, title: "Revenue Breakdown", desc: "See revenue per channel with trend lines and average order value." },
             { icon: RiShoppingCart2Fill, title: "Order Analytics", desc: "Track order volume, fulfillment status, and customer data." },
             { icon: RiLineChartFill, title: "P&L Reports", desc: "Full profit & loss with COGS, fees, shipping, and ad spend." },
             { icon: RiShieldCheckFill, title: "Read-Only & Secure", desc: "We never write to your stores. Encrypted, row-level security." },
+            { icon: RiSparklingFill, title: "AI Insights", desc: "Ask questions in plain English and explore suggested reports grounded in your synced data." },
           ].map((f) => (
             <div key={f.title} className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
               <f.icon className="mb-3 h-5 w-5 text-amber-500" />
@@ -538,7 +662,7 @@ export default function LandingPage() {
 
             {/* Link columns */}
             {[
-              { title: "Product", links: ["Overview", "Orders", "Revenue", "P&L Reports", "Documentation", "Changelog"] },
+              { title: "Product", links: ["Overview", "Orders", "Revenue", "P&L Reports", "AI Insights", "Documentation", "Changelog"] },
               { title: "Company", links: ["About", "Blog", "Careers", "Press", "Partners"] },
               { title: "Resources", links: ["Community", "Contact", "Support", "Privacy Policy", "Terms of Service", "Report an Issue"] },
               { title: "Channels", links: ["Shopify", "Amazon", "Etsy", "TikTok Shop"] },

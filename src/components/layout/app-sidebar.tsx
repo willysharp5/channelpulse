@@ -29,14 +29,29 @@ interface SidebarChannel {
   status: string | null;
 }
 
-export function AppSidebar() {
+function demoNavHref(href: string) {
+  if (href === "/") return "/demo";
+  return `/demo${href}`;
+}
+
+export function AppSidebar({
+  demo,
+}: {
+  /** Public read-only demo: fixed nav under /demo, no API calls. */
+  demo?: { channels: SidebarChannel[] };
+}) {
   const pathname = usePathname();
   const router = useRouter();
-  const [channels, setChannels] = useState<SidebarChannel[]>([]);
+  const [channels, setChannels] = useState<SidebarChannel[]>(demo?.channels ?? []);
   const [excludedIds, setExcludedIds] = useState<Set<string>>(new Set());
   const [savingId, setSavingId] = useState<string | null>(null);
 
   useEffect(() => {
+    if (demo) {
+      setChannels(demo.channels);
+      setExcludedIds(new Set());
+      return;
+    }
     fetch("/api/channels")
       .then((r) => (r.ok ? r.json() : null))
       .then((d: unknown) => {
@@ -50,10 +65,11 @@ export function AppSidebar() {
         setExcludedIds(new Set(o?.excluded_channel_ids ?? []));
       })
       .catch(() => {});
-  }, []);
+  }, [demo]);
 
   const persistExcluded = useCallback(
     async (next: Set<string>) => {
+      if (demo) return false;
       const res = await fetch("/api/settings/reporting-channels", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -88,7 +104,7 @@ export function AppSidebar() {
       }
       setSavingId(null);
     },
-    [excludedIds, persistExcluded, router]
+    [demo, excludedIds, persistExcluded, router]
   );
 
   return (
@@ -96,7 +112,7 @@ export function AppSidebar() {
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" render={<Link href="/" />}>
+            <SidebarMenuButton size="lg" render={<Link href={demo ? "/demo" : "/"} />}>
               <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-amber-500/10">
                 <Zap className="size-4 text-amber-500" />
               </div>
@@ -117,13 +133,14 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {NAV_ITEMS.map((item) => {
-                const isActive =
-                  pathname === item.href ||
-                  (item.href !== "/" && pathname.startsWith(item.href));
+                const href = demo ? demoNavHref(item.href) : item.href;
+                const isActive = demo
+                  ? pathname === href || (item.href !== "/" && pathname.startsWith(href))
+                  : pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
 
                 return (
                   <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton render={<Link href={item.href} />} isActive={isActive}>
+                    <SidebarMenuButton render={<Link href={href} />} isActive={isActive}>
                       <item.icon className="size-4" />
                       <span>{item.title}</span>
                       {item.badge && (
@@ -146,7 +163,9 @@ export function AppSidebar() {
           <SidebarGroup>
             <SidebarGroupLabel>Channels</SidebarGroupLabel>
             <p className="px-2 pb-1 text-[11px] leading-snug text-muted-foreground">
-              Toggle off to hide a store from charts, KPIs, orders, products, and P&amp;L.
+              {demo
+                ? "Sample stores for this demo. Sign up to connect your own channels."
+                : "Toggle off to hide a store from charts, KPIs, orders, products, and P&L."}
             </p>
             <SidebarGroupContent>
               <SidebarMenu>
@@ -172,16 +191,18 @@ export function AppSidebar() {
                             <p className="text-xs font-medium">{ch.name}</p>
                           </TooltipContent>
                         </Tooltip>
-                        <Switch
-                          size="sm"
-                          checked={inReports}
-                          disabled={savingId === ch.id}
-                          onCheckedChange={(on) => {
-                            void toggleReporting(ch.id, Boolean(on));
-                          }}
-                          onClick={(e) => e.stopPropagation()}
-                          aria-label={inReports ? `Exclude ${ch.name} from reports` : `Include ${ch.name} in reports`}
-                        />
+                        {!demo ? (
+                          <Switch
+                            size="sm"
+                            checked={inReports}
+                            disabled={savingId === ch.id}
+                            onCheckedChange={(on) => {
+                              void toggleReporting(ch.id, Boolean(on));
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                            aria-label={inReports ? `Exclude ${ch.name} from reports` : `Include ${ch.name} in reports`}
+                          />
+                        ) : null}
                         <Badge
                           variant="outline"
                           className={`hidden shrink-0 text-[10px] px-1.5 py-0 sm:inline-flex ${

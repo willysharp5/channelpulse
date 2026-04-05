@@ -1,5 +1,5 @@
-import { createClient } from "@/lib/supabase/server";
-import { getOrgId } from "@/lib/queries";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { resolveOrgScope } from "@/lib/queries";
 import {
   buildReportingChannelsFilter,
   rpcChannelIdsParam,
@@ -80,7 +80,7 @@ export function escapeIlike(s: string): string {
 }
 
 async function resolveChannelIds(
-  supabase: Awaited<ReturnType<typeof createClient>>,
+  supabase: SupabaseClient,
   orgId: string,
   input: InventoryListParams
 ): Promise<{ forPlatform: string[]; forSearch: string[] }> {
@@ -207,11 +207,11 @@ function parseHistogramJson(data: unknown): { domainMax: number; counts: number[
 }
 
 async function loadHistogramFromRpc(
+  supabase: SupabaseClient,
   orgId: string,
   input: InventoryListParams,
   reportFilter: ReportingChannelsFilter
 ): Promise<{ domainMax: number; counts: number[] } | null> {
-  const supabase = await createClient();
   const searchTrim = input.search.trim();
   const { since, until } = tableDateRangeBounds(input.range, input.dateFrom, input.dateTo);
 
@@ -233,13 +233,13 @@ async function loadHistogramFromRpc(
 
 /** Loads quantities for filtered set and bins in Node (fallback if RPC missing). */
 async function loadHistogramClientMatch(
+  supabase: SupabaseClient,
   orgId: string,
   input: InventoryListParams,
   forPlatform: string[],
   forSearch: string[],
   reportFilter: ReportingChannelsFilter
 ): Promise<{ domainMax: number; counts: number[] }> {
-  const supabase = await createClient();
   let q = supabase.from("products").select("inventory_quantity").eq("org_id", orgId);
   q = applyInventoryFilters(q, input, forPlatform, forSearch, reportFilter);
   const { data, error } = await q;
@@ -260,10 +260,7 @@ async function loadHistogramClientMatch(
   return { domainMax, counts };
 }
 
-export async function getInventoryPlatformOptions(): Promise<string[]> {
-  const orgId = await getOrgId();
-  if (!orgId) return [];
-  const supabase = await createClient();
+async function getInventoryPlatformOptionsScoped(orgId: string, supabase: SupabaseClient): Promise<string[]> {
   const reportFilter = await buildReportingChannelsFilter(supabase, orgId);
   if (reportFilter.kind === "include_only" && reportFilter.channelIds.length === 0) {
     return [];
@@ -288,9 +285,15 @@ export async function getInventoryPlatformOptions(): Promise<string[]> {
   return sortPlatformsForUi([...set]);
 }
 
-export async function getInventoryPage(input: InventoryListParams): Promise<InventoryPageResult> {
-  const orgId = await getOrgId();
-  if (!orgId) {
+export async function getInventoryPlatformOptions(): Promise<string[]> {
+  const scope = await resolveOrgScope();
+  if (!scope) return [];
+  return getInventoryPlatformOptionsScoped(scope.orgId, scope.supabase);
+}
+
+export async function getInventoryPage(input: InventoryListParams, demoOrgId?: string | null): Promise<InventoryPageResult> {
+  const scope = await resolveOrgScope(demoOrgId);
+  if (!scope) {
     return {
       rows: [],
       totalCount: 0,
@@ -299,8 +302,8 @@ export async function getInventoryPage(input: InventoryListParams): Promise<Inve
       effectivePage: 1,
     };
   }
+  const { orgId, supabase } = scope;
 
-  const supabase = await createClient();
   const reportFilter = await buildReportingChannelsFilter(supabase, orgId);
   if (reportFilter.kind === "include_only" && reportFilter.channelIds.length === 0) {
     return {
@@ -343,14 +346,14 @@ export async function getInventoryPage(input: InventoryListParams): Promise<Inve
   dataQuery = dataQuery.order("title", { ascending: true }).range(from, to);
 
   const [platformOptions, histRpc, { data: products, error: dataError }, { data: channels }] = await Promise.all([
-    getInventoryPlatformOptions(),
-    loadHistogramFromRpc(orgId, input, reportFilter),
+    getInventoryPlatformOptionsScoped(orgId, supabase),
+    loadHistogramFromRpc(supabase, orgId, input, reportFilter),
     dataQuery,
     supabase.from("channels").select("id,platform,name").eq("org_id", orgId),
   ]);
 
   const histogram =
-    histRpc ?? (await loadHistogramClientMatch(orgId, input, forPlatform, forSearch, reportFilter));
+    histRpc ?? (await loadHistogramClientMatch(supabase, orgId, input, forPlatform, forSearch, reportFilter));
 
   if (dataError) {
     console.error("inventory list:", dataError.message);
@@ -369,11 +372,14 @@ export async function getInventoryPage(input: InventoryListParams): Promise<Inve
 }
 
 /** Export only; capped for safety. */
-export async function fetchInventoryExportRows(input: InventoryListParams, maxRows = 25_000): Promise<InventoryRow[]> {
-  const orgId = await getOrgId();
-  if (!orgId) return [];
-
-  const supabase = await createClient();
+export async function fetchInventoryExportRows(
+  input: InventoryListParams,
+  maxRows = 25_000,
+  demoOrgId?: string | null
+): Promise<InventoryRow[]> {
+  const scope = await resolveOrgScope(demoOrgId);
+  if (!scope) return [];
+  const { orgId, supabase } = scope;
   const reportFilter = await buildReportingChannelsFilter(supabase, orgId);
   if (reportFilter.kind === "include_only" && reportFilter.channelIds.length === 0) {
     return [];

@@ -14,6 +14,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import { useDemo } from "@/contexts/demo-context";
 
 type Props = {
   open: boolean;
@@ -23,6 +25,7 @@ type Props = {
 };
 
 export function BulkCogsSheet({ open, onOpenChange, productIds, onApplied }: Props) {
+  const isDemo = useDemo();
   const [value, setValue] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -30,6 +33,12 @@ export function BulkCogsSheet({ open, onOpenChange, productIds, onApplied }: Pro
   const selectedCount = productIds.length;
 
   async function handleSubmit() {
+    if (isDemo) {
+      toast.message("Sign up to edit COGS", {
+        description: "Cost settings are available after you connect your stores.",
+      });
+      return;
+    }
     const num = parseFloat(value);
     if (Number.isNaN(num) || num < 0) {
       setError("Enter a valid cost (0 or greater).");

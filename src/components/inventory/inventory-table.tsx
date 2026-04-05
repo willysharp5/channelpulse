@@ -36,6 +36,8 @@ import { StockDistributionSlider } from "@/components/inventory/stock-distributi
 import type { InventoryRow } from "@/lib/inventory-list";
 import { TableDateRangeFilter } from "@/components/layout/table-date-range-filter";
 import { isTableDateRangeActive, parseTableDateRangeSearchParams } from "@/lib/table-date-range";
+import { toast } from "sonner";
+import { useDemo } from "@/contexts/demo-context";
 
 export type { InventoryRow } from "@/lib/inventory-list";
 
@@ -108,6 +110,7 @@ export function InventoryTable({
   requestedPage,
   lastRefreshAt,
 }: InventoryTableProps) {
+  const isDemo = useDemo();
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -207,6 +210,12 @@ export function InventoryTable({
     stockMode !== "all";
 
   function exportCsv() {
+    if (isDemo) {
+      toast.message("Sign up to export inventory", {
+        description: "CSV export is available after you create an account.",
+      });
+      return;
+    }
     const qs = searchParams.toString();
     window.location.assign(`/api/inventory/export${qs ? `?${qs}` : ""}`);
   }

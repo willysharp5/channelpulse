@@ -12,12 +12,14 @@ import {
   saveThread,
   titleFromMessage,
 } from "@/lib/ai/chat-store";
+import { toast } from "sonner";
 import type { SuggestedReportData } from "@/lib/ai/icon-map";
 import type { UIMessage } from "ai";
 
 const transport = new DefaultChatTransport({ api: "/api/chat" });
 
-export function ChatPage() {
+export function ChatPage(props?: { isDemo?: boolean }) {
+  const isDemo = props?.isDemo ?? false;
   const { messages, sendMessage, regenerate, status, stop, setMessages } =
     useChat({ transport });
 
@@ -39,7 +41,7 @@ export function ChatPage() {
 
   // Auto-save to database when messages change
   useEffect(() => {
-    if (messages.length === 0 || isLoading) return;
+    if (isDemo || messages.length === 0 || isLoading) return;
     if (messages.length === prevMsgCount.current) return;
     prevMsgCount.current = messages.length;
 
@@ -60,7 +62,7 @@ export function ChatPage() {
     } else {
       saveThread(threadId, messages, title);
     }
-  }, [messages, isLoading, threadId]);
+  }, [isDemo, messages, isLoading, threadId]);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -94,6 +96,12 @@ export function ChatPage() {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (isDemo) {
+      toast.message("Sign up for AI Insights", {
+        description: "Chat with your sales data after you create an account.",
+      });
+      return;
+    }
     if (!input.trim() || isLoading) return;
     sendMessage({ text: input });
     setInput("");
@@ -108,6 +116,12 @@ export function ChatPage() {
   }
 
   function handleSelectReport(prompt: string) {
+    if (isDemo) {
+      toast.message("Sign up for AI Insights", {
+        description: "Run suggested reports on your own data after you sign up.",
+      });
+      return;
+    }
     sendMessage({ text: prompt });
   }
 
@@ -131,6 +145,15 @@ export function ChatPage() {
 
   return (
     <div className="relative flex h-full flex-col">
+      {isDemo ? (
+        <div className="border-b border-amber-500/20 bg-amber-500/10 px-4 py-2 text-center text-xs text-muted-foreground">
+          Preview only — AI chat is disabled.{" "}
+          <a href="/signup" className="font-medium text-amber-900 underline dark:text-amber-200">
+            Sign up
+          </a>{" "}
+          to ask questions about your stores.
+        </div>
+      ) : null}
       {/* Messages area */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto">
         {messages.length === 0 ? (
@@ -188,7 +211,7 @@ export function ChatPage() {
         <div className="mx-auto max-w-2xl">
           {messages.length > 0 && (
             <div className="mb-2">
-              <QuickReports onSelect={handleSelectReport} disabled={isLoading} reports={reports} />
+              <QuickReports onSelect={handleSelectReport} disabled={isLoading || isDemo} reports={reports} />
             </div>
           )}
           <div className="flex flex-col overflow-hidden rounded-xl bg-muted/50 focus-within:bg-muted/70">
@@ -197,7 +220,9 @@ export function ChatPage() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Ask about your data..."
+              placeholder={isDemo ? "Sign up to chat with your data…" : "Ask about your data..."}
+              readOnly={isDemo}
+              aria-readonly={isDemo}
               rows={1}
               className="w-full resize-none border-0 bg-transparent px-4 pt-3 pb-2 text-sm shadow-none outline-none ring-0 focus:border-0 focus:ring-0 focus:outline-none placeholder:text-muted-foreground/50"
             />

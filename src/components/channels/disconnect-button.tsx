@@ -11,6 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { useDemo } from "@/contexts/demo-context";
 
 export function DisconnectButton({
   channelId,
@@ -19,11 +20,18 @@ export function DisconnectButton({
   channelId: string;
   channelName: string;
 }) {
+  const isDemo = useDemo();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
   async function handleDisconnect() {
+    if (isDemo) {
+      toast.message("Sign up to manage channels", {
+        description: "Disconnect and other actions are available after you create an account.",
+      });
+      return;
+    }
     setLoading(true);
     try {
       const res = await fetch(`/api/channels/${channelId}/disconnect`, {
@@ -46,7 +54,15 @@ export function DisconnectButton({
         variant="outline"
         size="sm"
         className="text-xs"
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          if (isDemo) {
+            toast.message("Sign up to manage channels", {
+              description: "Disconnect is available after you create an account.",
+            });
+            return;
+          }
+          setOpen(true);
+        }}
       >
         Disconnect
       </Button>

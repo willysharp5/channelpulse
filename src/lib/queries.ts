@@ -1,6 +1,9 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getImpersonatedUserId } from "@/lib/admin/impersonate";
+import { DEMO_ORG_ID } from "@/lib/demo-data";
+import { PLAN_LIMITS } from "@/lib/constants";
 import {
   topProductsFromOrders,
   rollupForProducts,
@@ -52,6 +55,31 @@ export async function getOrgId(): Promise<string | null> {
   return profile?.org_id ?? null;
 }
 
+/**
+ * Session org + Supabase client, or service-role client for the fixed public demo org only.
+ */
+export async function resolveOrgScope(
+  demoOrgId?: string | null
+): Promise<{ orgId: string; supabase: SupabaseClient } | null> {
+  if (demoOrgId) {
+    if (demoOrgId !== DEMO_ORG_ID) return null;
+    return { orgId: DEMO_ORG_ID, supabase: createAdminClient() };
+  }
+  const supabase = await createClient();
+  const orgId = await getOrgId();
+  if (!orgId) return null;
+  return { orgId, supabase };
+}
+
+export function getDemoUserPlan(): {
+  plan: string;
+  limits: { channels: number; ordersPerMonth: number };
+  status: "active" | "cancelling" | "expired" | "free";
+  periodEnd: string | null;
+} {
+  return { plan: "scale", limits: PLAN_LIMITS.scale, status: "active", periodEnd: null };
+}
+
 const EMPTY_STATS = {
   revenue: { value: 0, change: 0 },
   orders: { value: 0, change: 0 },
@@ -67,17 +95,16 @@ export type { DateParams };
 export { getDateRange };
 export type { ReportingChannelsFilter };
 
-export async function getReportingChannelsFilter(): Promise<ReportingChannelsFilter> {
-  const orgId = await getOrgId();
-  if (!orgId) return { kind: "none" };
-  const supabase = await createClient();
-  return buildReportingChannelsFilter(supabase, orgId);
+export async function getReportingChannelsFilter(demoOrgId?: string | null): Promise<ReportingChannelsFilter> {
+  const scope = await resolveOrgScope(demoOrgId);
+  if (!scope) return { kind: "none" };
+  return buildReportingChannelsFilter(scope.supabase, scope.orgId);
 }
 
-export async function getDashboardStats(params: DateParams = { days: 30 }) {
-  const supabase = await createClient();
-  const orgId = await getOrgId();
-  if (!orgId) return EMPTY_STATS;
+export async function getDashboardStats(params: DateParams = { days: 30 }, demoOrgId?: string | null) {
+  const scope = await resolveOrgScope(demoOrgId);
+  if (!scope) return EMPTY_STATS;
+  const { orgId, supabase } = scope;
 
   const reportFilter = await buildReportingChannelsFilter(supabase, orgId);
   if (reportFilter.kind === "include_only" && reportFilter.channelIds.length === 0) {
@@ -145,11 +172,12 @@ export interface ComparisonStats {
 
 export async function getComparisonStats(
   compareFrom: string,
-  compareTo: string
+  compareTo: string,
+  demoOrgId?: string | null
 ): Promise<ComparisonStats> {
-  const supabase = await createClient();
-  const orgId = await getOrgId();
-  if (!orgId) return { revenue: 0, orders: 0, profit: 0, units: 0, aov: 0 };
+  const scope = await resolveOrgScope(demoOrgId);
+  if (!scope) return { revenue: 0, orders: 0, profit: 0, units: 0, aov: 0 };
+  const { orgId, supabase } = scope;
 
   const reportFilter = await buildReportingChannelsFilter(supabase, orgId);
   if (reportFilter.kind === "include_only" && reportFilter.channelIds.length === 0) {
@@ -181,11 +209,12 @@ export async function getComparisonStats(
 
 export async function getComparisonRevenueSeries(
   compareFrom: string,
-  compareTo: string
+  compareTo: string,
+  demoOrgId?: string | null
 ): Promise<{ date: string; total: number }[]> {
-  const supabase = await createClient();
-  const orgId = await getOrgId();
-  if (!orgId) return [];
+  const scope = await resolveOrgScope(demoOrgId);
+  if (!scope) return [];
+  const { orgId, supabase } = scope;
 
   const reportFilter = await buildReportingChannelsFilter(supabase, orgId);
   if (reportFilter.kind === "include_only" && reportFilter.channelIds.length === 0) {
@@ -220,10 +249,13 @@ export interface RevenuePoint {
   [key: string]: string | number;
 }
 
-export async function getRevenueSeries(params: DateParams = { days: 30 }): Promise<{ series: RevenuePoint[]; platforms: string[] }> {
-  const supabase = await createClient();
-  const orgId = await getOrgId();
-  if (!orgId) return { series: [], platforms: [] };
+export async function getRevenueSeries(
+  params: DateParams = { days: 30 },
+  demoOrgId?: string | null
+): Promise<{ series: RevenuePoint[]; platforms: string[] }> {
+  const scope = await resolveOrgScope(demoOrgId);
+  if (!scope) return { series: [], platforms: [] };
+  const { orgId, supabase } = scope;
 
   const reportFilter = await buildReportingChannelsFilter(supabase, orgId);
   if (reportFilter.kind === "include_only" && reportFilter.channelIds.length === 0) {
@@ -274,10 +306,10 @@ export async function getRevenueSeries(params: DateParams = { days: 30 }): Promi
   return { series, platforms: [...activePlatformSet] };
 }
 
-export async function getChannelRevenue(params: DateParams = { days: 30 }) {
-  const supabase = await createClient();
-  const orgId = await getOrgId();
-  if (!orgId) return [];
+export async function getChannelRevenue(params: DateParams = { days: 30 }, demoOrgId?: string | null) {
+  const scope = await resolveOrgScope(demoOrgId);
+  if (!scope) return [];
+  const { orgId, supabase } = scope;
 
   const reportFilter = await buildReportingChannelsFilter(supabase, orgId);
   if (reportFilter.kind === "include_only" && reportFilter.channelIds.length === 0) {
@@ -333,10 +365,10 @@ export async function getChannelRevenue(params: DateParams = { days: 30 }) {
   }));
 }
 
-export async function getRecentOrders(limit = 10) {
-  const supabase = await createClient();
-  const orgId = await getOrgId();
-  if (!orgId) return [];
+export async function getRecentOrders(limit = 10, demoOrgId?: string | null) {
+  const scope = await resolveOrgScope(demoOrgId);
+  if (!scope) return [];
+  const { orgId, supabase } = scope;
 
   const reportFilter = await buildReportingChannelsFilter(supabase, orgId);
   if (reportFilter.kind === "include_only" && reportFilter.channelIds.length === 0) {
@@ -357,10 +389,10 @@ export async function getRecentOrders(limit = 10) {
   return orders ?? [];
 }
 
-export async function getAllOrders() {
-  const supabase = await createClient();
-  const orgId = await getOrgId();
-  if (!orgId) return [];
+export async function getAllOrders(demoOrgId?: string | null) {
+  const scope = await resolveOrgScope(demoOrgId);
+  if (!scope) return [];
+  const { orgId, supabase } = scope;
 
   const reportFilter = await buildReportingChannelsFilter(supabase, orgId);
   if (reportFilter.kind === "include_only" && reportFilter.channelIds.length === 0) {
@@ -380,10 +412,10 @@ export async function getAllOrders() {
   return orders ?? [];
 }
 
-export async function getChannels() {
-  const supabase = await createClient();
-  const orgId = await getOrgId();
-  if (!orgId) return [];
+export async function getChannels(demoOrgId?: string | null) {
+  const scope = await resolveOrgScope(demoOrgId);
+  if (!scope) return [];
+  const { orgId, supabase } = scope;
 
   const { data: channels } = await supabase
     .from("channels")
@@ -394,10 +426,10 @@ export async function getChannels() {
   return channels ?? [];
 }
 
-export async function getChannelsWithStats(params: DateParams = { days: 30 }) {
-  const supabase = await createClient();
-  const orgId = await getOrgId();
-  if (!orgId) return [];
+export async function getChannelsWithStats(params: DateParams = { days: 30 }, demoOrgId?: string | null) {
+  const scope = await resolveOrgScope(demoOrgId);
+  if (!scope) return [];
+  const { orgId, supabase } = scope;
 
   const reportFilter = await buildReportingChannelsFilter(supabase, orgId);
 
@@ -439,10 +471,10 @@ export async function getChannelsWithStats(params: DateParams = { days: 30 }) {
   });
 }
 
-export async function getProducts() {
-  const supabase = await createClient();
-  const orgId = await getOrgId();
-  if (!orgId) return [];
+export async function getProducts(demoOrgId?: string | null) {
+  const scope = await resolveOrgScope(demoOrgId);
+  if (!scope) return [];
+  const { orgId, supabase } = scope;
 
   const reportFilter = await buildReportingChannelsFilter(supabase, orgId);
   if (reportFilter.kind === "include_only" && reportFilter.channelIds.length === 0) {
@@ -471,10 +503,14 @@ export async function getProducts() {
   });
 }
 
-export async function getTopProductsBySales(params: DateParams = { days: 30 }, limit = 10): Promise<TopProductSale[]> {
-  const supabase = await createClient();
-  const orgId = await getOrgId();
-  if (!orgId) return [];
+export async function getTopProductsBySales(
+  params: DateParams = { days: 30 },
+  limit = 10,
+  demoOrgId?: string | null
+): Promise<TopProductSale[]> {
+  const scope = await resolveOrgScope(demoOrgId);
+  if (!scope) return [];
+  const { orgId, supabase } = scope;
 
   const reportFilter = await buildReportingChannelsFilter(supabase, orgId);
   if (reportFilter.kind === "include_only" && reportFilter.channelIds.length === 0) {
@@ -502,10 +538,10 @@ export async function getTopProductsBySales(params: DateParams = { days: 30 }, l
 
 export type ProductWithSales = Awaited<ReturnType<typeof getProductsWithSales>>[number];
 
-export async function getProductsWithSales(params: DateParams = { days: 30 }) {
-  const supabase = await createClient();
-  const orgId = await getOrgId();
-  if (!orgId) return [];
+export async function getProductsWithSales(params: DateParams = { days: 30 }, demoOrgId?: string | null) {
+  const scope = await resolveOrgScope(demoOrgId);
+  if (!scope) return [];
+  const { orgId, supabase } = scope;
 
   const reportFilter = await buildReportingChannelsFilter(supabase, orgId);
   if (reportFilter.kind === "include_only" && reportFilter.channelIds.length === 0) {
@@ -527,7 +563,7 @@ export async function getProductsWithSales(params: DateParams = { days: 30 }) {
     orderQ = orderQ.in("channel_id", reportFilter.channelIds);
   }
 
-  const [products, { data: orders }] = await Promise.all([getProducts(), orderQ]);
+  const [products, { data: orders }] = await Promise.all([getProducts(demoOrgId), orderQ]);
 
   const rollup = rollupForProducts(orders ?? []);
 
@@ -578,10 +614,10 @@ const DEFAULT_COST_SETTINGS: CostSettings = {
   use_modeled_platform_fees: false,
 };
 
-export async function getCostSettings(): Promise<CostSettings> {
-  const supabase = await createClient();
-  const orgId = await getOrgId();
-  if (!orgId) return DEFAULT_COST_SETTINGS;
+export async function getCostSettings(demoOrgId?: string | null): Promise<CostSettings> {
+  const scope = await resolveOrgScope(demoOrgId);
+  if (!scope) return DEFAULT_COST_SETTINGS;
+  const { orgId, supabase } = scope;
 
   const { data } = await supabase
     .from("cost_settings")
@@ -638,10 +674,10 @@ const EMPTY_PNL = {
   channelFeeOverrides: [] as PnLChannelFeeRow[],
 };
 
-export async function getPnLData(params: DateParams = { days: 30 }) {
-  const supabase = await createClient();
-  const orgId = await getOrgId();
-  if (!orgId) return EMPTY_PNL;
+export async function getPnLData(params: DateParams = { days: 30 }, demoOrgId?: string | null) {
+  const scope = await resolveOrgScope(demoOrgId);
+  if (!scope) return EMPTY_PNL;
+  const { orgId, supabase } = scope;
 
   const reportFilter = await buildReportingChannelsFilter(supabase, orgId);
   if (reportFilter.kind === "include_only" && reportFilter.channelIds.length === 0) {
@@ -727,7 +763,7 @@ export async function getPnLData(params: DateParams = { days: 30 }) {
   });
   channelBreakdown.sort((a, b) => b.revenue - a.revenue);
 
-  const costSettings = await getCostSettings();
+  const costSettings = await getCostSettings(demoOrgId);
 
   // COGS based on user's chosen method
   const cogsFromPercent = costSettings.default_cogs_percent > 0 ? (totalRevenue * costSettings.default_cogs_percent / 100) : 0;
@@ -851,7 +887,6 @@ export async function getUserPlan(): Promise<{
   status: "active" | "cancelling" | "expired" | "free";
   periodEnd: string | null;
 }> {
-  const { PLAN_LIMITS } = await import("@/lib/constants");
   const supabase = await createClient();
   const {
     data: { user },

@@ -45,6 +45,8 @@ import { isTableDateRangeActive, parseTableDateRangeSearchParams } from "@/lib/t
 import type { Platform } from "@/types";
 import type { OrderListRow } from "@/lib/orders-list";
 import { OrderDetailSheet } from "@/components/orders/order-detail-sheet";
+import { toast } from "sonner";
+import { useDemo } from "@/contexts/demo-context";
 
 function HeaderWithTip({ children, tip, className }: { children: React.ReactNode; tip: string; className?: string }) {
   return (
@@ -116,6 +118,7 @@ export function OrdersTable({
   requestedPage,
   platformOptions,
 }: OrdersTableProps) {
+  const isDemo = useDemo();
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -222,6 +225,12 @@ export function OrdersTable({
   }
 
   function exportCsv() {
+    if (isDemo) {
+      toast.message("Sign up to export orders", {
+        description: "CSV export is available after you create an account.",
+      });
+      return;
+    }
     const qs = searchParams.toString();
     window.location.assign(`/api/orders/export${qs ? `?${qs}` : ""}`);
   }

@@ -9,7 +9,8 @@
     "lint": "eslint",
     "seed:demo": "node scripts/seed-demo-channels.cjs",
     "seed:demo:list": "node scripts/seed-demo-channels.cjs --list",
-    "seed:demo:remove": "node scripts/seed-demo-channels.cjs --remove"
+    "seed:demo:remove": "node scripts/seed-demo-channels.cjs --remove",
+    "seed:public-demo": "node scripts/seed-public-demo.cjs"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.50",
