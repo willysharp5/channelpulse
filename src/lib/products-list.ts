@@ -26,11 +26,15 @@ export interface ProductTableRow {
   salesPlatform: string;
 }
 
+export type ProductsSourceFilter = "all" | "csv";
+
 export interface ProductsListParams {
   rangeKey: string | null;
   search: string;
   status: string;
   channel: string;
+  /** `csv` = rows last updated by a product CSV import (`import_source_kind` = `product_csv`) */
+  source: ProductsSourceFilter;
   page: number;
   pageSize: number;
   sortKey: "none" | "units" | "revenue";
@@ -65,6 +69,8 @@ export function parseProductsListParams(sp: Record<string, string | string[] | u
   const search = firstParam(sp, "search") ?? "";
   const status = firstParam(sp, "status") ?? "all";
   const channel = firstParam(sp, "channel") ?? "all";
+  const sourceRaw = firstParam(sp, "source") ?? "all";
+  const source: ProductsSourceFilter = sourceRaw === "csv" ? "csv" : "all";
   const page = Math.max(1, parseInt(firstParam(sp, "page") ?? "1", 10) || 1);
   const pageSizeRaw = parseInt(firstParam(sp, "pageSize") ?? "10", 10);
   const pageSize = [10, 20, 50].includes(pageSizeRaw) ? pageSizeRaw : 10;
@@ -72,7 +78,7 @@ export function parseProductsListParams(sp: Record<string, string | string[] | u
   const sortKey = sk === "units" || sk === "revenue" ? sk : "none";
   const sd = firstParam(sp, "dir") ?? "desc";
   const sortDir = sd === "asc" ? "asc" : "desc";
-  return { rangeKey, search, status, channel, page, pageSize, sortKey, sortDir };
+  return { rangeKey, search, status, channel, source, page, pageSize, sortKey, sortDir };
 }
 
 export function parseProductsParamsFromURLSearchParams(sp: URLSearchParams): ProductsListParams {
@@ -132,6 +138,9 @@ function applyProductFilters(
     } else {
       q = q.eq("platform", input.channel);
     }
+  }
+  if (input.source === "csv") {
+    q = q.eq("import_source_kind", "product_csv");
   }
   if (reportFilter.kind === "include_only") {
     if (reportFilter.channelIds.length === 0) {

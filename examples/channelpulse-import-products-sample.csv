@@ -1,0 +1,13 @@
+title,sku,category,status,cogs,image_url
+Classic Crewneck Sweater,SWT-CRW-NVY-M,Apparel,active,18.75,https://picsum.photos/seed/swt1/400/400
+Slim Fit Denim Jeans,JEA-SLM-BLU-32,Apparel,active,22.40,https://picsum.photos/seed/jea1/400/400
+Unisex Canvas Sneakers,SNK-CVS-WHT-9,Footwear,active,14.20,https://picsum.photos/seed/snk1/400/400
+Stainless Steel Water Bottle,BTL-SS-750-BLK,Home & Kitchen,active,6.85,https://picsum.photos/seed/btl1/400/400
+Scented Soy Candle 8oz,CAN-SOY-LAV-8,Home,active,3.50,https://picsum.photos/seed/can1/400/400
+Wireless Earbuds Case,CSE-EBD-CLR,Electronics,draft,2.10,https://picsum.photos/seed/cse1/400/400
+Yoga Mat 6mm,YGA-MAT-GRY,Wellness,active,9.99,https://picsum.photos/seed/yga1/400/400
+Bamboo Cutting Board 12x16,KIT-BMB-1216,Home & Kitchen,active,11.25,https://picsum.photos/seed/kit1/400/400
+Kids Graphic Tee K-5,TEE-KID-DINO-6,Apparel,archived,5.60,
+Leather Wallet RFID,WAL-LTH-BRN,Accessories,active,7.30,https://picsum.photos/seed/wal1/400/400
+Portable Phone Stand,STD-PHN-ALU-SLV,Electronics,active,1.95,https://picsum.photos/seed/std1/400/400
+Organic Lip Balm Trio,LIP-ORG-3PK,Beauty,active,1.40,https://picsum.photos/seed/lip1/400/400

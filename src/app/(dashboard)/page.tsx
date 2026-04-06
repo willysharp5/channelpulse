@@ -98,8 +98,15 @@ export default async function OverviewPage({
   const pctChange = (curr: number, prev: number) =>
     prev > 0 ? ((curr - prev) / prev) * 100 : 0;
 
+  const kpiPeriods = {
+    currentPeriodRange: currentRangeLabel,
+    comparisonPeriodRange:
+      compareMode !== "none" && compRangeLabel ? compRangeLabel : undefined,
+  };
+
   const kpis = [
     {
+      ...kpiPeriods,
       title: "Total Revenue",
       value: stats.revenue.value,
       formattedValue: fmtVal(stats.revenue.value, true),
@@ -111,6 +118,7 @@ export default async function OverviewPage({
       comparisonLabel: compareLabel,
     },
     {
+      ...kpiPeriods,
       title: "Total Orders",
       value: stats.orders.value,
       formattedValue: stats.orders.value.toLocaleString(),
@@ -130,6 +138,7 @@ export default async function OverviewPage({
       comparisonLabel: compareLabel,
     },
     {
+      ...kpiPeriods,
       title: "Units Sold",
       value: stats.units.value,
       formattedValue: stats.units.value.toLocaleString(),
@@ -141,6 +150,7 @@ export default async function OverviewPage({
       comparisonLabel: compareLabel,
     },
     {
+      ...kpiPeriods,
       title: "Net Profit",
       value: stats.profit.value,
       formattedValue: fmtVal(stats.profit.value, true),
@@ -152,6 +162,7 @@ export default async function OverviewPage({
       comparisonLabel: compareLabel,
     },
     {
+      ...kpiPeriods,
       title: "Avg Order Value",
       value: stats.aov.value,
       formattedValue: `$${stats.aov.value.toFixed(2)}`,

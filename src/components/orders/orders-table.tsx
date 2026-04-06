@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { useDebouncedUrlSearch, useSyncEffectivePage } from "@/hooks/use-debounced-url-search";
+import { IMPORTED_DATA_TABLE_ID, useScrollToImportedTableWhenFiltered } from "@/hooks/use-scroll-to-imported-table";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import {
   Search,
@@ -41,6 +42,7 @@ import { ChannelBadge } from "@/components/layout/channel-badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatCurrency, formatDate } from "@/lib/formatters";
 import { TableDateRangeFilter } from "@/components/layout/table-date-range-filter";
+import { ImportedDataFilterBanner } from "@/components/layout/imported-data-filter-banner";
 import { isTableDateRangeActive, parseTableDateRangeSearchParams } from "@/lib/table-date-range";
 import type { Platform } from "@/types";
 import type { OrderListRow } from "@/lib/orders-list";
@@ -82,6 +84,7 @@ function normalizeOrdersQuery(pathname: string, cur: URLSearchParams): string {
   if (!n.get("pageSize") || n.get("pageSize") === "20") n.delete("pageSize");
   if (!n.get("status") || n.get("status") === "all") n.delete("status");
   if (!n.get("channel") || n.get("channel") === "all") n.delete("channel");
+  if (!n.get("source") || n.get("source") === "all") n.delete("source");
   if (!n.get("range")) n.delete("range");
   if (!n.get("date") || n.get("date") === "all") n.delete("date");
   if (!n.get("from")) n.delete("from");
@@ -139,6 +142,8 @@ export function OrdersTable({
     return parseTableDateRangeSearchParams(r);
   }, [dateParamsQs]);
   const channelFromUrl = searchParams.get("channel") ?? "all";
+  const sourceFromUrl = searchParams.get("source") ?? "all";
+  useScrollToImportedTableWhenFiltered(sourceFromUrl);
   const searchFromUrl = searchParams.get("search") ?? "";
   const [searchDraft, setSearchDraft] = useState(searchFromUrl);
   const [pendingChannel, setPendingChannel] = useState<string | null>(null);
@@ -201,6 +206,7 @@ export function OrdersTable({
     searchFromUrl.length > 0 ||
     statusFilter !== "all" ||
     channelFilter !== "all" ||
+    sourceFromUrl === "csv" ||
     isTableDateRangeActive(tableDateParams) ||
     hasSortInUrl;
 
@@ -397,6 +403,34 @@ export function OrdersTable({
             </Select>
           </div>
 
+          <div className="w-full space-y-1.5 sm:w-[200px]">
+            <Label
+              className="text-xs font-medium text-muted-foreground"
+              title="Imported from file = orders uploaded from the Import page. All records = everything in ChannelPulse."
+            >
+              Data source
+            </Label>
+            <Select
+              value={sourceFromUrl === "csv" ? "csv" : "all"}
+              onValueChange={(v: string | null) => {
+                const next = v ?? "all";
+                replaceQuery((n) => {
+                  if (next === "csv") n.set("source", "csv");
+                  else n.delete("source");
+                  n.set("page", "1");
+                });
+              }}
+            >
+              <SelectTrigger className="h-9 w-full bg-background">
+                <SelectValue placeholder="Data source" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All records</SelectItem>
+                <SelectItem value="csv">Imported from file</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           <TableDateRangeFilter
             label="Order date"
             searchParams={searchParams}
@@ -432,7 +466,19 @@ export function OrdersTable({
           </p>
         </div>
 
-        <div className="rounded-md border">
+        <div id={IMPORTED_DATA_TABLE_ID} className="scroll-mt-20 md:scroll-mt-24">
+          <div className="overflow-hidden rounded-md border">
+          {sourceFromUrl === "csv" ? (
+            <ImportedDataFilterBanner
+              entity="orders"
+              onShowAll={() =>
+                replaceQuery((n) => {
+                  n.delete("source");
+                  n.set("page", "1");
+                })
+              }
+            />
+          ) : null}
           <Table>
           <TableHeader>
             <TableRow>
@@ -544,6 +590,7 @@ export function OrdersTable({
             )}
           </TableBody>
         </Table>
+          </div>
         </div>
       </ResultPendingShell>
 

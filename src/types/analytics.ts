@@ -16,6 +16,10 @@ export interface KPIData {
   comparisonValue?: number;
   comparisonFormatted?: string;
   comparisonLabel?: string;
+  /** Human-readable selected date range for the main metric (e.g. "Jan 5 – Feb 3, 2026"). */
+  currentPeriodRange?: string;
+  /** Comparison window when compare is on; omitted when compare is off. */
+  comparisonPeriodRange?: string;
 }
 
 export interface RevenueTimeSeriesPoint {

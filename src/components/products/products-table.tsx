@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { useDebouncedUrlSearch, useSyncEffectivePage } from "@/hooks/use-debounced-url-search";
+import { IMPORTED_DATA_TABLE_ID, useScrollToImportedTableWhenFiltered } from "@/hooks/use-scroll-to-imported-table";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import {
   Search,
@@ -39,6 +40,7 @@ import {
 } from "@/components/ui/select";
 import { formatCurrency, formatNumber } from "@/lib/formatters";
 import { ChannelBadge } from "@/components/layout/channel-badge";
+import { ImportedDataFilterBanner } from "@/components/layout/imported-data-filter-banner";
 import type { Platform } from "@/types";
 import type { ProductTableRow } from "@/lib/products-list";
 import { BulkCogsSheet } from "@/components/products/bulk-cogs-sheet";
@@ -55,6 +57,7 @@ function normalizeProductsQuery(pathname: string, cur: URLSearchParams): string 
   if (!n.get("pageSize") || n.get("pageSize") === "10") n.delete("pageSize");
   if (!n.get("status") || n.get("status") === "all") n.delete("status");
   if (!n.get("channel") || n.get("channel") === "all") n.delete("channel");
+  if (!n.get("source") || n.get("source") === "all") n.delete("source");
   const sort = n.get("sort");
   if (!sort || sort === "none") {
     n.delete("sort");
@@ -98,6 +101,8 @@ export function ProductsTable({
   const pageSize = PAGE_SIZES.includes(pageSizeRaw) ? pageSizeRaw : 10;
   const statusFilter = searchParams.get("status") ?? "all";
   const channelFromUrl = searchParams.get("channel") ?? "all";
+  const sourceFromUrl = searchParams.get("source") ?? "all";
+  useScrollToImportedTableWhenFiltered(sourceFromUrl);
   const sortRaw = searchParams.get("sort") ?? "none";
   const sortKey = sortRaw === "units" || sortRaw === "revenue" ? sortRaw : "none";
   const sortDir = searchParams.get("dir") === "asc" ? "asc" : "desc";
@@ -161,7 +166,11 @@ export function ProductsTable({
   const totalPages = Math.max(1, Math.ceil(pageableTotalCount / pageSize));
   const safePage = Math.min(pageFromUrl, totalPages);
   const hasFilters =
-    searchFromUrl.length > 0 || statusFilter !== "all" || channelFilter !== "all" || sortKey !== "none";
+    searchFromUrl.length > 0 ||
+    statusFilter !== "all" ||
+    channelFilter !== "all" ||
+    sourceFromUrl === "csv" ||
+    sortKey !== "none";
 
   function toggleSort(key: "units" | "revenue") {
     replaceQuery((n) => {
@@ -356,6 +365,34 @@ export function ProductsTable({
             </Select>
           </div>
 
+          <div className="w-full space-y-1.5 sm:w-[200px]">
+            <Label
+              className="text-xs font-medium text-muted-foreground"
+              title="Imported from file = rows last touched by a product CSV import. All records = your whole catalog."
+            >
+              Data source
+            </Label>
+            <Select
+              value={sourceFromUrl === "csv" ? "csv" : "all"}
+              onValueChange={(v: string | null) => {
+                const next = v ?? "all";
+                replaceQuery((n) => {
+                  if (next === "csv") n.set("source", "csv");
+                  else n.delete("source");
+                  n.set("page", "1");
+                });
+              }}
+            >
+              <SelectTrigger className="h-9 w-full bg-background">
+                <SelectValue placeholder="Data source" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All records</SelectItem>
+                <SelectItem value="csv">Imported from file</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="flex flex-wrap gap-2 pb-0.5 lg:ml-auto">
             {hasFilters ? (
               <Button
@@ -425,7 +462,19 @@ export function ProductsTable({
           </div>
         ) : null}
 
-        <div className="min-w-0 max-w-full overflow-hidden rounded-md border">
+        <div id={IMPORTED_DATA_TABLE_ID} className="min-w-0 max-w-full scroll-mt-20 md:scroll-mt-24">
+          <div className="min-w-0 max-w-full overflow-hidden rounded-md border">
+          {sourceFromUrl === "csv" ? (
+            <ImportedDataFilterBanner
+              entity="products"
+              onShowAll={() =>
+                replaceQuery((n) => {
+                  n.delete("source");
+                  n.set("page", "1");
+                })
+              }
+            />
+          ) : null}
           <Table className="table-fixed">
           <TableHeader>
             <TableRow>
@@ -590,6 +639,7 @@ export function ProductsTable({
             )}
           </TableBody>
         </Table>
+          </div>
         </div>
       </ResultPendingShell>
 

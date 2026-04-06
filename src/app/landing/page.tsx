@@ -12,6 +12,7 @@ import {
 } from "@remixicon/react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
+import { LandingAiChatSection } from "@/components/landing/landing-ai-chat-section";
 
 const PRICING = [
   {
@@ -26,7 +27,14 @@ const PRICING = [
     name: "Starter",
     price: "$19",
     description: "For growing sellers",
-    features: ["3 sales channels", "5,000 orders/month", "90-day history", "Full analytics", "CSV export"],
+    features: [
+      "3 sales channels",
+      "5,000 orders/month",
+      "30-day history",
+      "Low stock alerts",
+      "Top products & basic inventory",
+      "Core revenue & order analytics",
+    ],
     cta: "Start Free Trial",
     highlight: false,
   },
@@ -34,15 +42,29 @@ const PRICING = [
     name: "Growth",
     price: "$39",
     description: "For multi-channel sellers",
-    features: ["5 sales channels", "25,000 orders/month", "1-year history", "P&L reports", "Priority support", "Custom alerts"],
+    features: [
+      "5 sales channels",
+      "25,000 orders/month",
+      "90-day history",
+      "P&L by channel",
+      "CSV export (orders, products, P&L)",
+      "Custom in-app alerts",
+    ],
     cta: "Start Free Trial",
     highlight: true,
   },
   {
     name: "Scale",
     price: "$79",
-    description: "For high-volume operations",
-    features: ["Unlimited channels", "Unlimited orders", "Unlimited history", "API access", "Dedicated support", "Custom integrations"],
+    description: "For high-volume sellers",
+    features: [
+      "Our highest channel & order limits",
+      "1-year history",
+      "Full multichannel dashboard & P&L",
+      "AI Insights on your synced data",
+      "Inventory, products & CSV exports",
+      "Same alerts & automations as Growth",
+    ],
     cta: "Contact Sales",
     highlight: false,
   },
@@ -352,8 +374,8 @@ export default function LandingPage() {
         <div className="pointer-events-none absolute right-0 top-1/4 h-[320px] w-[320px] rounded-full bg-violet-400/[0.07] blur-3xl dark:bg-violet-500/[0.08]" />
         <div className="pointer-events-none absolute -left-20 bottom-1/4 h-[280px] w-[280px] rounded-full bg-amber-400/[0.06] blur-3xl" />
         <div className="relative z-10 mx-auto max-w-6xl px-6">
-          <div className="grid items-center gap-14 lg:grid-cols-2 lg:gap-16">
-            <div>
+          <div className="flex flex-col gap-12 lg:gap-14">
+            <div className="max-w-2xl">
               <p className="text-xs font-semibold uppercase tracking-widest text-amber-600 dark:text-amber-400">
                 Intelligence
               </p>
@@ -402,46 +424,8 @@ export default function LandingPage() {
               </div>
             </div>
 
-            <div className="overflow-hidden rounded-3xl border border-gray-200 bg-white p-1.5 shadow-xl shadow-gray-200/50 dark:border-gray-800 dark:bg-gray-900 dark:shadow-none">
-              <div className="space-y-4 rounded-2xl border border-gray-100 bg-gray-50 p-5 dark:border-gray-800 dark:bg-gray-900/60">
-                <div className="flex items-center justify-between border-b border-gray-200 pb-3 dark:border-gray-800">
-                  <div className="flex items-center gap-2">
-                    <Sparkles className="h-4 w-4 text-amber-500" />
-                    <span className="text-sm font-semibold">AI Insights</span>
-                  </div>
-                  <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-700 dark:text-emerald-400">
-                    Live on your data
-                  </span>
-                </div>
-                <div className="rounded-xl bg-white p-3 text-xs text-gray-600 shadow-sm dark:border dark:border-gray-800 dark:bg-gray-950 dark:text-gray-300">
-                  <p className="font-medium text-gray-950 dark:text-gray-50">You</p>
-                  <p className="mt-1 leading-relaxed">
-                    Which channel had the highest net profit last month, and how does it compare to the prior month?
-                  </p>
-                </div>
-                <div className="rounded-xl border border-amber-500/20 bg-amber-500/[0.06] p-3 text-xs leading-relaxed text-gray-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-gray-200">
-                  <p className="font-medium text-amber-900 dark:text-amber-200">ChannelPulse</p>
-                  <p className="mt-1">
-                    Based on your synced data, <strong>Shopify</strong> led net profit last month; it was up versus the prior period, driven by higher order volume and lower relative marketplace fees. I can break down fees by channel or SKU if you want to go deeper.
-                  </p>
-                </div>
-                <div className="grid grid-cols-3 gap-2 pt-1">
-                  {[
-                    { k: "Revenue (30d)", v: "$52.1k" },
-                    { k: "Orders", v: "2.3k" },
-                    { k: "Top channel", v: "Shopify" },
-                  ].map((m) => (
-                    <div
-                      key={m.k}
-                      className="rounded-lg border border-gray-200 bg-white px-2.5 py-2 dark:border-gray-800 dark:bg-gray-950"
-                    >
-                      <p className="text-[10px] font-medium text-gray-400">{m.k}</p>
-                      <p className="mt-0.5 text-sm font-semibold tabular-nums text-gray-950 dark:text-gray-50">{m.v}</p>
-                    </div>
-                  ))}
-                </div>
-                <p className="text-center text-[10px] text-gray-400">Illustrative preview — connect your stores to run this on your own numbers.</p>
-              </div>
+            <div className="min-w-0 w-full overflow-hidden rounded-3xl border border-gray-200 bg-white p-1.5 shadow-xl shadow-gray-200/50 dark:border-gray-800 dark:bg-gray-900 dark:shadow-none">
+              <LandingAiChatSection />
             </div>
           </div>
         </div>

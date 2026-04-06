@@ -15,11 +15,13 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  sidebarMenuButtonVariants,
 } from "@/components/ui/sidebar";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { NAV_ITEMS, CHANNEL_CONFIG } from "@/lib/constants";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import type { Platform } from "@/types";
 
 interface SidebarChannel {
@@ -162,54 +164,79 @@ export function AppSidebar({
         {channels.length > 0 && (
           <SidebarGroup>
             <SidebarGroupLabel>Channels</SidebarGroupLabel>
-            <p className="px-2 pb-1 text-[11px] leading-snug text-muted-foreground">
+            <p
+              className={cn(
+                "mx-1 mb-1.5 rounded-md border border-sidebar-border/60 bg-sidebar-accent/25 px-2.5 py-2 text-xs leading-relaxed text-sidebar-foreground/80",
+                "group-data-[collapsible=icon]:hidden"
+              )}
+            >
               {demo
                 ? "Sample stores for this demo. Sign up to connect your own channels."
-                : "Toggle off to hide a store from charts, KPIs, orders, products, and P&L."}
+                : "Turn a channel off to exclude it from charts, KPIs, orders, products, and P&L."}
             </p>
             <SidebarGroupContent>
               <SidebarMenu>
                 {channels.map((ch) => {
                   const config = CHANNEL_CONFIG[ch.platform as Platform];
                   const inReports = !excludedIds.has(ch.id);
+                  const tooltipLines = [
+                    ch.name,
+                    !demo
+                      ? inReports
+                        ? "Included in reports — expand sidebar to change."
+                        : "Hidden from reports — expand sidebar to include again."
+                      : null,
+                  ]
+                    .filter(Boolean)
+                    .join("\n");
                   return (
                     <SidebarMenuItem key={ch.id}>
-                      <div className="flex w-full min-w-0 items-center gap-2 rounded-md px-2 py-1.5 text-sm">
-                        <span
-                          className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
-                          style={{ backgroundColor: config?.color ?? "#6B7280" }}
-                        />
+                      <div
+                        className={cn(
+                          "flex w-full min-w-0 items-center gap-2 rounded-md px-2 py-1.5 text-sm",
+                          "group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0 group-data-[collapsible=icon]:px-1"
+                        )}
+                      >
                         <Tooltip>
                           <TooltipTrigger
                             render={
-                              <span className="min-w-0 flex-1 cursor-default truncate text-left">
-                                {ch.name}
+                              <span className="flex min-w-0 flex-1 cursor-default items-center gap-2 text-left group-data-[collapsible=icon]:flex-none">
+                                <span
+                                  className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
+                                  style={{ backgroundColor: config?.color ?? "#6B7280" }}
+                                />
+                                <span className="min-w-0 flex-1 truncate group-data-[collapsible=icon]:hidden">
+                                  {ch.name}
+                                </span>
                               </span>
                             }
                           />
-                          <TooltipContent side="right" className="max-w-xs">
-                            <p className="text-xs font-medium">{ch.name}</p>
+                          <TooltipContent side="right" className="max-w-xs whitespace-pre-line">
+                            <p className="text-xs">{tooltipLines}</p>
                           </TooltipContent>
                         </Tooltip>
                         {!demo ? (
                           <Switch
                             size="sm"
+                            className="shrink-0 group-data-[collapsible=icon]:hidden"
                             checked={inReports}
                             disabled={savingId === ch.id}
                             onCheckedChange={(on) => {
                               void toggleReporting(ch.id, Boolean(on));
                             }}
                             onClick={(e) => e.stopPropagation()}
-                            aria-label={inReports ? `Exclude ${ch.name} from reports` : `Include ${ch.name} in reports`}
+                            aria-label={
+                              inReports ? `Exclude ${ch.name} from reports` : `Include ${ch.name} in reports`
+                            }
                           />
                         ) : null}
                         <Badge
                           variant="outline"
-                          className={`hidden shrink-0 text-[10px] px-1.5 py-0 sm:inline-flex ${
-                            ch.status === "active"
-                              ? "border-emerald-200 text-emerald-700"
-                              : ""
-                          }`}
+                          className={cn(
+                            "hidden shrink-0 px-1.5 py-0 text-[10px] sm:inline-flex",
+                            ch.status === "active" ? "border-emerald-200 text-emerald-700" : "",
+                            "group-data-[collapsible=icon]:hidden"
+                          )}
                         >
                           {ch.status === "active" ? "Active" : ch.status}
                         </Badge>
@@ -226,12 +253,24 @@ export function AppSidebar({
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton>
+            {/* Div instead of SidebarMenuButton (useRender) — fixes SSR/client hydration on this row. */}
+            <div
+              role="status"
+              data-slot="sidebar-menu-button"
+              data-sidebar="menu-button"
+              data-size="default"
+              className={cn(
+                sidebarMenuButtonVariants({ variant: "default", size: "default" }),
+                "group-data-[collapsible=icon]:justify-center cursor-default"
+              )}
+              title="All systems operational"
+              aria-label="All systems operational"
+            >
               <Activity className="size-4 text-green-500" />
-              <span className="text-xs text-muted-foreground">
+              <span className="text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">
                 All systems operational
               </span>
-            </SidebarMenuButton>
+            </div>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>

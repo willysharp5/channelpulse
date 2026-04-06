@@ -288,23 +288,26 @@ export function SettingsContent({ email, businessName, plan, channels, notificat
                   onCheckedChange={(v) => void saveNotif({ low_stock: v })}
                 />
               </div>
-              <div className="px-6 py-4 border-b space-y-2">
-                <Label className="text-xs">Low stock threshold (units)</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  className="h-9 max-w-[120px]"
-                  value={notifPrefs.low_stock_threshold}
-                  onChange={(e) => {
-                    const n = Math.max(0, parseInt(e.target.value, 10) || 0);
-                    setNotifPrefs((p) => ({ ...p, low_stock_threshold: n }));
-                  }}
-                  onBlur={(e) => {
-                    const n = Math.max(0, parseInt(e.target.value, 10) || 0);
-                    void saveNotif({ low_stock_threshold: n });
-                  }}
-                />
-              </div>
+              {notifPrefs.low_stock ? (
+                <div className="px-6 py-4 border-b space-y-2">
+                  <Label className="text-xs">Low stock threshold (units)</Label>
+                  <p className="text-xs text-muted-foreground">Default is 10. Alerts use inventory at or below this number.</p>
+                  <Input
+                    type="number"
+                    min={0}
+                    className="h-9 max-w-[120px]"
+                    value={notifPrefs.low_stock_threshold}
+                    onChange={(e) => {
+                      const n = Math.max(0, parseInt(e.target.value, 10) || 0);
+                      setNotifPrefs((p) => ({ ...p, low_stock_threshold: n }));
+                    }}
+                    onBlur={(e) => {
+                      const n = Math.max(0, parseInt(e.target.value, 10) || 0);
+                      void saveNotif({ low_stock_threshold: n });
+                    }}
+                  />
+                </div>
+              ) : null}
               <div className="flex items-center justify-between px-6 py-4">
                 <div className="flex items-start gap-3">
                   <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-amber-500" />

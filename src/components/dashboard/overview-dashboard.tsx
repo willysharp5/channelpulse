@@ -62,22 +62,8 @@ export function OverviewDashboard({
   return (
     <div className="space-y-6">
       <DashboardTour initialShow={showTour} />
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-1 rounded-lg border bg-muted/40 p-1 w-fit">
-          {TABS.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className={`rounded-md px-4 py-1.5 text-sm font-medium transition-all ${
-                tab === t.id
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
+
+      <div className="flex justify-start">
         <ComparePicker />
       </div>
 
@@ -87,36 +73,58 @@ export function OverviewDashboard({
         ))}
       </div>
 
-      {tab === "overview" && (
-        <>
-          <div data-tour="revenue-chart">
-            <RevenueChart
-              data={revenueSeries}
-              platforms={platforms}
-              comparisonData={compareMode !== "none" ? comparisonChartData : undefined}
-              comparisonLabel={comparisonLabel}
-              currentRangeLabel={currentRangeLabel}
-              compRangeLabel={compRangeLabel}
-            />
+      <section className="space-y-6 border-t border-border pt-6" aria-label="Charts and activity">
+        <div className="flex flex-col gap-2">
+          <p className="text-xs font-medium text-muted-foreground">Charts &amp; lists</p>
+          <div className="flex items-center gap-1 rounded-lg border bg-muted/40 p-1 w-fit" role="tablist">
+            {TABS.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                role="tab"
+                aria-selected={tab === t.id}
+                onClick={() => setTab(t.id)}
+                className={`rounded-md px-4 py-1.5 text-sm font-medium transition-all ${
+                  tab === t.id
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
           </div>
-          <div className="grid gap-6 lg:grid-cols-2">
-            <div data-tour="channel-breakdown">
-              <ChannelBreakdown data={channelRevenue} />
-            </div>
-            <TopProducts products={topProducts} />
-          </div>
-        </>
-      )}
-
-      {tab === "channels" && (
-        <div data-tour="channel-breakdown">
-          <ChannelBreakdown data={channelRevenue} />
         </div>
-      )}
 
-      {tab === "activity" && (
-        <RecentOrders orders={recentOrders} />
-      )}
+        {tab === "overview" && (
+          <>
+            <div data-tour="revenue-chart">
+              <RevenueChart
+                data={revenueSeries}
+                platforms={platforms}
+                comparisonData={compareMode !== "none" ? comparisonChartData : undefined}
+                comparisonLabel={comparisonLabel}
+                currentRangeLabel={currentRangeLabel}
+                compRangeLabel={compRangeLabel}
+              />
+            </div>
+            <div className="grid gap-6 lg:grid-cols-2">
+              <div data-tour="channel-breakdown">
+                <ChannelBreakdown data={channelRevenue} />
+              </div>
+              <TopProducts products={topProducts} />
+            </div>
+          </>
+        )}
+
+        {tab === "channels" && (
+          <div data-tour="channel-breakdown">
+            <ChannelBreakdown data={channelRevenue} />
+          </div>
+        )}
+
+        {tab === "activity" && <RecentOrders orders={recentOrders} />}
+      </section>
     </div>
   );
 }

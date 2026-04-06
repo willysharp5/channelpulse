@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
-import { generateLowStockAlerts } from "@/lib/alerts";
+import { generateAnomalyAlerts, generateLowStockAlerts } from "@/lib/alerts";
 
 function getServiceClient() {
   return createServiceClient(
@@ -23,6 +23,7 @@ export async function POST() {
   const sb = getServiceClient();
   try {
     await generateLowStockAlerts(profile.org_id, sb);
+    await generateAnomalyAlerts(profile.org_id, sb);
   } catch (e) {
     const msg = e instanceof Error ? e.message : "check failed";
     return NextResponse.json({ error: msg }, { status: 500 });

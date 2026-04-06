@@ -16,6 +16,7 @@ import {
   Sparkles,
   Mail,
   RefreshCw,
+  Upload,
   type LucideIcon,
 } from "lucide-react";
 
@@ -88,6 +89,7 @@ export const NAV_ITEMS: NavItem[] = [
   { title: "Inventory", href: "/inventory", icon: Boxes },
   { title: "Channels", href: "/channels", icon: Store },
   { title: "P&L", href: "/pnl", icon: FileText },
+  { title: "Import", href: "/import", icon: Upload },
   { title: "AI Insights", href: "/chat", icon: Sparkles },
   { title: "Billing", href: "/billing", icon: Receipt },
   { title: "Settings", href: "/settings", icon: Settings },

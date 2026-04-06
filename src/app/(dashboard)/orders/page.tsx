@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { Header } from "@/components/layout/header";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { KPICard } from "@/components/dashboard/kpi-card";
 import { CategoryBar } from "@/components/tremor/category-bar";
@@ -8,7 +8,12 @@ import { OrdersTable } from "@/components/orders/orders-table";
 import { getUserPlan } from "@/lib/queries";
 import { getSession } from "@/lib/auth/actions";
 import { formatCurrency } from "@/lib/formatters";
-import { getOrdersPage, getOrdersOrgTotalCount, parseOrdersListParams } from "@/lib/orders-list";
+import {
+  getOrdersOrgFinancialTotals,
+  getOrdersPage,
+  getOrdersOrgTotalCount,
+  parseOrdersListParams,
+} from "@/lib/orders-list";
 
 export const dynamic = "force-dynamic";
 
@@ -19,18 +24,19 @@ export default async function OrdersPage({
 }) {
   const sp = await searchParams;
   const params = parseOrdersListParams(sp);
-  const [user, orderData, orgOrderCount, { limits }] = await Promise.all([
+  const [user, orderData, orgOrderCount, orgFin, { limits }] = await Promise.all([
     getSession(),
     getOrdersPage(params),
     getOrdersOrgTotalCount(),
+    getOrdersOrgFinancialTotals(),
     getUserPlan(),
   ]);
 
-  const totalOrders = orderData.totalCount;
-  const totalRevenue = orderData.totalRevenue;
-  const totalProfit = orderData.totalProfit;
-  const totalFees = orderData.totalFees;
-  const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+  const totalRevenue = orgFin.totalRevenue;
+  const totalProfit = orgFin.totalProfit;
+  const totalFees = orgFin.totalFees;
+  const orgOrderFinCount = orgFin.totalCount;
+  const avgOrderValue = orgOrderFinCount > 0 ? totalRevenue / orgOrderFinCount : 0;
   const profitMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
 
   const netRevenue = totalRevenue - totalFees;
@@ -63,17 +69,17 @@ export default async function OrdersPage({
           />
           <KPICard
             data={{
-              title: "Filtered revenue",
+              title: "Revenue",
               value: totalRevenue,
               formattedValue: formatCurrency(totalRevenue),
               change: 0,
-              changeLabel: "Matches table filters",
+              changeLabel: "",
               sparklineData: [],
             }}
           />
           <KPICard
             data={{
-              title: "Avg order (filtered)",
+              title: "Avg order",
               value: avgOrderValue,
               formattedValue: formatCurrency(avgOrderValue),
               change: 0,
@@ -83,7 +89,7 @@ export default async function OrdersPage({
           />
           <KPICard
             data={{
-              title: "Net profit (filtered)",
+              title: "Net profit",
               value: totalProfit,
               formattedValue: formatCurrency(totalProfit),
               change: 0,
@@ -101,7 +107,8 @@ export default async function OrdersPage({
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base font-semibold">Revenue Breakdown (filtered)</CardTitle>
+            <CardTitle className="text-base font-semibold">Revenue breakdown</CardTitle>
+            <CardDescription>Totals for all reporting-channel orders—not the filtered table below.</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">

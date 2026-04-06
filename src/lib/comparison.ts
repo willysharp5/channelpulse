@@ -3,11 +3,28 @@ import { getDateRange, type DateParams } from "./date-range-bounds";
 export type CompareMode = "previous" | "last_month" | "last_year" | "none";
 
 export const COMPARE_OPTIONS = [
-  { value: "previous" as const, label: "Previous period" },
-  { value: "last_month" as const, label: "Same period last month" },
-  { value: "last_year" as const, label: "Same period last year" },
-  { value: "none" as const, label: "No comparison" },
-];
+  {
+    value: "previous" as const,
+    label: "Previous period",
+    /** Short label for compact tab UI */
+    tabLabel: "Previous",
+  },
+  {
+    value: "last_month" as const,
+    label: "Same period last month",
+    tabLabel: "Last month",
+  },
+  {
+    value: "last_year" as const,
+    label: "Same period last year",
+    tabLabel: "Last year",
+  },
+  {
+    value: "none" as const,
+    label: "No comparison",
+    tabLabel: "Off",
+  },
+] as const;
 
 export function getComparisonDateRange(
   params: DateParams,

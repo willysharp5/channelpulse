@@ -1,6 +1,6 @@
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { ShopifyClient } from "./client";
-import { generateLowStockAlerts } from "@/lib/alerts";
+import { generateAnomalyAlerts, generateLowStockAlerts } from "@/lib/alerts";
 
 function getServiceClient() {
   return createSupabaseClient(
@@ -126,6 +126,7 @@ export async function syncShopifyOrders(channelId: string) {
 
     // Recompute daily stats
     await recomputeDailyStats(channel.org_id, channelId, sinceDate);
+    await generateAnomalyAlerts(channel.org_id, supabase);
 
     let productsSynced = 0;
     try {

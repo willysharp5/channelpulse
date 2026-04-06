@@ -30,10 +30,14 @@ export interface OrderListRow {
 
 export type OrdersSortKey = "date" | "amount" | "fees" | "profit" | "items";
 
+export type OrdersSourceFilter = "all" | "csv";
+
 export interface OrdersListParams {
   search: string;
   status: string;
   channel: string;
+  /** `csv` = rows created via CSV import (`platform_order_id` like `csv-%`) */
+  source: OrdersSourceFilter;
   /** YYYY-MM-DD from URL `from`, or null */
   dateFrom: string | null;
   /** YYYY-MM-DD from URL `to`, or null */
@@ -74,6 +78,8 @@ export function parseOrdersListParams(sp: Record<string, string | string[] | und
   const search = firstParam(sp, "search") ?? "";
   const status = firstParam(sp, "status") ?? "all";
   const channel = firstParam(sp, "channel") ?? "all";
+  const sourceRaw = firstParam(sp, "source") ?? "all";
+  const source: OrdersSourceFilter = sourceRaw === "csv" ? "csv" : "all";
   const { range, dateFrom, dateTo } = parseTableDateRangeSearchParams(sp);
   const page = Math.max(1, parseInt(firstParam(sp, "page") ?? "1", 10) || 1);
   const pageSizeRaw = parseInt(firstParam(sp, "pageSize") ?? "20", 10);
@@ -82,7 +88,7 @@ export function parseOrdersListParams(sp: Record<string, string | string[] | und
   const sortKey = ORDERS_SORT_KEYS.includes(sortRaw as OrdersSortKey) ? (sortRaw as OrdersSortKey) : "date";
   const sd = firstParam(sp, "dir") ?? "desc";
   const sortDir = sd === "asc" ? "asc" : "desc";
-  return { search, status, channel, dateFrom, dateTo, range, page, pageSize, sortKey, sortDir };
+  return { search, status, channel, source, dateFrom, dateTo, range, page, pageSize, sortKey, sortDir };
 }
 
 function ordersSortColumn(key: OrdersSortKey): string {
@@ -146,6 +152,9 @@ function applyOrderFilters(q: any, orgId: string, input: OrdersListParams, repor
   if (until) {
     q = q.lte("ordered_at", until);
   }
+  if (input.source === "csv") {
+    q = q.like("platform_order_id", "csv-%");
+  }
   if (reportFilter.kind === "include_only") {
     if (reportFilter.channelIds.length === 0) {
       return q.eq("id", NO_MATCH_ORDER_ID);
@@ -167,28 +176,31 @@ async function loadOrdersStats(
 
   const searchTrim = input.search.trim();
   const { since: orderedSince, until: orderedUntil } = ordersOrderedAtBounds(input);
-  const { data, error } = await supabase.rpc("orders_filtered_stats", {
-    p_org_id: orgId,
-    p_search: searchTrim.length ? searchTrim : null,
-    p_status: input.status === "all" ? null : input.status,
-    p_platform: input.channel === "all" ? null : input.channel,
-    p_ordered_at_since: orderedSince,
-    p_ordered_at_until: orderedUntil,
-    p_channel_ids: rpcChannelIdsParam(reportFilter),
-  });
+  // RPC does not filter CSV-imported rows; use client aggregation when source=csv.
+  if (input.source !== "csv") {
+    const { data, error } = await supabase.rpc("orders_filtered_stats", {
+      p_org_id: orgId,
+      p_search: searchTrim.length ? searchTrim : null,
+      p_status: input.status === "all" ? null : input.status,
+      p_platform: input.channel === "all" ? null : input.channel,
+      p_ordered_at_since: orderedSince,
+      p_ordered_at_until: orderedUntil,
+      p_channel_ids: rpcChannelIdsParam(reportFilter),
+    });
 
-  if (!error && data && typeof data === "object") {
-    const o = data as Record<string, unknown>;
-    return {
-      totalCount: Number(o.total_count ?? 0),
-      totalRevenue: Number(o.total_revenue ?? 0),
-      totalProfit: Number(o.total_profit ?? 0),
-      totalFees: Number(o.total_fees ?? 0),
-    };
-  }
+    if (!error && data && typeof data === "object") {
+      const o = data as Record<string, unknown>;
+      return {
+        totalCount: Number(o.total_count ?? 0),
+        totalRevenue: Number(o.total_revenue ?? 0),
+        totalProfit: Number(o.total_profit ?? 0),
+        totalFees: Number(o.total_fees ?? 0),
+      };
+    }
 
-  if (error) {
-    console.warn("orders_filtered_stats RPC failed:", error.message);
+    if (error) {
+      console.warn("orders_filtered_stats RPC failed:", error.message);
+    }
   }
 
   let q = supabase.from("orders").select("id", { count: "exact", head: true }).eq("org_id", orgId);
@@ -253,6 +265,35 @@ export async function getOrdersOrgTotalCount(demoOrgId?: string | null): Promise
   }
   const { count } = await q;
   return count ?? 0;
+}
+
+/** Revenue / profit / fees for all orders in reporting channels (ignores table filters). */
+export async function getOrdersOrgFinancialTotals(
+  demoOrgId?: string | null
+): Promise<{ totalCount: number; totalRevenue: number; totalProfit: number; totalFees: number }> {
+  const scope = await resolveOrgScope(demoOrgId);
+  if (!scope) {
+    return { totalCount: 0, totalRevenue: 0, totalProfit: 0, totalFees: 0 };
+  }
+  const { orgId, supabase } = scope;
+  const reportFilter = await buildReportingChannelsFilter(supabase, orgId);
+  if (reportFilter.kind === "include_only" && reportFilter.channelIds.length === 0) {
+    return { totalCount: 0, totalRevenue: 0, totalProfit: 0, totalFees: 0 };
+  }
+  const orgWide: OrdersListParams = {
+    search: "",
+    status: "all",
+    channel: "all",
+    source: "all",
+    dateFrom: null,
+    dateTo: null,
+    range: null,
+    page: 1,
+    pageSize: 20,
+    sortKey: "date",
+    sortDir: "desc",
+  };
+  return loadOrdersStats(supabase, orgId, orgWide, reportFilter);
 }
 
 export async function getOrdersPlatformOptions(): Promise<string[]> {

@@ -2,8 +2,18 @@
 
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { useDebouncedUrlSearch, useSyncEffectivePage } from "@/hooks/use-debounced-url-search";
+import { IMPORTED_DATA_TABLE_ID, useScrollToImportedTableWhenFiltered } from "@/hooks/use-scroll-to-imported-table";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { Download, Search, X, ChevronLeft, ChevronRight, ChevronsUpDown, Loader2 } from "lucide-react";
+import {
+  Download,
+  Search,
+  X,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsUpDown,
+  Loader2,
+  Eye,
+} from "lucide-react";
 import { ResultPendingShell } from "@/components/ui/result-pending-shell";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,8 +43,10 @@ import { ChannelBadge } from "@/components/layout/channel-badge";
 import type { Platform } from "@/types";
 import { cn } from "@/lib/utils";
 import { StockDistributionSlider } from "@/components/inventory/stock-distribution-slider";
+import { InventoryDetailSheet } from "@/components/inventory/inventory-detail-sheet";
 import type { InventoryRow } from "@/lib/inventory-list";
 import { TableDateRangeFilter } from "@/components/layout/table-date-range-filter";
+import { ImportedDataFilterBanner } from "@/components/layout/imported-data-filter-banner";
 import { isTableDateRangeActive, parseTableDateRangeSearchParams } from "@/lib/table-date-range";
 import { toast } from "sonner";
 import { useDemo } from "@/contexts/demo-context";
@@ -78,6 +90,7 @@ function normalizeQuery(pathname: string, cur: URLSearchParams): string {
   if (!n.get("from")) n.delete("from");
   if (!n.get("to")) n.delete("to");
   if (!n.get("channel") || n.get("channel") === "all") n.delete("channel");
+  if (!n.get("source") || n.get("source") === "all") n.delete("source");
   const st = n.get("stock");
   if (!st || st === "all") {
     n.delete("stock");
@@ -128,6 +141,8 @@ export function InventoryTable({
     return parseTableDateRangeSearchParams(r);
   }, [dateParamsQs]);
   const channelFromUrl = searchParams.get("channel") ?? "all";
+  const sourceFromUrl = searchParams.get("source") ?? "all";
+  useScrollToImportedTableWhenFiltered(sourceFromUrl);
   const rawStock = searchParams.get("stock") ?? "all";
   const stockMode: StockMode = ["all", "critical", "low", "healthy", "range"].includes(rawStock)
     ? (rawStock as StockMode)
@@ -146,6 +161,7 @@ export function InventoryTable({
   const [draftMax, setDraftMax] = useState(String(histogram.domainMax));
 
   const [isFilterPending, startTransition] = useTransition();
+  const [detailRow, setDetailRow] = useState<InventoryRow | null>(null);
 
   useEffect(() => {
     setSearchDraft(searchFromUrl);
@@ -207,6 +223,7 @@ export function InventoryTable({
     searchFromUrl.length > 0 ||
     isTableDateRangeActive(tableDateParams) ||
     platformFilter !== "all" ||
+    sourceFromUrl === "csv" ||
     stockMode !== "all";
 
   function exportCsv() {
@@ -387,6 +404,34 @@ export function InventoryTable({
             </Select>
           </div>
 
+          <div className="w-full space-y-1.5 sm:w-[200px]">
+            <Label
+              className="text-xs font-medium text-muted-foreground"
+              title="Imported from file = rows last touched by an inventory CSV import. All records = full catalog."
+            >
+              Data source
+            </Label>
+            <Select
+              value={sourceFromUrl === "csv" ? "csv" : "all"}
+              onValueChange={(v: string | null) => {
+                const next = v ?? "all";
+                replaceQuery((n) => {
+                  if (next === "csv") n.set("source", "csv");
+                  else n.delete("source");
+                  n.set("page", "1");
+                });
+              }}
+            >
+              <SelectTrigger className="h-9 w-full bg-background">
+                <SelectValue placeholder="Data source" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All records</SelectItem>
+                <SelectItem value="csv">Imported from file</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="space-y-1.5 w-full sm:w-[200px]">
             <Label className="text-xs font-medium text-muted-foreground">Stock level</Label>
             <Popover
@@ -517,13 +562,27 @@ export function InventoryTable({
         </div>
       </div>
 
+      <InventoryDetailSheet row={detailRow} onDismiss={() => setDetailRow(null)} />
+
       <ResultPendingShell pending={isFilterPending} className="space-y-5">
         <div className="rounded-xl border border-border/80 bg-background px-5 py-4 shadow-sm">
           <p className="text-xs font-medium text-muted-foreground">Matching SKUs</p>
           <p className="mt-1 text-3xl font-semibold tabular-nums tracking-tight">{totalCount}</p>
         </div>
 
-        <div className="rounded-md border">
+        <div id={IMPORTED_DATA_TABLE_ID} className="scroll-mt-20 md:scroll-mt-24">
+          <div className="overflow-hidden rounded-md border">
+          {sourceFromUrl === "csv" ? (
+            <ImportedDataFilterBanner
+              entity="inventory"
+              onShowAll={() =>
+                replaceQuery((n) => {
+                  n.delete("source");
+                  n.set("page", "1");
+                })
+              }
+            />
+          ) : null}
           <Table>
             <TableHeader>
               <TableRow>
@@ -533,12 +592,15 @@ export function InventoryTable({
                 <TableHead>Level</TableHead>
                 <TableHead>Channel</TableHead>
                 <TableHead>Updated</TableHead>
+                <TableHead className="w-9 min-w-0 px-0 text-center">
+                  <span className="sr-only">View</span>
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {rows.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
+                  <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">
                     No rows match your filters. Try clearing search or widening the stock range.
                   </TableCell>
                 </TableRow>
@@ -566,12 +628,28 @@ export function InventoryTable({
                       <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
                         {r.updatedAt ? formatDate(r.updatedAt, "MMM d, h:mm a") : "—"}
                       </TableCell>
+                      <TableCell className="px-0 text-center">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                          aria-label={`View details for ${r.title}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDetailRow(r);
+                          }}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   );
                 })
               )}
             </TableBody>
           </Table>
+          </div>
         </div>
       </ResultPendingShell>
 

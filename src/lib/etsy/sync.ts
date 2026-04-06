@@ -1,6 +1,6 @@
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { EtsyClient } from "./client";
-import { generateLowStockAlerts } from "@/lib/alerts";
+import { generateAnomalyAlerts, generateLowStockAlerts } from "@/lib/alerts";
 
 function getServiceClient() {
   return createSupabaseClient(
@@ -152,6 +152,7 @@ export async function syncEtsyOrders(channelId: string) {
     }
 
     await recomputeDailyStats(channel.org_id, channelId, sinceDate);
+    await generateAnomalyAlerts(channel.org_id, supabase);
 
     let productsSynced = 0;
     try {

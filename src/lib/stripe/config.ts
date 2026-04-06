@@ -60,12 +60,12 @@ export const STRIPE_PLANS = {
     channels: 999,
     ordersPerMonth: 999999,
     features: [
-      "Unlimited channels",
-      "Unlimited orders",
+      "Highest channel & order limits",
       "1-year history",
-      "Inventory sync",
-      "Demand forecasting",
-      "Team accounts",
+      "Full multichannel dashboard & P&L",
+      "AI Insights on your synced data",
+      "Inventory, products & CSV exports",
+      "Alerts & automations",
     ],
   },
 } as const;

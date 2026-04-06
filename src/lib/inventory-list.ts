@@ -14,12 +14,16 @@ export interface InventoryRow {
   id: string;
   title: string;
   sku: string | null;
+  image_url: string | null;
   inventory_quantity: number;
+  reorder_point: number | null;
   platform: string;
   channelName: string;
   status: string | null;
   updatedAt?: string | null;
 }
+
+export type InventorySourceFilter = "all" | "csv";
 
 export interface InventoryListParams {
   search: string;
@@ -28,6 +32,8 @@ export interface InventoryListParams {
   dateFrom: string | null;
   dateTo: string | null;
   channel: string;
+  /** `csv` = rows last updated by an inventory CSV import (`import_source_kind` = `inventory_csv`) */
+  source: InventorySourceFilter;
   stock: InventoryStockMode;
   smin: number;
   smax: number;
@@ -57,13 +63,15 @@ export function parseInventoryListParams(sp: Record<string, string | string[] | 
   const pageSize = [10, 20, 50].includes(pageSizeRaw) ? pageSizeRaw : 10;
   const { range, dateFrom, dateTo } = parseTableDateRangeSearchParams(sp);
   const channel = firstParam(sp, "channel") ?? "all";
+  const sourceRaw = firstParam(sp, "source") ?? "all";
+  const source: InventorySourceFilter = sourceRaw === "csv" ? "csv" : "all";
   const stockRaw = firstParam(sp, "stock") ?? "all";
   const stock = (["all", "critical", "low", "healthy", "range"].includes(stockRaw)
     ? stockRaw
     : "all") as InventoryStockMode;
   const smin = parseInt(firstParam(sp, "smin") ?? "0", 10) || 0;
   const smax = parseInt(firstParam(sp, "smax") ?? "0", 10) || 0;
-  return { search, range, dateFrom, dateTo, channel, stock, smin, smax, page, pageSize };
+  return { search, range, dateFrom, dateTo, channel, source, stock, smin, smax, page, pageSize };
 }
 
 export function parseInventoryParamsFromURLSearchParams(sp: URLSearchParams): InventoryListParams {
@@ -172,6 +180,10 @@ function applyInventoryFilters(
     q = q.in("channel_id", reportFilter.channelIds);
   }
 
+  if (input.source === "csv") {
+    q = q.eq("import_source_kind", "inventory_csv");
+  }
+
   return q;
 }
 
@@ -188,7 +200,9 @@ function mapRows(
       id: String(p.id),
       title: String(p.title ?? ""),
       sku: (p.sku as string | null) ?? null,
+      image_url: (p.image_url as string | null) ?? null,
       inventory_quantity: Number(p.inventory_quantity ?? 0),
+      reorder_point: p.reorder_point != null ? Number(p.reorder_point) : null,
       platform,
       channelName,
       status: (p.status as string | null) ?? null,
@@ -212,6 +226,7 @@ async function loadHistogramFromRpc(
   input: InventoryListParams,
   reportFilter: ReportingChannelsFilter
 ): Promise<{ domainMax: number; counts: number[] } | null> {
+  if (input.source === "csv") return null;
   const searchTrim = input.search.trim();
   const { since, until } = tableDateRangeBounds(input.range, input.dateFrom, input.dateTo);
 
@@ -340,7 +355,7 @@ export async function getInventoryPage(input: InventoryListParams, demoOrgId?: s
 
   let dataQuery = supabase
     .from("products")
-    .select("id,title,sku,inventory_quantity,status,inventory_updated_at,channel_id,platform")
+    .select("id,title,sku,image_url,inventory_quantity,reorder_point,status,inventory_updated_at,channel_id,platform")
     .eq("org_id", orgId);
   dataQuery = applyInventoryFilters(dataQuery, input, forPlatform, forSearch, reportFilter);
   dataQuery = dataQuery.order("title", { ascending: true }).range(from, to);
@@ -396,7 +411,7 @@ export async function fetchInventoryExportRows(
   while (out.length < maxRows) {
     let q = supabase
       .from("products")
-      .select("id,title,sku,inventory_quantity,status,inventory_updated_at,channel_id,platform")
+      .select("id,title,sku,image_url,inventory_quantity,reorder_point,status,inventory_updated_at,channel_id,platform")
       .eq("org_id", orgId);
     q = applyInventoryFilters(q, input, forPlatform, forSearch, reportFilter);
     q = q.order("title", { ascending: true }).range(offset, offset + batch - 1);

@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { CronDashboardClient } from "@/components/admin/cron-dashboard-client";
 
 export const dynamic = "force-dynamic";
@@ -11,7 +12,11 @@ export default function AdminCronPage() {
           Monitor automated channel syncs, view recent sync history, and control the cron scheduler.
         </p>
       </div>
-      <CronDashboardClient />
+      <Suspense
+        fallback={<div className="min-h-[280px] animate-pulse rounded-lg bg-muted/30" aria-hidden />}
+      >
+        <CronDashboardClient />
+      </Suspense>
     </div>
   );
 }

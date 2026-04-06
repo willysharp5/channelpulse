@@ -12,6 +12,8 @@ const PUBLIC_ROUTES = [
   "/api/gdpr",
   "/api/stripe/webhook",
   "/api/sync/cron",
+  "/api/import/cron",
+  "/api/cron/import-jobs-retention",
 ];
 
 export async function middleware(request: NextRequest) {

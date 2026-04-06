@@ -28,15 +28,17 @@ export async function GET(request: Request) {
       .order("started_at", { ascending: false })
       .range(offset, offset + PAGE_SIZE - 1);
 
-    const [{ data: channels }, jobsResult, { data: cronJob }] = await Promise.all([
+    const [{ data: channels }, jobsResult, { data: cronJobsRaw, error: cronErr }] = await Promise.all([
       sb
         .from("channels")
         .select("id, name, platform, status, last_sync_at, last_sync_status")
         .in("status", ["active", "syncing", "error"])
         .order("last_sync_at", { ascending: false, nullsFirst: false }),
       jobsQuery,
-      sb.rpc("get_cron_job_status").maybeSingle(),
+      sb.rpc("get_cron_jobs_admin"),
     ]);
+
+    const cronJobs = cronErr ? [] : (cronJobsRaw ?? []);
 
     const allChannels = channels ?? [];
     let filteredJobs = jobsResult.data ?? [];
@@ -66,7 +68,7 @@ export async function GET(request: Request) {
       totalJobs: jobsResult.count ?? 0,
       page,
       pageSize: PAGE_SIZE,
-      cronJob: cronJob ?? null,
+      cronJobs,
     });
   } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
@@ -77,20 +79,43 @@ export async function POST(request: Request) {
   try {
     await requireAdmin();
     const sb = createAdminClient();
-    const { action } = await request.json();
+    const body = await request.json();
+    const { action } = body as { action?: string; jobName?: string };
+
+    const allowedJobs = new Set(["sync-all-channels", "purge_import_jobs_retention"]);
+    const jobName =
+      typeof body.jobName === "string" && allowedJobs.has(body.jobName)
+        ? body.jobName
+        : "sync-all-channels";
 
     if (action === "trigger_now") {
+      if (jobName === "purge_import_jobs_retention") {
+        return NextResponse.json(
+          {
+            error:
+              "Manual retention purge was removed from the admin UI. Use the import_jobs Cleanup popover or wait for the scheduled pg_cron job.",
+          },
+          { status: 400 }
+        );
+      }
+
       await sb.rpc("trigger_channel_syncs");
       return NextResponse.json({ ok: true, message: "Sync triggered for all active channels" });
     }
 
     if (action === "pause") {
-      await sb.rpc("update_cron_job_active", { is_active: false });
+      await sb.rpc("set_admin_cron_job_active", {
+        p_job_name: jobName,
+        p_is_active: false,
+      });
       return NextResponse.json({ ok: true, message: "Cron job paused" });
     }
 
     if (action === "resume") {
-      await sb.rpc("update_cron_job_active", { is_active: true });
+      await sb.rpc("set_admin_cron_job_active", {
+        p_job_name: jobName,
+        p_is_active: true,
+      });
       return NextResponse.json({ ok: true, message: "Cron job resumed" });
     }
 

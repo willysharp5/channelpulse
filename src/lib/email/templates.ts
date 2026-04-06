@@ -118,6 +118,62 @@ export function syncErrorEmail(channelName: string): { subject: string; html: st
   return { subject, html };
 }
 
+export function revenueDropEmail(params: {
+  yesterdayLabel: string;
+  yesterdayRevenue: number;
+  priorRevenue: number;
+  dropPct: number;
+}): { subject: string; html: string } {
+  const subject = `📉 Revenue down ${params.dropPct}% vs prior day`;
+  const y = params.yesterdayRevenue.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+  const p = params.priorRevenue.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+
+  const html = layout(
+    subject,
+    `
+    <h2 style="margin:0 0 8px;font-size:18px;color:${BRAND_COLOR};">Revenue alert</h2>
+    <p style="margin:0 0 16px;font-size:14px;color:#71717a;">
+      ${params.yesterdayLabel} revenue was <strong>${y}</strong>, compared to <strong>${p}</strong> the day before
+      (about <strong style="color:#dc2626;">${params.dropPct}%</strong> lower).
+    </p>
+    <div style="margin-top:24px;text-align:center;">
+      <a href="${process.env.NEXT_PUBLIC_APP_URL ?? "https://channelpulse.vercel.app"}/"
+         style="display:inline-block;padding:10px 24px;background:${BRAND_COLOR};color:#fff;text-decoration:none;border-radius:8px;font-size:13px;font-weight:600;">
+        Open dashboard
+      </a>
+    </div>
+    `
+  );
+
+  return { subject, html };
+}
+
+export function orderSpikeEmail(params: {
+  dayLabel: string;
+  orders: number;
+  baseline: number;
+}): { subject: string; html: string } {
+  const subject = `📈 Unusual order volume (${params.orders} orders)`;
+  const html = layout(
+    subject,
+    `
+    <h2 style="margin:0 0 8px;font-size:18px;color:${BRAND_COLOR};">Order spike</h2>
+    <p style="margin:0 0 16px;font-size:14px;color:#71717a;">
+      On <strong>${params.dayLabel}</strong> you had <strong>${params.orders}</strong> orders — well above your recent typical day
+      (around <strong>${params.baseline}</strong>).
+    </p>
+    <div style="margin-top:24px;text-align:center;">
+      <a href="${process.env.NEXT_PUBLIC_APP_URL ?? "https://channelpulse.vercel.app"}/orders"
+         style="display:inline-block;padding:10px 24px;background:${BRAND_COLOR};color:#fff;text-decoration:none;border-radius:8px;font-size:13px;font-weight:600;">
+        View orders
+      </a>
+    </div>
+    `
+  );
+
+  return { subject, html };
+}
+
 interface WeeklyDigestData {
   totalRevenue: number;
   revenueChange: number;

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { DollarSign, ShoppingCart, PiggyBank, BarChart3, Info, type LucideIcon } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -9,6 +10,9 @@ import type { KPIData } from "@/types";
 
 const ICON_MAP: Record<string, LucideIcon> = {
   "Total Revenue": DollarSign,
+  Revenue: DollarSign,
+  "Avg order": BarChart3,
+  "Net profit": PiggyBank,
   "Total Orders": ShoppingCart,
   "Net Profit": PiggyBank,
   "Avg Order Value": BarChart3,
@@ -35,6 +39,9 @@ const TOOLTIP_MAP: Record<string, string> = {
   "Total COGS Value": "Sum of Cost of Goods Sold values entered for all products.",
   "Gross Margin": "(Revenue - COGS) ÷ Revenue × 100.",
   "Total Revenue (P&L)": "Gross revenue from all channels before any deductions.",
+  Revenue: "All reporting-channel orders (ignores table filters).",
+  "Avg order": "Revenue ÷ orders, same scope as Revenue.",
+  "Net profit": "Sum of net profit, same scope as Revenue.",
 };
 
 interface KPICardProps {
@@ -46,6 +53,9 @@ export function KPICard({ data }: KPICardProps) {
   const tooltip = TOOLTIP_MAP[data.title];
   const sparkColor = data.change >= 0 ? "#10b981" : "#ef4444";
   const progress = data.progress;
+  /** Base UI tooltip IDs can mismatch SSR vs client; mount tooltip only after hydrate. */
+  const [tipReady, setTipReady] = useState(false);
+  useEffect(() => setTipReady(true), []);
 
   return (
     <Card className="overflow-hidden">
@@ -53,14 +63,19 @@ export function KPICard({ data }: KPICardProps) {
         <div className="flex items-center justify-between">
           <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
             {data.title}
-            {tooltip && (
-              <Tooltip>
-                <TooltipTrigger render={<Info className="h-3 w-3 text-muted-foreground/40 cursor-help" />} />
-                <TooltipContent side="top" className="max-w-[260px] text-xs">
-                  {tooltip}
-                </TooltipContent>
-              </Tooltip>
-            )}
+            {tooltip &&
+              (tipReady ? (
+                <Tooltip>
+                  <TooltipTrigger render={<Info className="h-3 w-3 text-muted-foreground/40 cursor-help" />} />
+                  <TooltipContent side="top" className="max-w-[min(100vw-2rem,320px)] text-xs leading-relaxed">
+                    {tooltip}
+                  </TooltipContent>
+                </Tooltip>
+              ) : (
+                <span title={tooltip} className="inline-flex">
+                  <Info className="h-3 w-3 text-muted-foreground/40 cursor-help" aria-hidden />
+                </span>
+              ))}
           </p>
           <Icon className="h-4 w-4 text-muted-foreground/40" />
         </div>
@@ -88,6 +103,9 @@ export function KPICard({ data }: KPICardProps) {
                 }}
               />
             </div>
+            {data.changeLabel ? (
+              <p className="mt-2 text-[11px] leading-snug text-muted-foreground">{data.changeLabel}</p>
+            ) : null}
           </div>
         )}
 
@@ -106,6 +124,22 @@ export function KPICard({ data }: KPICardProps) {
             {data.comparisonFormatted && (
               <p className="text-[11px] text-muted-foreground">
                 {data.comparisonLabel}: <span className="font-medium tabular-nums text-foreground/70">{data.comparisonFormatted}</span>
+              </p>
+            )}
+          </div>
+        )}
+
+        {(data.currentPeriodRange || data.comparisonPeriodRange) && (
+          <div className="mt-3 space-y-0.5 border-t border-border/40 pt-2">
+            {data.currentPeriodRange && (
+              <p className="text-[10px] leading-tight text-muted-foreground">
+                <span className="font-medium text-foreground/55">Selected:</span> {data.currentPeriodRange}
+              </p>
+            )}
+            {data.comparisonPeriodRange && (
+              <p className="text-[10px] leading-tight text-muted-foreground">
+                <span className="font-medium text-foreground/55">Compared to:</span>{" "}
+                {data.comparisonPeriodRange}
               </p>
             )}
           </div>

@@ -27,7 +27,12 @@ import { getInventoryPage, parseInventoryListParams } from "@/lib/inventory-list
 import { InventoryTable } from "@/components/inventory/inventory-table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { OrdersTable } from "@/components/orders/orders-table";
-import { getOrdersPage, getOrdersOrgTotalCount, parseOrdersListParams } from "@/lib/orders-list";
+import {
+  getOrdersOrgFinancialTotals,
+  getOrdersPage,
+  getOrdersOrgTotalCount,
+  parseOrdersListParams,
+} from "@/lib/orders-list";
 import { ChatPage } from "@/components/chat/chat-page";
 import type { Platform } from "@/types";
 import type { KPIData } from "@/types";
@@ -80,17 +85,18 @@ export default async function DemoCatchAllPage({
 
   if (key === "orders") {
     const paramsParsed = parseOrdersListParams(sp);
-    const [orderData, orgOrderCount, { limits }] = await Promise.all([
+    const [orderData, orgOrderCount, orgFin, { limits }] = await Promise.all([
       getOrdersPage(paramsParsed, DEMO_ORG_ID),
       getOrdersOrgTotalCount(DEMO_ORG_ID),
+      getOrdersOrgFinancialTotals(DEMO_ORG_ID),
       Promise.resolve(getDemoUserPlan()),
     ]);
 
-    const totalOrders = orderData.totalCount;
-    const totalRevenue = orderData.totalRevenue;
-    const totalProfit = orderData.totalProfit;
-    const totalFees = orderData.totalFees;
-    const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+    const totalRevenue = orgFin.totalRevenue;
+    const totalProfit = orgFin.totalProfit;
+    const totalFees = orgFin.totalFees;
+    const orgOrderFinCount = orgFin.totalCount;
+    const avgOrderValue = orgOrderFinCount > 0 ? totalRevenue / orgOrderFinCount : 0;
     const profitMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
     const netRevenue = totalRevenue - totalFees;
     const categoryData = [
@@ -122,17 +128,17 @@ export default async function DemoCatchAllPage({
             />
             <KPICard
               data={{
-                title: "Filtered revenue",
+                title: "Revenue",
                 value: totalRevenue,
                 formattedValue: formatCurrency(totalRevenue),
                 change: 0,
-                changeLabel: "Matches table filters",
+                changeLabel: "",
                 sparklineData: [],
               }}
             />
             <KPICard
               data={{
-                title: "Avg order (filtered)",
+                title: "Avg order",
                 value: avgOrderValue,
                 formattedValue: formatCurrency(avgOrderValue),
                 change: 0,
@@ -142,7 +148,7 @@ export default async function DemoCatchAllPage({
             />
             <KPICard
               data={{
-                title: "Net profit (filtered)",
+                title: "Net profit",
                 value: totalProfit,
                 formattedValue: formatCurrency(totalProfit),
                 change: 0,
@@ -160,7 +166,8 @@ export default async function DemoCatchAllPage({
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base font-semibold">Revenue Breakdown (filtered)</CardTitle>
+              <CardTitle className="text-base font-semibold">Revenue breakdown</CardTitle>
+              <CardDescription>Totals for all reporting-channel orders—not the filtered table below.</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
@@ -604,17 +611,22 @@ export default async function DemoCatchAllPage({
     );
   }
 
-  if (key === "billing" || key === "settings") {
+  if (key === "billing" || key === "settings" || key === "import") {
     const signupCopy =
       key === "billing"
         ? {
             title: "Billing",
             body: "Manage subscriptions and invoices after you create an account.",
           }
-        : {
-            title: "Settings",
-            body: "Connect stores, notifications, and account preferences are available after sign up.",
-          };
+        : key === "settings"
+          ? {
+              title: "Settings",
+              body: "Connect stores, notifications, and account preferences are available after sign up.",
+            }
+          : {
+              title: "Import",
+              body: "Bring your orders, products, or inventory into ChannelPulse so they stay aligned with your connected stores. This is available after you create an account.",
+            };
     return <DemoSignupPlaceholder {...signupCopy} />;
   }
 

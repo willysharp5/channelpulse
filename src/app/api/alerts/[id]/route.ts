@@ -26,8 +26,11 @@ export async function PATCH(request: Request, ctx: { params: Promise<{ id: strin
     .eq("id", id)
     .eq("org_id", profile.org_id)
     .select("id, is_read, is_dismissed")
-    .single();
+    .maybeSingle();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!data) {
+    return NextResponse.json({ error: "Alert not found or already removed" }, { status: 404 });
+  }
   return NextResponse.json(data);
 }

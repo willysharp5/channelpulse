@@ -4,3 +4,4 @@ export { CategoryBar } from "./category-bar";
 export { TremorAreaChart } from "./area-chart";
 export { TremorBarChart } from "./bar-chart";
 export { TremorDonutChart } from "./donut-chart";
+export { TremorDateTimePicker } from "./datetime-picker";
