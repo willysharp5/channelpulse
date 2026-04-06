@@ -18,16 +18,18 @@ import { cn } from "@/lib/utils";
 type Props = {
   row: InventoryRow | null;
   onDismiss: () => void;
+  criticalThreshold?: number;
+  lowThreshold?: number;
 };
 
-function stockLevelStyle(qty: number): { label: string; className: string } {
-  if (qty > 20) return { label: "Healthy", className: "text-emerald-600 dark:text-emerald-400" };
-  if (qty >= 5) return { label: "Low", className: "text-amber-600 dark:text-amber-400" };
+function stockLevelStyle(qty: number, critical: number, low: number): { label: string; className: string } {
+  if (qty > low) return { label: "Healthy", className: "text-emerald-600 dark:text-emerald-400" };
+  if (qty > critical) return { label: "Low", className: "text-amber-600 dark:text-amber-400" };
   return { label: "Critical", className: "text-red-600 dark:text-red-400" };
 }
 
-export function InventoryDetailSheet({ row, onDismiss }: Props) {
-  const level = row ? stockLevelStyle(row.inventory_quantity) : null;
+export function InventoryDetailSheet({ row, onDismiss, criticalThreshold = 5, lowThreshold = 20 }: Props) {
+  const level = row ? stockLevelStyle(row.inventory_quantity, criticalThreshold, lowThreshold) : null;
 
   return (
     <Sheet

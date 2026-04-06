@@ -24,7 +24,11 @@ export default async function InventoryPage({
         <div>
           <h2 className="text-lg font-semibold">Stock levels</h2>
           <p className="text-sm text-muted-foreground">
-            Read-only view from your connected stores. Green &gt; 20, yellow 5–20, red &lt; 5 units.
+            Read-only view from your connected stores. Thresholds are set in{" "}
+            <a href="/settings?tab=notifications" className="underline underline-offset-2 hover:text-foreground">
+              Settings → Notifications
+            </a>{" "}
+            (Critical ≤ {data.criticalThreshold}, Low ≤ {data.lowThreshold}, Healthy above).
           </p>
         </div>
         <Card>
@@ -40,6 +44,8 @@ export default async function InventoryPage({
               effectivePage={data.effectivePage}
               requestedPage={params.page}
               lastRefreshAt={lastRefreshAt}
+              criticalThreshold={data.criticalThreshold}
+              lowThreshold={data.lowThreshold}
             />
           </CardContent>
         </Card>

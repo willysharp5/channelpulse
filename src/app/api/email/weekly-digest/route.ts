@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { sendEmail } from "@/lib/email/resend";
 import { weeklyDigestEmail } from "@/lib/email/templates";
 import { mergeNotificationPrefs } from "@/lib/alerts";
+import { resolveTransactionalOutgoing } from "@/lib/email/resolve-transactional-outgoing";
+import { sendEmail } from "@/lib/email/resend";
 
 export async function POST(request: Request) {
   const authHeader = request.headers.get("authorization");
@@ -18,6 +19,7 @@ export async function POST(request: Request) {
   const twoWeeksAgo = new Date(now.getTime() - 14 * 86400000);
   const weekAgoStr = weekAgo.toISOString().split("T")[0];
   const twoWeeksAgoStr = twoWeeksAgo.toISOString().split("T")[0];
+  const todayStr = now.toISOString().split("T")[0];
 
   const { data: orgs } = await sb.from("organizations").select("id, notification_preferences");
   if (!orgs?.length) return NextResponse.json({ sent: 0 });
@@ -44,12 +46,12 @@ export async function POST(request: Request) {
     const [thisWeek, lastWeek, lowStock, channels] = await Promise.all([
       sb
         .from("daily_stats")
-        .select("total_revenue, total_orders, channel_id")
+        .select("total_revenue, total_orders, total_units, estimated_profit, channel_id")
         .eq("org_id", org.id)
         .gte("date", weekAgoStr),
       sb
         .from("daily_stats")
-        .select("total_revenue, total_orders")
+        .select("total_revenue, total_orders, total_units, estimated_profit")
         .eq("org_id", org.id)
         .gte("date", twoWeeksAgoStr)
         .lt("date", weekAgoStr),
@@ -67,11 +69,17 @@ export async function POST(request: Request) {
 
     const thisRevenue = (thisWeek.data ?? []).reduce((s, r) => s + Number(r.total_revenue), 0);
     const thisOrders = (thisWeek.data ?? []).reduce((s, r) => s + Number(r.total_orders), 0);
+    const thisUnits = (thisWeek.data ?? []).reduce((s, r) => s + Number(r.total_units), 0);
+    const thisProfit = (thisWeek.data ?? []).reduce((s, r) => s + Number(r.estimated_profit), 0);
     const lastRevenue = (lastWeek.data ?? []).reduce((s, r) => s + Number(r.total_revenue), 0);
     const lastOrders = (lastWeek.data ?? []).reduce((s, r) => s + Number(r.total_orders), 0);
+    const lastUnits = (lastWeek.data ?? []).reduce((s, r) => s + Number(r.total_units), 0);
+    const lastProfit = (lastWeek.data ?? []).reduce((s, r) => s + Number(r.estimated_profit), 0);
 
     const revenueChange = lastRevenue > 0 ? ((thisRevenue - lastRevenue) / lastRevenue) * 100 : 0;
     const ordersChange = lastOrders > 0 ? ((thisOrders - lastOrders) / lastOrders) * 100 : 0;
+    const unitsChange = lastUnits > 0 ? ((thisUnits - lastUnits) / lastUnits) * 100 : 0;
+    const profitChange = lastProfit !== 0 ? ((thisProfit - lastProfit) / Math.abs(lastProfit)) * 100 : 0;
 
     const channelRevMap = new Map<string, number>();
     for (const row of thisWeek.data ?? []) {
@@ -95,15 +103,29 @@ export async function POST(request: Request) {
       revenueChange,
       totalOrders: thisOrders,
       ordersChange,
+      totalUnits: thisUnits,
+      unitsChange,
+      netProfit: thisProfit,
+      profitChange,
       topChannel: topChannelName,
       topChannelRevenue,
       lowStockCount: lowStock.data?.length ?? 0,
       periodLabel: `${weekAgo.toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${now.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`,
+      revenueFromYmd: weekAgoStr,
+      revenueToYmd: todayStr,
     };
 
-    const { subject, html } = weeklyDigestEmail(digestData);
-    await sendEmail({ to: email, subject, html });
-    sent++;
+    const resolved = await resolveTransactionalOutgoing(sb, "weekly_digest", () =>
+      weeklyDigestEmail(digestData)
+    );
+    if (resolved.skip) continue;
+
+    const result = await sendEmail({
+      to: email,
+      subject: resolved.subject,
+      html: resolved.html,
+    });
+    if (result) sent++;
   }
 
   return NextResponse.json({ sent });

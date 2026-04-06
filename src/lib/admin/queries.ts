@@ -527,6 +527,19 @@ export async function getAuditLogList(
   return { entries: pageRows, total, effectivePage };
 }
 
+/** Row counts from `channels` grouped by `platform` (service role). */
+export async function getAdminChannelPlatformCounts(): Promise<Record<string, number>> {
+  const sb = createAdminClient();
+  const { data, error } = await sb.from("channels").select("platform");
+  if (error || !data) return {};
+  const counts: Record<string, number> = {};
+  for (const row of data) {
+    const p = row.platform as string;
+    counts[p] = (counts[p] ?? 0) + 1;
+  }
+  return counts;
+}
+
 export async function logAuditEvent(
   adminId: string,
   action: string,

@@ -53,26 +53,33 @@ import { useDemo } from "@/contexts/demo-context";
 
 export type { InventoryRow } from "@/lib/inventory-list";
 
-type StockMode = "all" | "critical" | "low" | "healthy" | "range";
+type StockMode = "all" | "critical" | "low" | "healthy" | "range" | "below_threshold";
 
 const PAGE_SIZES = [10, 20, 50];
 
-function stockStyle(qty: number): { label: string; className: string } {
-  if (qty > 20) return { label: "Healthy", className: "text-emerald-600 dark:text-emerald-400 font-medium" };
-  if (qty >= 5) return { label: "Low", className: "text-amber-600 dark:text-amber-400 font-medium" };
+function stockStyle(qty: number, critical: number, low: number): { label: string; className: string } {
+  if (qty > low) return { label: "Healthy", className: "text-emerald-600 dark:text-emerald-400 font-medium" };
+  if (qty > critical) return { label: "Low", className: "text-amber-600 dark:text-amber-400 font-medium" };
   return { label: "Critical", className: "text-red-600 dark:text-red-400 font-medium" };
 }
 
-function stockTriggerLabel(mode: StockMode, rangeMin: number, rangeMax: number): string {
+function stockTriggerLabel(
+  mode: StockMode,
+  rangeMin: number,
+  rangeMax: number,
+  critical: number,
+  low: number
+): string {
   switch (mode) {
     case "all":
       return "All stock levels";
+    case "below_threshold":
     case "critical":
-      return "Critical (<5)";
+      return `Critical (≤${critical})`;
     case "low":
-      return "Low (5–20)";
+      return `Low (${critical + 1}–${low})`;
     case "healthy":
-      return "Healthy (>20)";
+      return `Healthy (>${low})`;
     case "range":
       return `${rangeMin} – ${rangeMax} units`;
     default:
@@ -112,6 +119,8 @@ interface InventoryTableProps {
   effectivePage: number;
   requestedPage: number;
   lastRefreshAt?: string;
+  criticalThreshold?: number;
+  lowThreshold?: number;
 }
 
 export function InventoryTable({
@@ -122,7 +131,11 @@ export function InventoryTable({
   effectivePage,
   requestedPage,
   lastRefreshAt,
+  criticalThreshold: criticalProp,
+  lowThreshold: lowProp,
 }: InventoryTableProps) {
+  const criticalThreshold = criticalProp ?? 5;
+  const lowThreshold = lowProp ?? 20;
   const isDemo = useDemo();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -144,7 +157,14 @@ export function InventoryTable({
   const sourceFromUrl = searchParams.get("source") ?? "all";
   useScrollToImportedTableWhenFiltered(sourceFromUrl);
   const rawStock = searchParams.get("stock") ?? "all";
-  const stockMode: StockMode = ["all", "critical", "low", "healthy", "range"].includes(rawStock)
+  const stockMode: StockMode = [
+    "all",
+    "critical",
+    "low",
+    "healthy",
+    "range",
+    "below_threshold",
+  ].includes(rawStock)
     ? (rawStock as StockMode)
     : "all";
   const smin = parseInt(searchParams.get("smin") ?? "0", 10) || 0;
@@ -452,7 +472,9 @@ export function InventoryTable({
                   />
                 }
               >
-                <span className="truncate text-left">{stockTriggerLabel(stockMode, rangeMin, rangeMax)}</span>
+                <span className="truncate text-left">
+                  {stockTriggerLabel(stockMode, rangeMin, rangeMax, criticalThreshold, lowThreshold)}
+                </span>
                 <ChevronsUpDown className="h-4 w-4 shrink-0 text-muted-foreground" />
               </PopoverTrigger>
               <PopoverContent className="w-[min(100vw-2rem,320px)] gap-3 p-3" align="start">
@@ -470,15 +492,15 @@ export function InventoryTable({
                   {(
                     [
                       ["all", "All"],
-                      ["critical", "Critical"],
-                      ["low", "Low"],
-                      ["healthy", "Healthy"],
+                      ["critical", `Critical (≤${criticalThreshold})`],
+                      ["low", `Low (${criticalThreshold + 1}–${lowThreshold})`],
+                      ["healthy", `Healthy (>${lowThreshold})`],
                     ] as const
                   ).map(([mode, label]) => (
                     <Button
                       key={mode}
                       type="button"
-                      variant={stockMode === mode ? "default" : "outline"}
+                      variant={stockMode === mode || (stockMode === "below_threshold" && mode === "critical") ? "default" : "outline"}
                       size="sm"
                       className="h-8 text-xs"
                       onClick={() => applyStockPreset(mode as StockMode)}
@@ -487,6 +509,9 @@ export function InventoryTable({
                     </Button>
                   ))}
                 </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Thresholds from Settings. Alerts fire at Critical (≤{criticalThreshold}).
+                </p>
                 <div className="space-y-2 border-t border-border pt-2">
                   <p className="text-xs font-medium text-muted-foreground">Custom range (units)</p>
                   <div className="flex items-center gap-2">
@@ -509,25 +534,25 @@ export function InventoryTable({
                   <Button type="button" size="sm" className="w-full" onClick={applyCustomRange}>
                     Apply range
                   </Button>
-                  <p className="text-[11px] text-muted-foreground">Popular ranges</p>
+                  <p className="text-[11px] text-muted-foreground">Quick ranges</p>
                   <div className="flex flex-wrap gap-1">
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
                       className="h-7 px-2 text-xs"
-                      onClick={() => applyStockPreset("range", { min: 0, max: 4 })}
+                      onClick={() => applyStockPreset("range", { min: 0, max: criticalThreshold })}
                     >
-                      0 – 4
+                      0 – {criticalThreshold}
                     </Button>
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
                       className="h-7 px-2 text-xs"
-                      onClick={() => applyStockPreset("range", { min: 5, max: 20 })}
+                      onClick={() => applyStockPreset("range", { min: criticalThreshold + 1, max: lowThreshold })}
                     >
-                      5 – 20
+                      {criticalThreshold + 1} – {lowThreshold}
                     </Button>
                     <Button
                       type="button"
@@ -535,12 +560,12 @@ export function InventoryTable({
                       size="sm"
                       className="h-7 px-2 text-xs"
                       onClick={() => {
-                        const lo = 21;
+                        const lo = lowThreshold + 1;
                         const hi = Math.max(lo, histogram.domainMax);
                         applyStockPreset("range", { min: lo, max: hi });
                       }}
                     >
-                      21+
+                      {lowThreshold + 1}+
                     </Button>
                   </div>
                 </div>
@@ -562,7 +587,7 @@ export function InventoryTable({
         </div>
       </div>
 
-      <InventoryDetailSheet row={detailRow} onDismiss={() => setDetailRow(null)} />
+      <InventoryDetailSheet row={detailRow} onDismiss={() => setDetailRow(null)} criticalThreshold={criticalThreshold} lowThreshold={lowThreshold} />
 
       <ResultPendingShell pending={isFilterPending} className="space-y-5">
         <div className="rounded-xl border border-border/80 bg-background px-5 py-4 shadow-sm">
@@ -606,7 +631,7 @@ export function InventoryTable({
                 </TableRow>
               ) : (
                 rows.map((r) => {
-                  const st = stockStyle(r.inventory_quantity);
+                  const st = stockStyle(r.inventory_quantity, criticalThreshold, lowThreshold);
                   return (
                     <TableRow key={r.id}>
                       <TableCell className="font-medium max-w-[240px] truncate">

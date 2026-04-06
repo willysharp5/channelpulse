@@ -1,7 +1,12 @@
 const BRAND_COLOR = "#18181b";
 const ACCENT_COLOR = "#7c3aed";
 
-function layout(title: string, body: string): string {
+function appBaseUrl(): string {
+  return (process.env.NEXT_PUBLIC_APP_URL ?? "https://channelpulse.vercel.app").replace(/\/$/, "");
+}
+
+/** Standard outer shell; use with custom inner HTML from admin overrides. */
+export function emailLayout(title: string, body: string): string {
   return `<!DOCTYPE html>
 <html>
 <head>
@@ -27,6 +32,10 @@ function layout(title: string, body: string): string {
   </div>
 </body>
 </html>`;
+}
+
+function layout(title: string, body: string): string {
+  return emailLayout(title, body);
 }
 
 interface LowStockItem {
@@ -82,7 +91,7 @@ export function lowStockAlertEmail(items: LowStockItem[]): { subject: string; ht
       <tbody>${rows}</tbody>
     </table>
     <div style="margin-top:24px;text-align:center;">
-      <a href="${process.env.NEXT_PUBLIC_APP_URL ?? "https://channelpulse.vercel.app"}/inventory"
+      <a href="${appBaseUrl()}/inventory?stock=below_threshold"
          style="display:inline-block;padding:10px 24px;background:${BRAND_COLOR};color:#fff;text-decoration:none;border-radius:8px;font-size:13px;font-weight:600;">
         View Inventory
       </a>
@@ -123,10 +132,13 @@ export function revenueDropEmail(params: {
   yesterdayRevenue: number;
   priorRevenue: number;
   dropPct: number;
+  orderRangeFromYmd: string;
+  orderRangeToYmd: string;
 }): { subject: string; html: string } {
   const subject = `📉 Revenue down ${params.dropPct}% vs prior day`;
   const y = params.yesterdayRevenue.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
   const p = params.priorRevenue.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+  const ordersHref = `${appBaseUrl()}/orders?from=${encodeURIComponent(params.orderRangeFromYmd)}&to=${encodeURIComponent(params.orderRangeToYmd)}`;
 
   const html = layout(
     subject,
@@ -137,9 +149,9 @@ export function revenueDropEmail(params: {
       (about <strong style="color:#dc2626;">${params.dropPct}%</strong> lower).
     </p>
     <div style="margin-top:24px;text-align:center;">
-      <a href="${process.env.NEXT_PUBLIC_APP_URL ?? "https://channelpulse.vercel.app"}/"
+      <a href="${ordersHref}"
          style="display:inline-block;padding:10px 24px;background:${BRAND_COLOR};color:#fff;text-decoration:none;border-radius:8px;font-size:13px;font-weight:600;">
-        Open dashboard
+        View orders (those days)
       </a>
     </div>
     `
@@ -152,8 +164,10 @@ export function orderSpikeEmail(params: {
   dayLabel: string;
   orders: number;
   baseline: number;
+  spikeDayYmd: string;
 }): { subject: string; html: string } {
   const subject = `📈 Unusual order volume (${params.orders} orders)`;
+  const ordersHref = `${appBaseUrl()}/orders?from=${encodeURIComponent(params.spikeDayYmd)}&to=${encodeURIComponent(params.spikeDayYmd)}`;
   const html = layout(
     subject,
     `
@@ -163,7 +177,7 @@ export function orderSpikeEmail(params: {
       (around <strong>${params.baseline}</strong>).
     </p>
     <div style="margin-top:24px;text-align:center;">
-      <a href="${process.env.NEXT_PUBLIC_APP_URL ?? "https://channelpulse.vercel.app"}/orders"
+      <a href="${ordersHref}"
          style="display:inline-block;padding:10px 24px;background:${BRAND_COLOR};color:#fff;text-decoration:none;border-radius:8px;font-size:13px;font-weight:600;">
         View orders
       </a>
@@ -179,19 +193,32 @@ interface WeeklyDigestData {
   revenueChange: number;
   totalOrders: number;
   ordersChange: number;
+  totalUnits: number;
+  unitsChange: number;
+  netProfit: number;
+  profitChange: number;
   topChannel: string;
   topChannelRevenue: number;
   lowStockCount: number;
   periodLabel: string;
+  revenueFromYmd: string;
+  revenueToYmd: string;
 }
 
 export function weeklyDigestEmail(data: WeeklyDigestData): { subject: string; html: string } {
   const revenueFormatted = `$${data.totalRevenue.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+  const profitFormatted = `$${data.netProfit.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
   const changeIcon = data.revenueChange >= 0 ? "📈" : "📉";
   const changeColor = data.revenueChange >= 0 ? "#16a34a" : "#dc2626";
   const changeText = `${data.revenueChange >= 0 ? "+" : ""}${data.revenueChange.toFixed(1)}%`;
+  const unitsChangeColor = data.unitsChange >= 0 ? "#16a34a" : "#dc2626";
+  const unitsChangeText = `${data.unitsChange >= 0 ? "+" : ""}${data.unitsChange.toFixed(1)}%`;
+  const profitChangeColor = data.profitChange >= 0 ? "#16a34a" : "#dc2626";
+  const profitChangeText = `${data.profitChange >= 0 ? "+" : ""}${data.profitChange.toFixed(1)}%`;
 
   const subject = `${changeIcon} Your week: ${revenueFormatted} revenue (${changeText})`;
+  const revenueHref = `${appBaseUrl()}/revenue?from=${encodeURIComponent(data.revenueFromYmd)}&to=${encodeURIComponent(data.revenueToYmd)}`;
+  const lowStockHref = `${appBaseUrl()}/inventory?stock=below_threshold`;
 
   const html = layout(
     subject,
@@ -199,7 +226,7 @@ export function weeklyDigestEmail(data: WeeklyDigestData): { subject: string; ht
     <h2 style="margin:0 0 4px;font-size:18px;color:${BRAND_COLOR};">Weekly Digest</h2>
     <p style="margin:0 0 24px;font-size:13px;color:#a1a1aa;">${data.periodLabel}</p>
 
-    <div style="display:flex;gap:12px;margin-bottom:24px;">
+    <div style="display:flex;gap:12px;margin-bottom:12px;">
       <div style="flex:1;padding:16px;background:#fafafa;border-radius:10px;text-align:center;">
         <p style="margin:0;font-size:11px;color:#71717a;text-transform:uppercase;font-weight:600;">Revenue</p>
         <p style="margin:4px 0 2px;font-size:22px;font-weight:700;color:${BRAND_COLOR};">${revenueFormatted}</p>
@@ -207,8 +234,21 @@ export function weeklyDigestEmail(data: WeeklyDigestData): { subject: string; ht
       </div>
       <div style="flex:1;padding:16px;background:#fafafa;border-radius:10px;text-align:center;">
         <p style="margin:0;font-size:11px;color:#71717a;text-transform:uppercase;font-weight:600;">Orders</p>
-        <p style="margin:4px 0 2px;font-size:22px;font-weight:700;color:${BRAND_COLOR};">${data.totalOrders}</p>
+        <p style="margin:4px 0 2px;font-size:22px;font-weight:700;color:${BRAND_COLOR};">${data.totalOrders.toLocaleString("en-US")}</p>
         <p style="margin:0;font-size:12px;font-weight:600;color:${data.ordersChange >= 0 ? "#16a34a" : "#dc2626"};">${data.ordersChange >= 0 ? "+" : ""}${data.ordersChange.toFixed(1)}% vs last week</p>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:12px;margin-bottom:24px;">
+      <div style="flex:1;padding:16px;background:#fafafa;border-radius:10px;text-align:center;">
+        <p style="margin:0;font-size:11px;color:#71717a;text-transform:uppercase;font-weight:600;">Units sold</p>
+        <p style="margin:4px 0 2px;font-size:22px;font-weight:700;color:${BRAND_COLOR};">${data.totalUnits.toLocaleString("en-US")}</p>
+        <p style="margin:0;font-size:12px;font-weight:600;color:${unitsChangeColor};">${unitsChangeText} vs last week</p>
+      </div>
+      <div style="flex:1;padding:16px;background:#fafafa;border-radius:10px;text-align:center;">
+        <p style="margin:0;font-size:11px;color:#71717a;text-transform:uppercase;font-weight:600;">Net profit</p>
+        <p style="margin:4px 0 2px;font-size:22px;font-weight:700;color:${BRAND_COLOR};">${profitFormatted}</p>
+        <p style="margin:0;font-size:12px;font-weight:600;color:${profitChangeColor};">${profitChangeText} vs last week</p>
       </div>
     </div>
 
@@ -224,12 +264,15 @@ export function weeklyDigestEmail(data: WeeklyDigestData): { subject: string; ht
       <p style="margin:0;font-size:13px;color:#92400e;">
         ⚠️ <strong>${data.lowStockCount}</strong> product${data.lowStockCount > 1 ? "s" : ""} running low on stock
       </p>
+      <p style="margin:8px 0 0;font-size:12px;">
+        <a href="${lowStockHref}" style="color:#b45309;font-weight:600;">View low-stock inventory</a>
+      </p>
     </div>` : ""}
 
     <div style="margin-top:24px;text-align:center;">
-      <a href="${process.env.NEXT_PUBLIC_APP_URL ?? "https://channelpulse.vercel.app"}/"
+      <a href="${revenueHref}"
          style="display:inline-block;padding:10px 24px;background:${BRAND_COLOR};color:#fff;text-decoration:none;border-radius:8px;font-size:13px;font-weight:600;">
-        View Full Dashboard
+        View this week's revenue
       </a>
     </div>
     `

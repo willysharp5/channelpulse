@@ -321,6 +321,8 @@ export default async function DemoCatchAllPage({
                 effectivePage={data.effectivePage}
                 requestedPage={paramsParsed.page}
                 lastRefreshAt={lastRefreshAt}
+                criticalThreshold={data.criticalThreshold}
+                lowThreshold={data.lowThreshold}
               />
             </CardContent>
           </Card>

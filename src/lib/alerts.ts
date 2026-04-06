@@ -1,11 +1,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { sendEmail } from "@/lib/email/resend";
 import {
   lowStockAlertEmail,
   orderSpikeEmail,
   revenueDropEmail,
   syncErrorEmail,
 } from "@/lib/email/templates";
+import { sendTransactionalIfEnabled } from "@/lib/email/resolve-transactional-outgoing";
 
 export type NotificationPreferences = {
   sync_errors?: boolean;
@@ -19,6 +19,8 @@ export type NotificationPreferences = {
   in_app?: boolean;
   browser_push?: boolean;
   low_stock_threshold?: number;
+  critical_threshold?: number;
+  low_threshold?: number;
 };
 
 export const DEFAULT_NOTIFICATION_PREFS: Required<
@@ -35,6 +37,8 @@ export const DEFAULT_NOTIFICATION_PREFS: Required<
     | "in_app"
     | "browser_push"
     | "low_stock_threshold"
+    | "critical_threshold"
+    | "low_threshold"
   >
 > = {
   sync_errors: true,
@@ -47,11 +51,15 @@ export const DEFAULT_NOTIFICATION_PREFS: Required<
   email: true,
   in_app: true,
   browser_push: false,
-  low_stock_threshold: 10,
+  low_stock_threshold: 5,
+  critical_threshold: 5,
+  low_threshold: 20,
 };
 
 export function mergeNotificationPrefs(raw: unknown): typeof DEFAULT_NOTIFICATION_PREFS {
   const o = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const critical = Math.max(0, Number(o.critical_threshold ?? DEFAULT_NOTIFICATION_PREFS.critical_threshold));
+  const low = Math.max(critical + 1, Number(o.low_threshold ?? DEFAULT_NOTIFICATION_PREFS.low_threshold));
   return {
     sync_errors: o.sync_errors !== false,
     revenue_drops: o.revenue_drops !== false,
@@ -63,7 +71,9 @@ export function mergeNotificationPrefs(raw: unknown): typeof DEFAULT_NOTIFICATIO
     email: o.email !== false,
     in_app: o.in_app !== false,
     browser_push: o.browser_push === true,
-    low_stock_threshold: Math.max(0, Number(o.low_stock_threshold ?? DEFAULT_NOTIFICATION_PREFS.low_stock_threshold)),
+    low_stock_threshold: critical,
+    critical_threshold: critical,
+    low_threshold: low,
   };
 }
 
@@ -153,13 +163,14 @@ export async function generateAnomalyAlerts(orgId: string, supabase: SupabaseCli
       const dropPct = Math.round((1 - revY / revP) * 100);
       const title = `Revenue dropped ${dropPct}%`;
       const message = `Yesterday was $${Math.round(revY).toLocaleString()} vs $${Math.round(revP).toLocaleString()} the prior day.`;
+      const ordersQs = `from=${encodeURIComponent(pStr)}&to=${encodeURIComponent(yStr)}`;
       const metadata = {
         dedupe_key: dedupeKey,
         compare_date: yStr,
         yesterday_revenue: revY,
         prior_revenue: revP,
-        action_url: "/",
-        link_label: "View dashboard",
+        action_url: `/orders?${ordersQs}`,
+        link_label: "View orders",
       };
 
       if (prefs.in_app) {
@@ -176,13 +187,16 @@ export async function generateAnomalyAlerts(orgId: string, supabase: SupabaseCli
       if (prefs.email) {
         const ownerEmail = await getOrgOwnerEmail(orgId, supabase);
         if (ownerEmail) {
-          const { subject, html } = revenueDropEmail({
-            yesterdayLabel: "Yesterday",
-            yesterdayRevenue: revY,
-            priorRevenue: revP,
-            dropPct,
-          });
-          await sendEmail({ to: ownerEmail, subject, html });
+          await sendTransactionalIfEnabled(supabase, "revenue_drop", ownerEmail, () =>
+            revenueDropEmail({
+              yesterdayLabel: "Yesterday",
+              yesterdayRevenue: revY,
+              priorRevenue: revP,
+              dropPct,
+              orderRangeFromYmd: pStr,
+              orderRangeToYmd: yStr,
+            })
+          );
         }
       }
     }
@@ -213,12 +227,13 @@ export async function generateAnomalyAlerts(orgId: string, supabase: SupabaseCli
       if (!exists) {
         const title = "Unusual order volume";
         const message = `${ordY} orders yesterday vs a typical recent day (~${Math.round(baseline)}).`;
+        const ordersQs = `from=${encodeURIComponent(yStr)}&to=${encodeURIComponent(yStr)}`;
         const metadata = {
           dedupe_key: dedupeKey,
           compare_date: yStr,
           orders: ordY,
           baseline: Math.round(baseline * 10) / 10,
-          action_url: "/orders",
+          action_url: `/orders?${ordersQs}`,
           link_label: "View orders",
         };
 
@@ -236,12 +251,14 @@ export async function generateAnomalyAlerts(orgId: string, supabase: SupabaseCli
         if (prefs.email) {
           const ownerEmail = await getOrgOwnerEmail(orgId, supabase);
           if (ownerEmail) {
-            const { subject, html } = orderSpikeEmail({
-              dayLabel: "yesterday",
-              orders: ordY,
-              baseline: Math.round(baseline * 10) / 10,
-            });
-            await sendEmail({ to: ownerEmail, subject, html });
+            await sendTransactionalIfEnabled(supabase, "order_spike", ownerEmail, () =>
+              orderSpikeEmail({
+                dayLabel: "yesterday",
+                orders: ordY,
+                baseline: Math.round(baseline * 10) / 10,
+                spikeDayYmd: yStr,
+              })
+            );
           }
         }
       }
@@ -294,7 +311,7 @@ export async function generateLowStockAlerts(orgId: string, supabase: SupabaseCl
       channel_id: p.channel_id,
       quantity: qty,
       threshold,
-      action_url: "/inventory",
+      action_url: "/inventory?stock=below_threshold",
       link_label: "View inventory",
     };
 
@@ -315,8 +332,9 @@ export async function generateLowStockAlerts(orgId: string, supabase: SupabaseCl
   if (newAlertItems.length > 0 && prefs.email) {
     const ownerEmail = await getOrgOwnerEmail(orgId, supabase);
     if (ownerEmail) {
-      const { subject, html } = lowStockAlertEmail(newAlertItems);
-      await sendEmail({ to: ownerEmail, subject, html });
+      await sendTransactionalIfEnabled(supabase, "low_stock", ownerEmail, () =>
+        lowStockAlertEmail(newAlertItems)
+      );
     }
   }
 }
@@ -357,8 +375,9 @@ export async function sendSyncErrorAlert(
   if (prefs.email) {
     const ownerEmail = await getOrgOwnerEmail(orgId, supabase);
     if (ownerEmail) {
-      const { subject, html } = syncErrorEmail(channelName);
-      await sendEmail({ to: ownerEmail, subject, html });
+      await sendTransactionalIfEnabled(supabase, "sync_error", ownerEmail, () =>
+        syncErrorEmail(channelName)
+      );
     }
   }
 }

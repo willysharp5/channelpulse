@@ -137,6 +137,7 @@ export function AiSettingsClient({
     display_name: "",
     model_id: "",
     provider: "openrouter",
+    is_active: true,
   });
 
   // --- Reports state ---
@@ -206,7 +207,7 @@ export function AiSettingsClient({
 
   function openNewPreset() {
     setIsNewPreset(true);
-    setPresetForm({ display_name: "", model_id: "", provider: "openrouter" });
+    setPresetForm({ display_name: "", model_id: "", provider: "openrouter", is_active: true });
     setEditingPreset({} as ModelPreset);
   }
 
@@ -216,6 +217,7 @@ export function AiSettingsClient({
       display_name: preset.display_name,
       model_id: preset.model_id,
       provider: preset.provider,
+      is_active: preset.is_active,
     });
     setEditingPreset(preset);
   }
@@ -227,7 +229,12 @@ export function AiSettingsClient({
         const res = await fetch("/api/admin/model-presets", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(presetForm),
+          body: JSON.stringify({
+            display_name: presetForm.display_name,
+            model_id: presetForm.model_id,
+            provider: presetForm.provider,
+            is_active: presetForm.is_active,
+          }),
         });
         if (!res.ok) throw new Error();
         const newPreset = await res.json();
@@ -239,13 +246,26 @@ export function AiSettingsClient({
           {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(presetForm),
+            body: JSON.stringify({
+              display_name: presetForm.display_name,
+              model_id: presetForm.model_id,
+              provider: presetForm.provider,
+              is_active: presetForm.is_active,
+            }),
           }
         );
         if (!res.ok) throw new Error();
         setPresets(
           presets.map((p) =>
-            p.id === editingPreset.id ? { ...p, ...presetForm } : p
+            p.id === editingPreset.id
+              ? {
+                  ...p,
+                  display_name: presetForm.display_name,
+                  model_id: presetForm.model_id,
+                  provider: presetForm.provider,
+                  is_active: presetForm.is_active,
+                }
+              : p
           )
         );
         toast.success(`"${presetForm.display_name}" updated`);
@@ -269,6 +289,24 @@ export function AiSettingsClient({
       toast.success(`"${name}" removed`);
     } catch {
       toast.error("Failed to delete preset");
+    }
+  }
+
+  async function togglePresetActive(preset: ModelPreset) {
+    const newActive = !preset.is_active;
+    try {
+      const res = await fetch(`/api/admin/model-presets/${preset.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_active: newActive }),
+      });
+      if (!res.ok) throw new Error();
+      setPresets(
+        presets.map((p) => (p.id === preset.id ? { ...p, is_active: newActive } : p))
+      );
+      toast.success(`"${preset.display_name}" ${newActive ? "shown in dropdown" : "hidden from dropdown"}`);
+    } catch {
+      toast.error("Failed to update preset");
     }
   }
 
@@ -665,8 +703,8 @@ export function AiSettingsClient({
             <div>
               <CardTitle className="text-base">Model Presets</CardTitle>
               <p className="mt-1 text-sm text-muted-foreground">
-                Models available in the dropdown above. Add new ones when
-                providers release updates.
+                Models available in the dropdown above. Use the eye icon to hide or show a preset (same idea as email
+                templates). Add new ones when providers release updates.
               </p>
             </div>
             <Button size="sm" onClick={openNewPreset}>
@@ -705,6 +743,19 @@ export function AiSettingsClient({
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-8"
+                    onClick={() => togglePresetActive(preset)}
+                    title={preset.is_active ? "Hide from model dropdown" : "Show in model dropdown"}
+                  >
+                    {preset.is_active ? (
+                      <Eye className="size-3.5 text-muted-foreground" />
+                    ) : (
+                      <EyeOff className="size-3.5 text-muted-foreground" />
+                    )}
+                  </Button>
                   <Button
                     variant="ghost"
                     size="icon"
@@ -900,6 +951,13 @@ export function AiSettingsClient({
                 }
                 className="mt-1 font-mono text-xs"
               />
+            </div>
+            <div className="flex items-center gap-2 pt-1">
+              <Switch
+                checked={presetForm.is_active}
+                onCheckedChange={(v) => setPresetForm({ ...presetForm, is_active: v })}
+              />
+              <Label>Show in model dropdown</Label>
             </div>
           </div>
           <div className="flex justify-end gap-2 pt-2">

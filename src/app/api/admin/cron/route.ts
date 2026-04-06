@@ -82,7 +82,11 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { action } = body as { action?: string; jobName?: string };
 
-    const allowedJobs = new Set(["sync-all-channels", "purge_import_jobs_retention"]);
+    const allowedJobs = new Set([
+      "sync-all-channels",
+      "purge_import_jobs_retention",
+      "weekly-digest-email",
+    ]);
     const jobName =
       typeof body.jobName === "string" && allowedJobs.has(body.jobName)
         ? body.jobName
@@ -97,6 +101,18 @@ export async function POST(request: Request) {
           },
           { status: 400 }
         );
+      }
+
+      if (jobName === "weekly-digest-email") {
+        const { error: wErr } = await sb.rpc("trigger_weekly_digest_email");
+        if (wErr) {
+          return NextResponse.json({ error: wErr.message }, { status: 500 });
+        }
+        return NextResponse.json({
+          ok: true,
+          message:
+            "Weekly digest HTTP trigger invoked (check Vault secrets and Supabase net._http_response if no email sent).",
+        });
       }
 
       await sb.rpc("trigger_channel_syncs");

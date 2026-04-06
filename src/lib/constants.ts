@@ -17,6 +17,7 @@ import {
   Mail,
   RefreshCw,
   Upload,
+  Plug,
   type LucideIcon,
 } from "lucide-react";
 
@@ -97,6 +98,7 @@ export const NAV_ITEMS: NavItem[] = [
 
 export const ADMIN_NAV_ITEMS: NavItem[] = [
   { title: "Dashboard", href: "/admin", icon: LayoutDashboard },
+  { title: "Integrations", href: "/admin/integrations", icon: Plug },
   { title: "Users", href: "/admin/users", icon: Users },
   { title: "Subscriptions", href: "/admin/subscriptions", icon: CreditCard },
   { title: "AI Settings", href: "/admin/ai-settings", icon: Sparkles },

@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { mergeNotificationPrefs } from "@/lib/alerts";
 import { resolveOrgScope } from "@/lib/queries";
 import {
   buildReportingChannelsFilter,
@@ -8,7 +9,14 @@ import {
 import { sortPlatformsForUi } from "@/lib/constants";
 import { parseTableDateRangeSearchParams, tableDateRangeBounds } from "@/lib/table-date-range";
 
-export type InventoryStockMode = "all" | "critical" | "low" | "healthy" | "range";
+export type InventoryStockMode =
+  | "all"
+  | "critical"
+  | "low"
+  | "healthy"
+  | "range"
+  /** Matches low-stock alerts: quantity ≤ org notification threshold (Settings). */
+  | "below_threshold";
 
 export interface InventoryRow {
   id: string;
@@ -49,6 +57,9 @@ export interface InventoryPageResult {
   histogram: { domainMax: number; counts: number[] };
   platformOptions: string[];
   effectivePage: number;
+  alertLowStockThreshold: number;
+  criticalThreshold: number;
+  lowThreshold: number;
 }
 
 function firstParam(sp: Record<string, string | string[] | undefined>, k: string): string | undefined {
@@ -66,9 +77,11 @@ export function parseInventoryListParams(sp: Record<string, string | string[] | 
   const sourceRaw = firstParam(sp, "source") ?? "all";
   const source: InventorySourceFilter = sourceRaw === "csv" ? "csv" : "all";
   const stockRaw = firstParam(sp, "stock") ?? "all";
-  const stock = (["all", "critical", "low", "healthy", "range"].includes(stockRaw)
-    ? stockRaw
-    : "all") as InventoryStockMode;
+  const stock = (
+    ["all", "critical", "low", "healthy", "range", "below_threshold"].includes(stockRaw)
+      ? stockRaw
+      : "all"
+  ) as InventoryStockMode;
   const smin = parseInt(firstParam(sp, "smin") ?? "0", 10) || 0;
   const smax = parseInt(firstParam(sp, "smax") ?? "0", 10) || 0;
   return { search, range, dateFrom, dateTo, channel, source, stock, smin, smax, page, pageSize };
@@ -123,7 +136,9 @@ function applyInventoryFilters(
   input: InventoryListParams,
   forPlatform: string[],
   forSearch: string[],
-  reportFilter: ReportingChannelsFilter
+  reportFilter: ReportingChannelsFilter,
+  alertLowStockThreshold: number,
+  lowThreshold?: number
 ) {
   const searchTrim = input.search.trim();
   if (searchTrim.length > 0) {
@@ -154,13 +169,14 @@ function applyInventoryFilters(
 
   switch (input.stock) {
     case "critical":
-      q = q.lt("inventory_quantity", 5);
+    case "below_threshold":
+      q = q.lte("inventory_quantity", Math.max(0, alertLowStockThreshold));
       break;
     case "low":
-      q = q.gte("inventory_quantity", 5).lte("inventory_quantity", 20);
+      q = q.gt("inventory_quantity", alertLowStockThreshold).lte("inventory_quantity", lowThreshold ?? 20);
       break;
     case "healthy":
-      q = q.gt("inventory_quantity", 20);
+      q = q.gt("inventory_quantity", lowThreshold ?? 20);
       break;
     case "range": {
       let hi = input.smax;
@@ -211,6 +227,16 @@ function mapRows(
   });
 }
 
+async function getStockThresholds(supabase: SupabaseClient, orgId: string): Promise<{ critical: number; low: number }> {
+  const { data } = await supabase
+    .from("organizations")
+    .select("notification_preferences")
+    .eq("id", orgId)
+    .maybeSingle();
+  const prefs = mergeNotificationPrefs(data?.notification_preferences);
+  return { critical: prefs.critical_threshold, low: prefs.low_threshold };
+}
+
 function parseHistogramJson(data: unknown): { domainMax: number; counts: number[] } {
   const raw = data as { domain_max?: number; counts?: unknown } | null;
   const domainMax = Math.max(1, Number(raw?.domain_max ?? 1));
@@ -226,6 +252,7 @@ async function loadHistogramFromRpc(
   input: InventoryListParams,
   reportFilter: ReportingChannelsFilter
 ): Promise<{ domainMax: number; counts: number[] } | null> {
+  if (input.stock === "below_threshold") return null;
   if (input.source === "csv") return null;
   const searchTrim = input.search.trim();
   const { since, until } = tableDateRangeBounds(input.range, input.dateFrom, input.dateTo);
@@ -253,10 +280,12 @@ async function loadHistogramClientMatch(
   input: InventoryListParams,
   forPlatform: string[],
   forSearch: string[],
-  reportFilter: ReportingChannelsFilter
+  reportFilter: ReportingChannelsFilter,
+  alertLowStockThreshold: number,
+  lowThreshold?: number
 ): Promise<{ domainMax: number; counts: number[] }> {
   let q = supabase.from("products").select("inventory_quantity").eq("org_id", orgId);
-  q = applyInventoryFilters(q, input, forPlatform, forSearch, reportFilter);
+  q = applyInventoryFilters(q, input, forPlatform, forSearch, reportFilter, alertLowStockThreshold, lowThreshold);
   const { data, error } = await q;
 
   if (error) {
@@ -315,9 +344,14 @@ export async function getInventoryPage(input: InventoryListParams, demoOrgId?: s
       histogram: { domainMax: 1, counts: Array(18).fill(0) },
       platformOptions: [],
       effectivePage: 1,
+      alertLowStockThreshold: 5,
+      criticalThreshold: 5,
+      lowThreshold: 20,
     };
   }
   const { orgId, supabase } = scope;
+  const thresholds = await getStockThresholds(supabase, orgId);
+  const alertLowStockThreshold = thresholds.critical;
 
   const reportFilter = await buildReportingChannelsFilter(supabase, orgId);
   if (reportFilter.kind === "include_only" && reportFilter.channelIds.length === 0) {
@@ -327,13 +361,16 @@ export async function getInventoryPage(input: InventoryListParams, demoOrgId?: s
       histogram: { domainMax: 1, counts: Array(18).fill(0) },
       platformOptions: [],
       effectivePage: 1,
+      alertLowStockThreshold,
+      criticalThreshold: thresholds.critical,
+      lowThreshold: thresholds.low,
     };
   }
 
   const { forPlatform, forSearch } = await resolveChannelIds(supabase, orgId, input);
 
   let countQuery = supabase.from("products").select("id", { count: "exact", head: true }).eq("org_id", orgId);
-  countQuery = applyInventoryFilters(countQuery, input, forPlatform, forSearch, reportFilter);
+  countQuery = applyInventoryFilters(countQuery, input, forPlatform, forSearch, reportFilter, alertLowStockThreshold, thresholds.low);
   const { count, error: countError } = await countQuery;
 
   if (countError) {
@@ -344,6 +381,9 @@ export async function getInventoryPage(input: InventoryListParams, demoOrgId?: s
       histogram: { domainMax: 1, counts: Array(18).fill(0) },
       platformOptions: [],
       effectivePage: 1,
+      alertLowStockThreshold,
+      criticalThreshold: thresholds.critical,
+      lowThreshold: thresholds.low,
     };
   }
 
@@ -357,7 +397,7 @@ export async function getInventoryPage(input: InventoryListParams, demoOrgId?: s
     .from("products")
     .select("id,title,sku,image_url,inventory_quantity,reorder_point,status,inventory_updated_at,channel_id,platform")
     .eq("org_id", orgId);
-  dataQuery = applyInventoryFilters(dataQuery, input, forPlatform, forSearch, reportFilter);
+  dataQuery = applyInventoryFilters(dataQuery, input, forPlatform, forSearch, reportFilter, alertLowStockThreshold, thresholds.low);
   dataQuery = dataQuery.order("title", { ascending: true }).range(from, to);
 
   const [platformOptions, histRpc, { data: products, error: dataError }, { data: channels }] = await Promise.all([
@@ -368,7 +408,17 @@ export async function getInventoryPage(input: InventoryListParams, demoOrgId?: s
   ]);
 
   const histogram =
-    histRpc ?? (await loadHistogramClientMatch(supabase, orgId, input, forPlatform, forSearch, reportFilter));
+    histRpc ??
+    (await loadHistogramClientMatch(
+      supabase,
+      orgId,
+      input,
+      forPlatform,
+      forSearch,
+      reportFilter,
+      alertLowStockThreshold,
+      thresholds.low
+    ));
 
   if (dataError) {
     console.error("inventory list:", dataError.message);
@@ -383,6 +433,9 @@ export async function getInventoryPage(input: InventoryListParams, demoOrgId?: s
     histogram,
     platformOptions,
     effectivePage,
+    alertLowStockThreshold,
+    criticalThreshold: thresholds.critical,
+    lowThreshold: thresholds.low,
   };
 }
 
@@ -395,6 +448,8 @@ export async function fetchInventoryExportRows(
   const scope = await resolveOrgScope(demoOrgId);
   if (!scope) return [];
   const { orgId, supabase } = scope;
+  const thresholds = await getStockThresholds(supabase, orgId);
+  const alertLowStockThreshold = thresholds.critical;
   const reportFilter = await buildReportingChannelsFilter(supabase, orgId);
   if (reportFilter.kind === "include_only" && reportFilter.channelIds.length === 0) {
     return [];
@@ -413,7 +468,7 @@ export async function fetchInventoryExportRows(
       .from("products")
       .select("id,title,sku,image_url,inventory_quantity,reorder_point,status,inventory_updated_at,channel_id,platform")
       .eq("org_id", orgId);
-    q = applyInventoryFilters(q, input, forPlatform, forSearch, reportFilter);
+    q = applyInventoryFilters(q, input, forPlatform, forSearch, reportFilter, alertLowStockThreshold, thresholds.low);
     q = q.order("title", { ascending: true }).range(offset, offset + batch - 1);
     const { data, error } = await q;
     if (error) {

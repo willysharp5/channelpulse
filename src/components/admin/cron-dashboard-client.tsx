@@ -136,6 +136,7 @@ interface ImportJobsApiResponse {
 const CRON_TITLES: Record<string, string> = {
   "sync-all-channels": "Channel sync (all stores)",
   "purge_import_jobs_retention": "Import jobs retention",
+  "weekly-digest-email": "Weekly digest email (HTTP POST)",
 };
 
 const TAB_CHANNEL = "channel-sync";
@@ -158,6 +159,9 @@ function cronScheduleHint(name: string): string {
   if (name === "sync-all-channels") return "Every 15 minutes";
   if (name === "purge_import_jobs_retention") {
     return "Daily at 06:00 UTC — deletes import_jobs rows with created_at older than 3 days";
+  }
+  if (name === "weekly-digest-email") {
+    return "Monday 09:00 UTC — POST /api/email/weekly-digest (Vault: channelpulse_weekly_digest_url + channelpulse_cron_secret)";
   }
   return "";
 }
@@ -498,6 +502,27 @@ export function CronDashboardClient() {
                 Sync All Now
               </Button>
             )}
+            {job.job_name === "weekly-digest-email" && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  handleCronAction(
+                    "trigger_now",
+                    "Weekly digest trigger invoked",
+                    "weekly-digest-email",
+                  )
+                }
+                disabled={!!actionLoading}
+              >
+                {actionLoading === "trigger_now:weekly-digest-email" ? (
+                  <Loader2 className="mr-1 size-3 animate-spin" />
+                ) : (
+                  <Zap className="mr-1 size-3" />
+                )}
+                Run digest now
+              </Button>
+            )}
             {job.active ? (
               <Button
                 variant="outline"
@@ -602,6 +627,9 @@ export function CronDashboardClient() {
   const syncCronJob = cronJobsList.find((j) => j.job_name === "sync-all-channels");
   const retentionCronJob = cronJobsList.find(
     (j) => j.job_name === "purge_import_jobs_retention"
+  );
+  const weeklyDigestCronJob = cronJobsList.find(
+    (j) => j.job_name === "weekly-digest-email"
   );
   const channels = data?.channels ?? [];
   const recentJobs = data?.recentJobs ?? [];
@@ -739,6 +767,42 @@ export function CronDashboardClient() {
               renderCronJobPanel(
                 syncCronJob,
                 "Channel sync job was not returned by the server."
+              )
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="space-y-1">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Clock className="size-4 text-violet-500" />
+                <CardTitle className="text-base">Weekly digest email (pg_cron + pg_net)</CardTitle>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-8 shrink-0"
+                onClick={() => fetchData()}
+              >
+                <RefreshCw className="size-3.5" />
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              POSTs your deployed <code className="rounded bg-muted px-1 text-[11px]">/api/email/weekly-digest</code> with{" "}
+              <code className="rounded bg-muted px-1 text-[11px]">Authorization: Bearer …</code>. Configure Vault secrets{" "}
+              <span className="font-mono text-[11px]">channelpulse_weekly_digest_url</span> and{" "}
+              <span className="font-mono text-[11px]">channelpulse_cron_secret</span> (same value as app{" "}
+              <code className="rounded bg-muted px-1 text-[11px]">CRON_SECRET</code>).
+            </p>
+          </CardHeader>
+          <CardContent>
+            {cronJobsList.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Could not load pg_cron jobs.</p>
+            ) : (
+              renderCronJobPanel(
+                weeklyDigestCronJob,
+                "Weekly digest job not found — run migration 20260413140000_weekly_digest_pg_cron.sql."
               )
             )}
           </CardContent>

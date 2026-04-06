@@ -288,26 +288,63 @@ export function SettingsContent({ email, businessName, plan, channels, notificat
                   onCheckedChange={(v) => void saveNotif({ low_stock: v })}
                 />
               </div>
-              {notifPrefs.low_stock ? (
-                <div className="px-6 py-4 border-b space-y-2">
-                  <Label className="text-xs">Low stock threshold (units)</Label>
-                  <p className="text-xs text-muted-foreground">Default is 10. Alerts use inventory at or below this number.</p>
-                  <Input
-                    type="number"
-                    min={0}
-                    className="h-9 max-w-[120px]"
-                    value={notifPrefs.low_stock_threshold}
-                    onChange={(e) => {
-                      const n = Math.max(0, parseInt(e.target.value, 10) || 0);
-                      setNotifPrefs((p) => ({ ...p, low_stock_threshold: n }));
-                    }}
-                    onBlur={(e) => {
-                      const n = Math.max(0, parseInt(e.target.value, 10) || 0);
-                      void saveNotif({ low_stock_threshold: n });
-                    }}
-                  />
+              <div className="px-6 py-4 border-b space-y-4">
+                <div>
+                  <Label className="text-xs font-medium">Inventory thresholds</Label>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    These define the stock-level bands across the inventory page, filters, and alerts.
+                  </p>
                 </div>
-              ) : null}
+                <div className="flex items-end gap-4">
+                  <div className="space-y-1">
+                    <Label className="text-xs">
+                      <span className="inline-block h-2 w-2 rounded-full bg-red-500 mr-1 align-middle" />
+                      Critical (≤)
+                    </Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      className="h-9 w-[100px]"
+                      value={notifPrefs.critical_threshold}
+                      onChange={(e) => {
+                        const n = Math.max(0, parseInt(e.target.value, 10) || 0);
+                        setNotifPrefs((p) => ({ ...p, critical_threshold: n, low_stock_threshold: n }));
+                      }}
+                      onBlur={(e) => {
+                        const n = Math.max(0, parseInt(e.target.value, 10) || 0);
+                        void saveNotif({ critical_threshold: n, low_stock_threshold: n });
+                      }}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">
+                      <span className="inline-block h-2 w-2 rounded-full bg-amber-500 mr-1 align-middle" />
+                      Low (≤)
+                    </Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      className="h-9 w-[100px]"
+                      value={notifPrefs.low_threshold}
+                      onChange={(e) => {
+                        const n = Math.max(1, parseInt(e.target.value, 10) || 1);
+                        setNotifPrefs((p) => ({ ...p, low_threshold: n }));
+                      }}
+                      onBlur={(e) => {
+                        const n = Math.max(notifPrefs.critical_threshold + 1, parseInt(e.target.value, 10) || notifPrefs.critical_threshold + 1);
+                        void saveNotif({ low_threshold: n });
+                      }}
+                    />
+                  </div>
+                  <p className="pb-2 text-xs text-muted-foreground">
+                    <span className="inline-block h-2 w-2 rounded-full bg-emerald-500 mr-1 align-middle" />
+                    Healthy = above {notifPrefs.low_threshold}
+                  </p>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Alerts fire at Critical (≤{notifPrefs.critical_threshold}). Low = {notifPrefs.critical_threshold + 1}–{notifPrefs.low_threshold}. Healthy = above {notifPrefs.low_threshold}.
+                </p>
+              </div>
               <div className="flex items-center justify-between px-6 py-4">
                 <div className="flex items-start gap-3">
                   <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-amber-500" />
