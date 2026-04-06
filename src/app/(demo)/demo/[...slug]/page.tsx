@@ -37,37 +37,13 @@ import { ChatPage } from "@/components/chat/chat-page";
 import type { Platform } from "@/types";
 import type { KPIData } from "@/types";
 import { DEMO_ORG_ID } from "@/lib/demo-data";
-import { buttonVariants } from "@/components/ui/button-variants";
-import { cn } from "@/lib/utils";
+import { DemoSignupPlaceholder } from "@/components/demo/demo-signup-placeholder";
 
 export const dynamic = "force-dynamic";
 
 function formatDateLabel(dateStr: string): string {
   const d = new Date(dateStr + "T00:00:00");
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-}
-
-function DemoSignupPlaceholder({ title, body }: { title: string; body: string }) {
-  return (
-    <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
-      <DemoHeader title={title} />
-      <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-4 py-8 sm:px-6 min-h-[calc(100dvh-10rem)] md:min-h-[calc(100dvh-9rem)]">
-        <Card className="w-full max-w-lg shadow-sm">
-          <CardHeader className="space-y-2 px-6 pt-6 text-center sm:px-8 sm:pt-8">
-            <CardTitle className="text-xl font-semibold tracking-tight sm:text-2xl">{title}</CardTitle>
-            <CardDescription className="mx-auto max-w-md text-pretty text-sm leading-relaxed sm:text-base">
-              {body}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex justify-center px-6 pb-8 pt-2 sm:px-8 sm:pb-8">
-            <Link href="/signup" className={cn(buttonVariants({ size: "default" }), "min-w-[11rem] justify-center")}>
-              Create free account
-            </Link>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
-  );
 }
 
 export default async function DemoCatchAllPage({
@@ -611,22 +587,17 @@ export default async function DemoCatchAllPage({
     );
   }
 
-  if (key === "billing" || key === "settings" || key === "import") {
+  if (key === "billing" || key === "settings") {
     const signupCopy =
       key === "billing"
         ? {
             title: "Billing",
             body: "Manage subscriptions and invoices after you create an account.",
           }
-        : key === "settings"
-          ? {
-              title: "Settings",
-              body: "Connect stores, notifications, and account preferences are available after sign up.",
-            }
-          : {
-              title: "Import",
-              body: "Bring your orders, products, or inventory into ChannelPulse so they stay aligned with your connected stores. This is available after you create an account.",
-            };
+        : {
+            title: "Settings",
+            body: "Connect stores, notifications, and account preferences are available after sign up.",
+          };
     return <DemoSignupPlaceholder {...signupCopy} />;
   }
 

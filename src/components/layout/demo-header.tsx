@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import Link from "next/link";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
@@ -34,7 +35,16 @@ export function DemoHeader({ title = "Overview" }: DemoHeaderProps) {
 
       <div className="ml-auto flex items-center gap-2">
         <span data-tour="date-range" className="inline-flex">
-          <DateRangePicker />
+          <Suspense
+            fallback={
+              <span
+                className="inline-flex h-9 min-w-[9rem] animate-pulse rounded-md bg-muted"
+                aria-hidden
+              />
+            }
+          >
+            <DateRangePicker />
+          </Suspense>
         </span>
         <ThemeToggle />
         <Link
