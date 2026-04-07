@@ -19,9 +19,38 @@ const PUBLIC_ROUTES = [
   "/api/cron/import-jobs-retention",
 ];
 
+/** Domains that serve only the public marketing site. */
+const MARKETING_HOSTNAMES = [
+  "channelpulse.us",
+  "www.channelpulse.us",
+];
+
+/** Marketing-only pages (accessible on any domain). */
+const MARKETING_ROUTES = ["/landing", "/about", "/privacy", "/terms"];
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const hostname = request.headers.get("host") ?? "";
+  const isMarketingDomain = MARKETING_HOSTNAMES.includes(hostname);
 
+  // ── Marketing domain (channelpulse.us) ──────────────────────────────────
+  // Serve the landing page for every path; only marketing routes are allowed.
+  if (isMarketingDomain) {
+    // Root → serve landing page
+    if (pathname === "/") {
+      return NextResponse.rewrite(new URL("/landing", request.url));
+    }
+    // Known marketing routes → pass through
+    if (MARKETING_ROUTES.some((r) => pathname.startsWith(r))) {
+      return NextResponse.next();
+    }
+    // Anything else on the marketing domain → redirect to landing
+    return NextResponse.redirect(new URL("https://channelpulse.us", request.url));
+  }
+
+  // ── App domain (app.channelpulse.us) ────────────────────────────────────
+  // Root on app domain: redirect straight to landing if not logged in,
+  // otherwise serve the dashboard.
   if (PUBLIC_ROUTES.some((route) => pathname.startsWith(route))) {
     return await updateSession(request);
   }
@@ -55,7 +84,7 @@ export async function middleware(request: NextRequest) {
 
   if (pathname === "/") {
     if (!user) {
-      return NextResponse.rewrite(new URL("/landing", request.url));
+      return NextResponse.redirect(new URL("https://channelpulse.us", request.url));
     }
     return response;
   }
@@ -81,7 +110,7 @@ export async function middleware(request: NextRequest) {
       serviceKey,
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
-    const { data: profile, error: profileErr } = await adminClient
+    const { data: profile } = await adminClient
       .from("profiles")
       .select("role")
       .eq("id", user.id)

@@ -19,24 +19,24 @@ export function MarketingHeader() {
 
         <div className="flex items-center gap-3">
           <ThemeToggle />
-          <Link
-            href="/demo"
+          <a
+            href="https://app.channelpulse.us/demo"
             className="hidden text-sm font-medium text-amber-700 transition-colors hover:text-amber-900 dark:text-amber-400 dark:hover:text-amber-300 sm:inline"
           >
             View demo
-          </Link>
-          <Link
-            href="/login"
+          </a>
+          <a
+            href="https://app.channelpulse.us/login"
             className="hidden text-sm font-medium text-gray-600 transition-colors hover:text-gray-950 dark:text-gray-400 dark:hover:text-gray-50 sm:inline"
           >
             Sign in
-          </Link>
-          <Link
-            href="/signup"
+          </a>
+          <a
+            href="https://app.channelpulse.us/signup"
             className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-amber-600"
           >
             Get started free
-          </Link>
+          </a>
         </div>
       </div>
     </header>
