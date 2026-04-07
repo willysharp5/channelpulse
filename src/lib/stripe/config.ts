@@ -21,8 +21,8 @@ export const stripe = new Proxy({} as Stripe, {
 export const STRIPE_PLANS = {
   starter: {
     name: "Starter",
-    priceId: "price_1THYPt3G9zqJIlndIE69WiGH",
-    productId: "prod_UG4YMa5euVWayk",
+    priceId: "price_1TJPYM3G9zqJIlndVp1yrTbz",
+    productId: "prod_UHzXVCWp8rsT2J",
     price: 19,
     channels: 3,
     ordersPerMonth: 5000,
@@ -37,8 +37,8 @@ export const STRIPE_PLANS = {
   },
   growth: {
     name: "Growth",
-    priceId: "price_1THYPv3G9zqJIlndOOg4FltX",
-    productId: "prod_UG4Y5idBw8IO0V",
+    priceId: "price_1TJPYN3G9zqJIlndkGXJjkaV",
+    productId: "prod_UHzXU6mwQaQjkO",
     price: 39,
     channels: 5,
     ordersPerMonth: 25000,
@@ -55,8 +55,8 @@ export const STRIPE_PLANS = {
   },
   scale: {
     name: "Scale",
-    priceId: "price_1THYPy3G9zqJIlndzVmOWMvu",
-    productId: "prod_UG4YyVoFWOMYKi",
+    priceId: "price_1TJPYO3G9zqJIlndoPeUEGPS",
+    productId: "prod_UHzXUvKGnWS7P0",
     price: 79,
     channels: 999,
     ordersPerMonth: 999999,
