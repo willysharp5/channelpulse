@@ -6,17 +6,70 @@ import Image from "next/image";
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.channelpulse.us";
 
 export const metadata: Metadata = {
-  title: "ChannelPulse",
-  applicationName: "ChannelPulse",
-  description: "Unified analytics for multichannel sellers. One dashboard for Shopify, Amazon, Etsy, TikTok Shop and more.",
+  title: "ChannelPulse — Multichannel Sales Analytics",
+  description:
+    "ChannelPulse unifies your Shopify, Amazon, Etsy, and TikTok Shop sales into one dashboard. Track revenue, orders, profit and inventory in real time. Free to start.",
+  alternates: { canonical: "https://channelpulse.us" },
   openGraph: {
-    siteName: "ChannelPulse",
     title: "ChannelPulse — Multichannel Sales Analytics",
-    description: "Unified analytics for multichannel sellers. One dashboard for Shopify, Amazon, Etsy, TikTok Shop and more.",
+    description:
+      "One dashboard for all your stores. Real-time revenue, P&L, inventory and AI-powered insights for Shopify, Amazon, Etsy, and TikTok Shop sellers.",
     url: "https://channelpulse.us",
     type: "website",
     images: [{ url: "/logo-512.png", width: 512, height: 512, alt: "ChannelPulse" }],
   },
+};
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://channelpulse.us/#organization",
+      name: "ChannelPulse",
+      url: "https://channelpulse.us",
+      logo: {
+        "@type": "ImageObject",
+        url: "https://channelpulse.us/logo-512.png",
+        width: 512,
+        height: 512,
+      },
+      sameAs: [],
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://channelpulse.us/#website",
+      url: "https://channelpulse.us",
+      name: "ChannelPulse",
+      publisher: { "@id": "https://channelpulse.us/#organization" },
+    },
+    {
+      "@type": "SoftwareApplication",
+      name: "ChannelPulse",
+      applicationCategory: "BusinessApplication",
+      operatingSystem: "Web",
+      url: "https://app.channelpulse.us",
+      description:
+        "ChannelPulse unifies your Shopify, Amazon, Etsy, and TikTok Shop sales into one analytics dashboard. Track revenue, orders, profit and inventory across all your channels in real time.",
+      offers: {
+        "@type": "Offer",
+        price: "0",
+        priceCurrency: "USD",
+        description: "Free plan available. Paid plans from $19/month.",
+      },
+      featureList: [
+        "Multichannel sales dashboard",
+        "Revenue and profit tracking",
+        "P&L reports by channel",
+        "Inventory management and alerts",
+        "AI-powered insights",
+        "CSV import for orders and products",
+        "Weekly email digest",
+      ],
+      screenshot: "https://channelpulse.us/logo-512.png",
+      publisher: { "@id": "https://channelpulse.us/#organization" },
+    },
+  ],
 };
 
 import {
@@ -94,6 +147,10 @@ const PRICING = [
 export default function LandingPage() {
   return (
     <div className="scroll-smooth min-h-dvh bg-[#fafaf9] text-gray-950 dark:bg-gray-950 dark:text-gray-50">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
 
       {/* ── Nav ── */}
       <nav className="sticky top-0 z-50 border-b border-gray-200/60 bg-[#fafaf9]/80 backdrop-blur-lg dark:border-gray-800/60 dark:bg-gray-950/80">

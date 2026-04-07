@@ -2,7 +2,12 @@ import Link from "next/link";
 import { MarketingHeader } from "@/components/landing/marketing-header";
 import { MarketingFooter } from "@/components/landing/marketing-footer";
 
-export const metadata = { title: "Terms of Service — ChannelPulse" };
+export const metadata = {
+  title: "Terms of Service",
+  description: "ChannelPulse terms of service — the rules and agreements governing use of the platform.",
+  alternates: { canonical: "https://channelpulse.us/terms" },
+  robots: { index: true, follow: false },
+};
 
 export default function TermsPage() {
   return (

@@ -13,24 +13,72 @@ const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
 });
 
+const BASE_URL = "https://channelpulse.us";
+
 export const metadata: Metadata = {
-  title: "ChannelPulse",
+  metadataBase: new URL(BASE_URL),
+  title: {
+    default: "ChannelPulse — Multichannel Sales Analytics",
+    template: "%s | ChannelPulse",
+  },
   description:
-    "See all your Shopify, Amazon, Etsy, and TikTok Shop sales in one dashboard. Revenue, orders, profit and more.",
+    "ChannelPulse unifies your Shopify, Amazon, Etsy, and TikTok Shop sales into one dashboard. Track revenue, orders, profit and inventory in real time.",
   applicationName: "ChannelPulse",
+  keywords: [
+    "multichannel analytics",
+    "ecommerce dashboard",
+    "Shopify analytics",
+    "Amazon seller dashboard",
+    "Etsy analytics",
+    "TikTok Shop analytics",
+    "Walmart Marketplace",
+    "sales dashboard",
+    "ecommerce profit tracking",
+    "P&L ecommerce",
+    "inventory management",
+    "multichannel seller tools",
+  ],
+  authors: [{ name: "ChannelPulse", url: BASE_URL }],
+  creator: "ChannelPulse",
+  publisher: "ChannelPulse",
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
+  alternates: {
+    canonical: BASE_URL,
+  },
   openGraph: {
     siteName: "ChannelPulse",
-    title: "ChannelPulse",
-    description: "Unified multichannel analytics for e-commerce sellers.",
-    url: "https://channelpulse.us",
+    title: "ChannelPulse — Multichannel Sales Analytics",
+    description:
+      "Unify your Shopify, Amazon, Etsy, and TikTok Shop sales into one dashboard. Real-time revenue, profit, and inventory tracking.",
+    url: BASE_URL,
     type: "website",
-    images: [{ url: "/logo-512.png", width: 512, height: 512, alt: "ChannelPulse" }],
+    locale: "en_US",
+    images: [
+      {
+        url: "/logo-512.png",
+        width: 512,
+        height: 512,
+        alt: "ChannelPulse — Multichannel Sales Analytics",
+      },
+    ],
   },
   twitter: {
-    card: "summary",
-    title: "ChannelPulse",
-    description: "Unified multichannel analytics for e-commerce sellers.",
+    card: "summary_large_image",
+    title: "ChannelPulse — Multichannel Sales Analytics",
+    description:
+      "Unify your Shopify, Amazon, Etsy, and TikTok Shop sales into one dashboard.",
     images: ["/logo-512.png"],
+    creator: "@channelpulse",
   },
   icons: {
     icon: [
@@ -40,7 +88,9 @@ export const metadata: Metadata = {
     ],
     apple: "/apple-touch-icon.png",
     shortcut: "/favicon.ico",
+    other: [{ rel: "mask-icon", url: "/logo.svg" }],
   },
+  manifest: "/site.webmanifest",
 };
 
 export default function RootLayout({

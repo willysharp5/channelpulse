@@ -1,7 +1,12 @@
 import { MarketingHeader } from "@/components/landing/marketing-header";
 import { MarketingFooter } from "@/components/landing/marketing-footer";
 
-export const metadata = { title: "Privacy Policy — ChannelPulse" };
+export const metadata = {
+  title: "Privacy Policy",
+  description: "ChannelPulse privacy policy — how we collect, use, and protect your data.",
+  alternates: { canonical: "https://channelpulse.us/privacy" },
+  robots: { index: true, follow: false },
+};
 
 export default function PrivacyPage() {
   return (

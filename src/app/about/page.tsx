@@ -2,7 +2,17 @@ import Link from "next/link";
 import { MarketingHeader } from "@/components/landing/marketing-header";
 import { MarketingFooter } from "@/components/landing/marketing-footer";
 
-export const metadata = { title: "About — ChannelPulse" };
+export const metadata = {
+  title: "About ChannelPulse",
+  description: "Learn about ChannelPulse — the multichannel analytics dashboard built for e-commerce sellers on Shopify, Amazon, Etsy, TikTok Shop, and Walmart.",
+  alternates: { canonical: "https://channelpulse.us/about" },
+  openGraph: {
+    title: "About ChannelPulse",
+    description: "Learn about ChannelPulse — the multichannel analytics dashboard built for e-commerce sellers.",
+    url: "https://channelpulse.us/about",
+    images: [{ url: "/logo-512.png", width: 512, height: 512 }],
+  },
+};
 
 export default function AboutPage() {
   return (
