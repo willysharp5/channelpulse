@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, ArrowUpRight, Check, Sparkles, LineChart, Upload, FileSpreadsheet } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Check, Sparkles, LineChart, Upload, FileSpreadsheet, AlertTriangle, Bell, Mail, SlidersHorizontal } from "lucide-react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button-variants";
@@ -737,12 +737,14 @@ export default function LandingPage() {
               <div className="space-y-2 p-4">
                 <p className="mb-3 text-xs font-semibold text-gray-500 dark:text-gray-400">Recent notifications</p>
                 {[
-                  { icon: "🔴", title: "Critical stock: Wireless Earbuds Pro", sub: "3 units left across Shopify", time: "Just now" },
-                  { icon: "🟡", title: "Low stock: Resistance Bands Set", sub: "8 units left on TikTok Shop", time: "12 min ago" },
-                  { icon: "📬", title: "Weekly digest sent", sub: "Revenue, orders and inventory summary", time: "Mon 8:00am" },
+                  { color: "bg-red-500", Icon: AlertTriangle, title: "Critical stock: Wireless Earbuds Pro", sub: "3 units left across Shopify", time: "Just now" },
+                  { color: "bg-amber-500", Icon: Bell, title: "Low stock: Resistance Bands Set", sub: "8 units left on TikTok Shop", time: "12 min ago" },
+                  { color: "bg-blue-500", Icon: Mail, title: "Weekly digest sent", sub: "Revenue, orders and inventory summary", time: "Mon 8:00am" },
                 ].map((n) => (
                   <div key={n.title} className="flex items-start gap-3 rounded-lg border border-gray-200 bg-white px-4 py-3 dark:border-gray-700 dark:bg-gray-900">
-                    <span className="text-sm">{n.icon}</span>
+                    <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${n.color} text-white`}>
+                      <n.Icon className="h-3 w-3" />
+                    </span>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-xs font-semibold text-gray-900 dark:text-gray-100">{n.title}</p>
                       <p className="truncate text-[10px] text-gray-400">{n.sub}</p>
@@ -764,28 +766,34 @@ export default function LandingPage() {
             <ul className="mt-8 space-y-5">
               {[
                 {
-                  emoji: "🔴",
+                  Icon: AlertTriangle,
+                  color: "bg-red-500/10 text-red-600 dark:text-red-400",
                   title: "Critical and low stock alerts",
                   desc: "Get notified the moment a product dips below your reorder point, before you miss a sale.",
                 },
                 {
-                  emoji: "🟡",
+                  Icon: Bell,
+                  color: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
                   title: "Alerts across all your channels",
                   desc: "One notification covers all your stores. If Wireless Earbuds Pro is low on Shopify and TikTok Shop, you get one alert, not five.",
                 },
                 {
-                  emoji: "📬",
+                  Icon: Mail,
+                  color: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
                   title: "Weekly email digest",
                   desc: "A summary of revenue, orders, and inventory health lands in your inbox every Monday morning so you start the week informed.",
                 },
                 {
-                  emoji: "⚙️",
+                  Icon: SlidersHorizontal,
+                  color: "bg-gray-500/10 text-gray-600 dark:text-gray-400",
                   title: "Your thresholds, your rules",
                   desc: "Set your own critical and low stock numbers. A seller moving 500 units a day needs different triggers than someone selling 10.",
                 },
               ].map((f) => (
                 <li key={f.title} className="flex gap-3">
-                  <span className="mt-0.5 text-lg">{f.emoji}</span>
+                  <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${f.color}`}>
+                    <f.Icon className="h-4 w-4" />
+                  </div>
                   <div>
                     <p className="font-semibold text-sm text-gray-950 dark:text-gray-50">{f.title}</p>
                     <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">{f.desc}</p>
