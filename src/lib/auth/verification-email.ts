@@ -1,6 +1,6 @@
 import { randomBytes, createHash } from "crypto";
-import { sendEmail } from "@/lib/email/resend";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sendTransactionalIfEnabled } from "@/lib/email/resolve-transactional-outgoing";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.channelpulse.us";
 
@@ -19,8 +19,7 @@ export async function sendVerificationEmail(userId: string, email: string) {
 
   const verifyUrl = `${APP_URL}/api/auth/verify-email?token=${encodeURIComponent(token)}&user=${encodeURIComponent(userId)}`;
 
-  await sendEmail({
-    to: email,
+  await sendTransactionalIfEnabled(sb, "email_verification", email, () => ({
     subject: "Confirm your ChannelPulse account",
     html: `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 40px 20px;">
@@ -38,5 +37,5 @@ export async function sendVerificationEmail(userId: string, email: string) {
         </p>
       </div>
     `,
-  });
+  }));
 }

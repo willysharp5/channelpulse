@@ -1,4 +1,5 @@
-import { sendEmail } from "@/lib/email/resend";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { sendTransactionalIfEnabled } from "@/lib/email/resolve-transactional-outgoing";
 
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.channelpulse.us";
 const SUPPORT_EMAIL = "support@channelpulse.us";
@@ -16,8 +17,8 @@ export async function sendDeletionScheduledEmail(
     day: "numeric",
   });
 
-  await sendEmail({
-    to,
+  const sb = createAdminClient();
+  await sendTransactionalIfEnabled(sb, "deletion_scheduled", to, () => ({
     subject: "Your ChannelPulse account is scheduled for deletion",
     html: `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 40px 20px;">
@@ -41,12 +42,12 @@ export async function sendDeletionScheduledEmail(
         </p>
       </div>
     `,
-  });
+  }));
 }
 
 export async function sendDeletionCancelledEmail(to: string) {
-  await sendEmail({
-    to,
+  const sb = createAdminClient();
+  await sendTransactionalIfEnabled(sb, "deletion_cancelled", to, () => ({
     subject: "Your ChannelPulse account has been recovered",
     html: `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 40px 20px;">
@@ -64,12 +65,12 @@ export async function sendDeletionCancelledEmail(to: string) {
         </p>
       </div>
     `,
-  });
+  }));
 }
 
 export async function sendDeletionCompletedEmail(to: string) {
-  await sendEmail({
-    to,
+  const sb = createAdminClient();
+  await sendTransactionalIfEnabled(sb, "deletion_completed", to, () => ({
     subject: "Your ChannelPulse account has been permanently deleted",
     html: `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 40px 20px;">
@@ -85,5 +86,5 @@ export async function sendDeletionCompletedEmail(to: string) {
         </p>
       </div>
     `,
-  });
+  }));
 }

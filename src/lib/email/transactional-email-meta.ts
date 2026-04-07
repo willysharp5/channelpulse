@@ -6,6 +6,10 @@ export const TRANSACTIONAL_EMAIL_TEST_TYPES = [
   "weekly_digest",
   "revenue_drop",
   "order_spike",
+  "email_verification",
+  "deletion_scheduled",
+  "deletion_cancelled",
+  "deletion_completed",
 ] as const;
 
 export type TransactionalEmailTestType = (typeof TRANSACTIONAL_EMAIL_TEST_TYPES)[number];
@@ -46,5 +50,29 @@ export const TRANSACTIONAL_EMAIL_LABELS: Record<
     description: "Unusual order volume vs recent days (generateAnomalyAlerts)",
     whatItIs:
       "One day's orders spike vs recent baseline (needs history + volume). Once/org/day; org must enable order spikes. Link: Orders that day.",
+  },
+  email_verification: {
+    title: "Email verification",
+    description: "Sent after signup to confirm email address",
+    whatItIs:
+      "Sent immediately after email signup. Contains a one-click confirmation link (expires 24h). Google OAuth users skip this.",
+  },
+  deletion_scheduled: {
+    title: "Deletion scheduled",
+    description: "Account deletion request confirmation with recovery link",
+    whatItIs:
+      "Sent when user requests account deletion. Contains a 5-day recovery link and purge date.",
+  },
+  deletion_cancelled: {
+    title: "Deletion cancelled",
+    description: "Account recovered after deletion was cancelled",
+    whatItIs:
+      "Sent when user or admin cancels a pending deletion. Confirms account is active again with sign-in link.",
+  },
+  deletion_completed: {
+    title: "Deletion completed",
+    description: "Account permanently deleted confirmation",
+    whatItIs:
+      "Sent after admin purges the account. Confirms all data has been permanently removed.",
   },
 };
