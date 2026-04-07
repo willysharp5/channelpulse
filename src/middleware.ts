@@ -18,6 +18,7 @@ const PUBLIC_ROUTES = [
   "/api/import/cron",
   "/api/cron/import-jobs-retention",
   "/api/email/weekly-digest",
+  "/verify-email",
 ];
 
 /** Domains that serve only the public marketing site. */
@@ -98,6 +99,11 @@ export async function middleware(request: NextRequest) {
 
   if (user && (pathname === "/login" || pathname === "/signup")) {
     return NextResponse.redirect(new URL("/", request.url));
+  }
+
+  const isOAuth = user.app_metadata?.provider !== "email";
+  if (!isOAuth && !user.email_confirmed_at && pathname !== "/verify-email") {
+    return NextResponse.redirect(new URL("/verify-email", request.url));
   }
 
   if (pathname.startsWith("/admin")) {

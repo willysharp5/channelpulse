@@ -25,10 +25,6 @@ export async function signUp(formData: FormData) {
     return { error: error.message };
   }
 
-  if (data.session) {
-    redirect("/");
-  }
-
   return { success: true };
 }
 
