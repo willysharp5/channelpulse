@@ -25,27 +25,11 @@ export async function signUp(formData: FormData) {
     return { error: error.message };
   }
 
-  // If email confirmation is disabled, user is auto-confirmed and we can sign in directly
   if (data.session) {
     redirect("/");
   }
 
-  // If email confirmation is required, sign in immediately anyway
-  // (Supabase free tier doesn't reliably send confirmation emails)
-  const { error: signInError } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
-
-  if (signInError) {
-    // If sign-in fails (unconfirmed), show a friendly message
-    return {
-      error:
-        "Account created! If you received a confirmation email, please click the link. Otherwise, try signing in — your account may already be active.",
-    };
-  }
-
-  redirect("/");
+  return { success: true };
 }
 
 export async function signIn(formData: FormData) {
@@ -63,13 +47,33 @@ export async function signIn(formData: FormData) {
     return { error: error.message };
   }
 
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (user) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("deletion_status")
+      .eq("id", user.id)
+      .single();
+
+    if (profile?.deletion_status === "pending_deletion") {
+      await supabase.auth.signOut();
+      return {
+        error:
+          "This account is scheduled for deletion. Check your email for a recovery link, or contact support.",
+      };
+    }
+  }
+
   redirect("/");
 }
 
 export async function signOut() {
   const supabase = await createClient();
   await supabase.auth.signOut();
-  redirect("/login");
+  redirect("/landing");
 }
 
 export async function getSession() {

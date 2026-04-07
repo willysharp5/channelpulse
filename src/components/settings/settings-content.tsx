@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import {
   RiLink,
@@ -24,6 +24,7 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { CHANNEL_CONFIG, PLAN_LIMITS, PLAN_PRICES } from "@/lib/constants";
 import { DisconnectButton } from "@/components/channels/disconnect-button";
+import { GoogleIcon } from "@/components/icons/google";
 import type { Platform } from "@/types";
 import { mergeNotificationPrefs } from "@/lib/alerts";
 
@@ -42,22 +43,41 @@ interface SettingsContentProps {
     platform_store_id: string | null;
     created_at: string | null;
   }>;
+  authProviders: string[];
 }
 
-export function SettingsContent({ email, businessName, plan, channels, notificationPrefs: initialPrefs }: SettingsContentProps) {
-  const searchParams = useSearchParams();
-  const tabFromUrl = searchParams.get("tab");
+const VALID_TABS = ["channels", "billing", "notifications", "account"] as const;
+type TabValue = typeof VALID_TABS[number];
 
-  const [tab, setTab] = useState(() => {
-    if (tabFromUrl === "notifications" || tabFromUrl === "billing" || tabFromUrl === "account") {
-      return tabFromUrl;
+export function SettingsContent({ email, businessName, plan, channels, notificationPrefs: initialPrefs, authProviders }: SettingsContentProps) {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const tabFromUrl = searchParams.get("tab");
+  const initialTab: TabValue = VALID_TABS.includes(tabFromUrl as TabValue)
+    ? (tabFromUrl as TabValue)
+    : "channels";
+
+  const [tab, setTab] = useState<TabValue>(initialTab);
+
+  function handleTabChange(value: string) {
+    const next = value as TabValue;
+    setTab(next);
+    const params = new URLSearchParams(searchParams.toString());
+    if (next === "channels") {
+      params.delete("tab");
+    } else {
+      params.set("tab", next);
     }
-    return "channels";
-  });
+    const qs = params.toString();
+    router.replace(`${pathname}${qs ? `?${qs}` : ""}`, { scroll: false });
+  }
 
   useEffect(() => {
     const t = searchParams.get("tab");
-    if (t === "notifications" || t === "billing" || t === "account") setTab(t);
+    const valid = VALID_TABS.includes(t as TabValue) ? (t as TabValue) : "channels";
+    setTab(valid);
   }, [searchParams]);
 
   const [notifPrefs, setNotifPrefs] = useState(initialPrefs);
@@ -88,7 +108,7 @@ export function SettingsContent({ email, businessName, plan, channels, notificat
 
   return (
     <div className="flex-1 space-y-6 p-6">
-      <Tabs value={tab} onValueChange={setTab}>
+      <Tabs value={tab} onValueChange={handleTabChange}>
         <TabsList className="bg-muted/50">
           <TabsTrigger value="channels" className="gap-1.5">
             <RiLink className="h-3.5 w-3.5" /> Channels
@@ -224,6 +244,20 @@ export function SettingsContent({ email, businessName, plan, channels, notificat
                           : `${(planLimits?.ordersPerMonth ?? 100).toLocaleString()}`}
                       </p>
                     </div>
+                  </div>
+                  <div className="flex items-center gap-2.5 rounded-lg border border-border/40 bg-background p-3 sm:col-span-2">
+                    <RiSparklingFill className={`h-4 w-4 ${planLimits?.aiInsights ? "text-purple-500" : "text-muted-foreground/40"}`} />
+                    <div className="flex-1">
+                      <p className="text-xs text-muted-foreground">AI Insights</p>
+                      <p className="text-sm font-semibold">
+                        {planLimits?.aiInsights ? "Included" : "Growth plan & above"}
+                      </p>
+                    </div>
+                    {!planLimits?.aiInsights && (
+                      <Link href="/billing" className="text-xs font-medium text-purple-600 hover:text-purple-700 dark:text-purple-400">
+                        Upgrade
+                      </Link>
+                    )}
                   </div>
                 </div>
               </div>
@@ -365,40 +399,18 @@ export function SettingsContent({ email, businessName, plan, channels, notificat
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Reports &amp; Digests</CardTitle>
-              <CardDescription>Scheduled summaries (email digest not yet wired).</CardDescription>
+              <CardDescription>Scheduled email summaries.</CardDescription>
             </CardHeader>
             <CardContent className="p-0">
-              <div className="flex items-center justify-between px-6 py-4 border-b">
+              <div className="flex items-center justify-between px-6 py-4">
                 <div>
                   <Label htmlFor="weekly_digest" className="text-sm font-medium">Weekly digest</Label>
-                  <p className="text-xs text-muted-foreground mt-0.5">Reserved for future email</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Weekly summary of revenue, orders, and inventory</p>
                 </div>
                 <Switch
                   id="weekly_digest"
                   checked={notifPrefs.weekly_digest}
                   onCheckedChange={(v) => void saveNotif({ weekly_digest: v })}
-                />
-              </div>
-              <div className="flex items-center justify-between px-6 py-4 border-b">
-                <div>
-                  <Label htmlFor="monthly_report" className="text-sm font-medium">Monthly report</Label>
-                  <p className="text-xs text-muted-foreground mt-0.5">Reserved for future email</p>
-                </div>
-                <Switch
-                  id="monthly_report"
-                  checked={notifPrefs.monthly_report}
-                  onCheckedChange={(v) => void saveNotif({ monthly_report: v })}
-                />
-              </div>
-              <div className="flex items-center justify-between px-6 py-4">
-                <div>
-                  <Label htmlFor="channel_summary" className="text-sm font-medium">Channel summary</Label>
-                  <p className="text-xs text-muted-foreground mt-0.5">Reserved for future email</p>
-                </div>
-                <Switch
-                  id="channel_summary"
-                  checked={notifPrefs.channel_summary}
-                  onCheckedChange={(v) => void saveNotif({ channel_summary: v })}
                 />
               </div>
             </CardContent>
@@ -413,7 +425,7 @@ export function SettingsContent({ email, businessName, plan, channels, notificat
               <div className="flex items-center justify-between px-6 py-4 border-b">
                 <div>
                   <Label htmlFor="email" className="text-sm font-medium">Email</Label>
-                  <p className="text-xs text-muted-foreground mt-0.5">Future: send to your account email</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Alerts and digests sent to your account email</p>
                 </div>
                 <Switch
                   id="email"
@@ -421,7 +433,7 @@ export function SettingsContent({ email, businessName, plan, channels, notificat
                   onCheckedChange={(v) => void saveNotif({ email: v })}
                 />
               </div>
-              <div className="flex items-center justify-between px-6 py-4 border-b">
+              <div className="flex items-center justify-between px-6 py-4">
                 <div>
                   <Label htmlFor="in_app" className="text-sm font-medium">In-app</Label>
                   <p className="text-xs text-muted-foreground mt-0.5">Bell icon in the dashboard</p>
@@ -432,30 +444,23 @@ export function SettingsContent({ email, businessName, plan, channels, notificat
                   onCheckedChange={(v) => void saveNotif({ in_app: v })}
                 />
               </div>
-              <div className="flex items-center justify-between px-6 py-4">
-                <div>
-                  <Label htmlFor="browser_push" className="text-sm font-medium">Browser push</Label>
-                  <p className="text-xs text-muted-foreground mt-0.5">Reserved</p>
-                </div>
-                <Switch
-                  id="browser_push"
-                  checked={notifPrefs.browser_push}
-                  onCheckedChange={(v) => void saveNotif({ browser_push: v })}
-                />
-              </div>
             </CardContent>
           </Card>
         </TabsContent>
 
         <TabsContent value="account" className="mt-6 space-y-4">
-          <AccountTab email={email} businessName={businessName} />
+          <AccountTab email={email} businessName={businessName} authProviders={authProviders} />
         </TabsContent>
       </Tabs>
     </div>
   );
 }
 
-function AccountTab({ email, businessName }: { email: string; businessName: string }) {
+function AccountTab({ email, businessName, authProviders }: { email: string; businessName: string; authProviders: string[] }) {
+  const providers = authProviders ?? ["email"];
+  const hasGoogle = providers.includes("google");
+  const hasEmail = providers.includes("email") || providers.includes("email+password");
+  const isGoogleOnly = hasGoogle && !hasEmail;
   const [name, setName] = useState(businessName);
   const [savingName, setSavingName] = useState(false);
   const [nameSuccess, setNameSuccess] = useState(false);
@@ -546,14 +551,21 @@ function AccountTab({ email, businessName }: { email: string; businessName: stri
     }
   }
 
+  const [deleteError, setDeleteError] = useState("");
+
   async function handleDeleteAccount() {
     if (deleteConfirm !== "DELETE") return;
     setDeleting(true);
+    setDeleteError("");
     try {
-      const res = await fetch("/api/account/delete", { method: "DELETE" });
-      if (!res.ok) throw new Error();
-      window.location.href = "/login";
-    } catch {
+      const res = await fetch("/api/account/request-deletion", { method: "POST" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ?? "Request failed");
+      }
+      window.location.href = "/login?reason=account_scheduled_deletion";
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : "Something went wrong");
       setDeleting(false);
     }
   }
@@ -589,98 +601,138 @@ function AccountTab({ email, businessName }: { email: string; businessName: stri
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Email Address</CardTitle>
-          <CardDescription>
-            Change the email associated with your account. You&apos;ll receive a confirmation link at the new address.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4 max-w-md">
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">Email</Label>
-            <Input
-              type="email"
-              value={newEmail}
-              onChange={(e) => setNewEmail(e.target.value)}
-              className="h-10"
-            />
-          </div>
-          {emailMessage && (
-            <p className={`text-sm ${emailMessage.includes("Check") ? "text-emerald-600" : "text-red-600"}`}>
-              {emailMessage}
-            </p>
-          )}
-          <Button
-            onClick={handleUpdateEmail}
-            disabled={savingEmail || newEmail === email || !newEmail}
-            variant="outline"
-          >
-            {savingEmail ? "Updating..." : "Update Email"}
-          </Button>
-        </CardContent>
-      </Card>
+      {hasGoogle && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Sign-in Method</CardTitle>
+            <CardDescription>
+              {isGoogleOnly
+                ? "Your account is connected via Google."
+                : "Your account is linked to Google and email/password."}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4 max-w-md">
+            <div className="flex items-center gap-3 rounded-lg border px-4 py-3">
+              <GoogleIcon className="h-5 w-5 shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium">Google Account</p>
+                <p className="truncate text-sm text-muted-foreground">{email}</p>
+              </div>
+              <Badge variant="secondary" className="shrink-0 text-xs">Connected</Badge>
+            </div>
+            {isGoogleOnly && (
+              <p className="text-xs text-muted-foreground">
+                Your email and password are managed by Google. To change them, visit your Google account settings.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Change Password</CardTitle>
-          <CardDescription>Update your account password. Must be at least 6 characters.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4 max-w-md">
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">Current Password</Label>
-            <PasswordInput
-              value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
-              className="h-10"
-              placeholder="Enter current password"
-              autoComplete="current-password"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">New Password</Label>
-            <PasswordInput
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              className="h-10"
-              placeholder="Enter new password"
-              autoComplete="new-password"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">Confirm New Password</Label>
-            <PasswordInput
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              className="h-10"
-              placeholder="Confirm new password"
-              autoComplete="new-password"
-            />
-          </div>
-          {passwordError && (
-            <p className="text-sm text-red-600">{passwordError}</p>
-          )}
-          {passwordMessage && (
-            <p className="text-sm text-emerald-600">{passwordMessage}</p>
-          )}
-          <Button
-            onClick={handleChangePassword}
-            disabled={savingPassword || !currentPassword || !newPassword}
-            variant="outline"
-          >
-            {savingPassword ? "Updating..." : "Change Password"}
-          </Button>
-        </CardContent>
-      </Card>
+      {!isGoogleOnly && (
+        <>
+          <Card>
+            <CardHeader>
+              <CardTitle>Email Address</CardTitle>
+              <CardDescription>
+                Change the email associated with your account. You&apos;ll receive a confirmation link at the new address.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4 max-w-md">
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Email</Label>
+                <Input
+                  type="email"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  className="h-10"
+                />
+              </div>
+              {emailMessage && (
+                <p className={`text-sm ${emailMessage.includes("Check") ? "text-emerald-600" : "text-red-600"}`}>
+                  {emailMessage}
+                </p>
+              )}
+              <Button
+                onClick={handleUpdateEmail}
+                disabled={savingEmail || newEmail === email || !newEmail}
+                variant="outline"
+              >
+                {savingEmail ? "Updating..." : "Update Email"}
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Change Password</CardTitle>
+              <CardDescription>Update your account password. Must be at least 6 characters.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4 max-w-md">
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Current Password</Label>
+                <PasswordInput
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  className="h-10"
+                  placeholder="Enter current password"
+                  autoComplete="current-password"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">New Password</Label>
+                <PasswordInput
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="h-10"
+                  placeholder="Enter new password"
+                  autoComplete="new-password"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Confirm New Password</Label>
+                <PasswordInput
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="h-10"
+                  placeholder="Confirm new password"
+                  autoComplete="new-password"
+                />
+              </div>
+              {passwordError && (
+                <p className="text-sm text-red-600">{passwordError}</p>
+              )}
+              {passwordMessage && (
+                <p className="text-sm text-emerald-600">{passwordMessage}</p>
+              )}
+              <Button
+                onClick={handleChangePassword}
+                disabled={savingPassword || !currentPassword || !newPassword}
+                variant="outline"
+              >
+                {savingPassword ? "Updating..." : "Change Password"}
+              </Button>
+            </CardContent>
+          </Card>
+        </>
+      )}
 
       <Card className="border-red-200 dark:border-red-900">
         <CardHeader>
           <CardTitle className="text-red-600">Delete Account</CardTitle>
           <CardDescription>
-            Permanently delete your account and all associated data. This action cannot be undone.
+            Schedule your account for deletion. You&apos;ll have 5 days to recover before all data is permanently removed.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4 max-w-md">
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/50 dark:text-amber-200">
+            <p className="font-medium">What happens when you delete?</p>
+            <ul className="mt-1.5 list-inside list-disc space-y-0.5 text-xs leading-relaxed text-amber-700 dark:text-amber-300">
+              <li>You&apos;ll be signed out immediately</li>
+              <li>We&apos;ll email you a recovery link (valid for 5 days)</li>
+              <li>After 5 days, an admin will permanently delete all your data</li>
+            </ul>
+          </div>
           <div className="space-y-2">
             <Label className="text-sm font-medium">
               Type <span className="font-mono text-red-600">DELETE</span> to confirm
@@ -692,12 +744,15 @@ function AccountTab({ email, businessName }: { email: string; businessName: stri
               placeholder="DELETE"
             />
           </div>
+          {deleteError && (
+            <p className="text-sm text-red-600">{deleteError}</p>
+          )}
           <Button
             variant="destructive"
             onClick={handleDeleteAccount}
             disabled={deleteConfirm !== "DELETE" || deleting}
           >
-            {deleting ? "Deleting..." : "Delete My Account"}
+            {deleting ? "Scheduling deletion..." : "Delete My Account"}
           </Button>
         </CardContent>
       </Card>

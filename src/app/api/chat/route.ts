@@ -3,6 +3,8 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { aiTools } from "@/lib/ai/tools";
 import { getSystemPrompt } from "@/lib/ai/system-prompt";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getUserPlan } from "@/lib/queries";
+import { PLAN_LIMITS } from "@/lib/constants";
 
 const openrouter = createOpenAI({
   baseURL: "https://openrouter.ai/api/v1",
@@ -24,6 +26,15 @@ async function getAiConfig() {
 }
 
 export async function POST(req: Request) {
+  const { plan } = await getUserPlan();
+  const limits = PLAN_LIMITS[plan as keyof typeof PLAN_LIMITS] ?? PLAN_LIMITS.free;
+  if (!limits.aiInsights) {
+    return new Response(
+      JSON.stringify({ error: "AI Insights requires the Growth plan or higher." }),
+      { status: 403, headers: { "Content-Type": "application/json" } }
+    );
+  }
+
   const [{ messages }, config] = await Promise.all([
     req.json(),
     getAiConfig(),

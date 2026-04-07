@@ -3,8 +3,8 @@
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, ArrowLeft, Check, Loader2 } from "lucide-react";
+import Image from "next/image";
 import {
-  RiPulseFill,
   RiStore2Fill,
   RiShoppingCart2Fill,
   RiBarChartBoxFill,
@@ -191,8 +191,8 @@ export function OnboardingWizard({ userName, onComplete }: OnboardingWizardProps
         {step === 0 && (
           <Card className="border-border/60 shadow-lg">
             <CardContent className="pt-8 pb-8 text-center space-y-6">
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-xl bg-amber-500/10">
-                <RiPulseFill className="h-8 w-8 text-amber-500" />
+              <div className="mx-auto">
+                <Image src="/logo.svg" alt="ChannelPulse" width={64} height={64} className="rounded-xl" />
               </div>
               <div>
                 <h1 className="text-2xl font-bold tracking-tight">

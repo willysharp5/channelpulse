@@ -18,6 +18,7 @@ import {
   RefreshCw,
   Upload,
   Plug,
+  Trash2,
   type LucideIcon,
 } from "lucide-react";
 
@@ -105,6 +106,7 @@ export const ADMIN_NAV_ITEMS: NavItem[] = [
   { title: "Email", href: "/admin/email", icon: Mail },
   { title: "Sync & Cron", href: "/admin/cron", icon: RefreshCw },
   { title: "Audit Log", href: "/admin/audit-log", icon: ClipboardList },
+  { title: "Deletion Requests", href: "/admin/deletion-requests", icon: Trash2 },
   { title: "Settings", href: "/admin/settings", icon: Settings },
 ];
 
@@ -140,10 +142,10 @@ export function rangeToDays(range: string | null): number {
 }
 
 export const PLAN_LIMITS = {
-  free: { channels: 1, ordersPerMonth: 100 },
-  starter: { channels: 3, ordersPerMonth: 5000 },
-  growth: { channels: 5, ordersPerMonth: 25000 },
-  scale: { channels: 999, ordersPerMonth: 999999 },
+  free: { channels: 1, ordersPerMonth: 100, aiInsights: false },
+  starter: { channels: 3, ordersPerMonth: 5000, aiInsights: false },
+  growth: { channels: 5, ordersPerMonth: 25000, aiInsights: true },
+  scale: { channels: 999, ordersPerMonth: 999999, aiInsights: true },
 } as const;
 
 export const PLAN_PRICES: Record<string, number> = {

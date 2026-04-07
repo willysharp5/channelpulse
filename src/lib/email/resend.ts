@@ -2,7 +2,7 @@ import { Resend } from "resend";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-const FROM_ADDRESS = "ChannelPulse <onboarding@resend.dev>";
+const FROM_ADDRESS = "ChannelPulse <noreply@channelpulse.us>";
 
 interface SendEmailOptions {
   to: string;

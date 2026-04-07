@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 import { createServerClient } from "@supabase/ssr";
+import { createClient } from "@supabase/supabase-js";
 
 const PUBLIC_ROUTES = [
   "/login",
@@ -8,6 +9,8 @@ const PUBLIC_ROUTES = [
   "/auth/callback",
   "/landing",
   "/demo",
+  "/account/recover-deletion",
+  "/api/account/cancel-deletion",
   "/api/webhooks",
   "/api/gdpr",
   "/api/stripe/webhook",
@@ -68,15 +71,26 @@ export async function middleware(request: NextRequest) {
   }
 
   if (pathname.startsWith("/admin")) {
-    const { data: profile } = await supabase
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!serviceKey) {
+      console.error("[admin-guard] SUPABASE_SERVICE_ROLE_KEY is not set");
+      return NextResponse.redirect(new URL("/", request.url));
+    }
+    const adminClient = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      serviceKey,
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    );
+    const { data: profile, error: profileErr } = await adminClient
       .from("profiles")
-      .select("role, status")
+      .select("role")
       .eq("id", user.id)
       .single();
 
     if (profile?.role !== "super_admin") {
       return NextResponse.redirect(new URL("/", request.url));
     }
+    return response;
   }
 
   return response;

@@ -18,7 +18,14 @@ export const metadata: Metadata = {
   description:
     "See all your Shopify, Amazon, eBay, and Etsy sales in one beautiful dashboard. Revenue, orders, profit & more.",
   icons: {
-    icon: "/icon.svg",
+    icon: [
+      { url: "/logo-16.png", sizes: "16x16", type: "image/png" },
+      { url: "/logo-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/logo-64.png", sizes: "64x64", type: "image/png" },
+      { url: "/logo.svg", type: "image/svg+xml" },
+    ],
+    apple: "/apple-touch-icon.png",
+    shortcut: "/favicon.ico",
   },
 };
 

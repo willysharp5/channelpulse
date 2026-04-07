@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Shield } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -26,9 +26,7 @@ export function AdminSidebar() {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" render={<Link href="/admin" />}>
-              <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900">
-                <Shield className="size-4" />
-              </div>
+              <Image src="/logo.svg" alt="ChannelPulse" width={32} height={32} className="rounded-lg" />
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-bold">Admin</span>
                 <span className="truncate text-xs text-muted-foreground">

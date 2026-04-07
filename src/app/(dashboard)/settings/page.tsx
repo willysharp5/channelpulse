@@ -39,6 +39,13 @@ export default async function SettingsPage() {
           plan={plan}
           notificationPrefs={mergeNotificationPrefs(org?.notification_preferences)}
           channels={channels}
+          authProviders={
+            Array.isArray(user?.app_metadata?.providers)
+              ? (user.app_metadata.providers as string[])
+              : user?.app_metadata?.provider
+                ? [user.app_metadata.provider as string]
+                : ["email"]
+          }
         />
       </Suspense>
     </>

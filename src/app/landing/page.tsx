@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { ArrowRight, ArrowUpRight, Check, Sparkles, LineChart } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Check, Sparkles, LineChart, Upload, FileSpreadsheet } from "lucide-react";
+import Image from "next/image";
 import {
-  RiPulseFill,
   RiArrowUpSFill,
   RiArrowDownSFill,
   RiBarChartBoxFill,
@@ -13,6 +13,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { LandingAiChatSection } from "@/components/landing/landing-ai-chat-section";
+import { TestimonialsCarousel } from "@/components/landing/testimonials-carousel";
+import { FooterNavLink } from "@/components/landing/footer-nav-link";
 
 const PRICING = [
   {
@@ -46,6 +48,7 @@ const PRICING = [
       "5 sales channels",
       "25,000 orders/month",
       "90-day history",
+      "AI Insights on your synced data",
       "P&L by channel",
       "CSV export (orders, products, P&L)",
       "Custom in-app alerts",
@@ -72,22 +75,30 @@ const PRICING = [
 
 export default function LandingPage() {
   return (
-    <div className="min-h-dvh bg-[#fafaf9] text-gray-950 dark:bg-gray-950 dark:text-gray-50">
+    <div className="scroll-smooth min-h-dvh bg-[#fafaf9] text-gray-950 dark:bg-gray-950 dark:text-gray-50">
 
       {/* ── Nav ── */}
       <nav className="sticky top-0 z-50 border-b border-gray-200/60 bg-[#fafaf9]/80 backdrop-blur-lg dark:border-gray-800/60 dark:bg-gray-950/80">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
           <Link href="/" className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500 text-white">
-              <RiPulseFill className="h-4 w-4" />
-            </div>
+            <Image src="/logo.svg" alt="ChannelPulse" width={32} height={32} className="rounded-lg" />
             <span className="text-base font-bold tracking-tight">ChannelPulse</span>
           </Link>
           <ul className="hidden items-center gap-8 text-sm font-medium text-gray-600 dark:text-gray-400 md:flex">
-            <li><Link href="#features" className="transition-colors hover:text-gray-950 dark:hover:text-gray-50">Features</Link></li>
-            <li><Link href="#ai-analytics" className="transition-colors hover:text-gray-950 dark:hover:text-gray-50">AI &amp; Analytics</Link></li>
-            <li><Link href="#analytics" className="transition-colors hover:text-gray-950 dark:hover:text-gray-50">Analytics</Link></li>
-            <li><Link href="#pricing" className="transition-colors hover:text-gray-950 dark:hover:text-gray-50">Pricing</Link></li>
+            {[
+              { label: "Features", hash: "#features" },
+              { label: "AI & Analytics", hash: "#ai-analytics" },
+              { label: "Analytics", hash: "#analytics" },
+              { label: "Pricing", hash: "#pricing" },
+            ].map(({ label, hash }) => (
+              <li key={hash}>
+                <FooterNavLink
+                  href={`/landing${hash}`}
+                  label={label}
+                  className="transition-colors hover:text-gray-950 dark:hover:text-gray-50"
+                />
+              </li>
+            ))}
           </ul>
           <div className="flex items-center gap-3">
             <ThemeToggle />
@@ -111,7 +122,7 @@ export default function LandingPage() {
 
       {/* ── Hero (with dot grid + radial glow confined to this section) ── */}
       <section className="relative overflow-hidden">
-        {/* Dot grid — only in hero */}
+        {/* Dot grid only in hero */}
         <div
           className="pointer-events-none absolute inset-0 dark:opacity-15"
           style={{
@@ -131,7 +142,7 @@ export default function LandingPage() {
             className="mb-10 inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white/80 px-4 py-1.5 text-sm shadow-sm backdrop-blur-sm transition-colors hover:bg-white dark:border-gray-800 dark:bg-gray-900/80 dark:hover:bg-gray-900"
           >
             <span className="font-semibold text-amber-600 dark:text-amber-400">New</span>
-            <span className="text-gray-600 dark:text-gray-400">Shopify, Amazon, Etsy &amp; TikTok Shop</span>
+            <span className="text-gray-600 dark:text-gray-400">Ask AI questions about your store data</span>
             <ArrowUpRight className="h-3.5 w-3.5 text-gray-400" />
           </Link>
 
@@ -142,7 +153,7 @@ export default function LandingPage() {
           </h1>
 
           <p className="mx-auto mt-8 max-w-lg text-lg leading-relaxed text-gray-500 dark:text-gray-400">
-            Unify your Shopify, Amazon, Etsy, and TikTok Shop data into one analytics dashboard. Revenue, orders, and profit in real time—with AI-powered insights and deep multichannel analytics.
+            Unify your Shopify, Amazon, Etsy, and TikTok Shop data into one analytics dashboard. Revenue, orders, and profit in real time, with AI-powered insights and deep multichannel analytics.
           </p>
 
           <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
@@ -266,7 +277,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── Feature 2: Multi-Channel Sync (two-column with visual) ── */}
-      <section className="relative z-10 overflow-hidden border-y border-gray-200/60 bg-white/50 py-32 backdrop-blur-sm dark:border-gray-800/60 dark:bg-gray-900/30">
+      <section id="sync" className="relative z-10 overflow-hidden border-y border-gray-200/60 bg-white/50 py-32 backdrop-blur-sm dark:border-gray-800/60 dark:bg-gray-900/30">
         {/* Subtle side glow */}
         <div className="pointer-events-none absolute -right-40 top-1/2 h-[400px] w-[400px] -translate-y-1/2 rounded-full bg-emerald-400/[0.05] blur-3xl" />
         <div className="mx-auto max-w-6xl px-6">
@@ -274,10 +285,10 @@ export default function LandingPage() {
           <div>
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">Multi-Channel Sync</h2>
             <p className="mt-3 text-gray-500 dark:text-gray-400">
-              Connect your stores via secure OAuth. Orders, products, and revenue flow in automatically. Zero CSV uploads.
+              Connect your stores via secure OAuth. Orders, products, and revenue flow in automatically no spreadsheets required.
             </p>
             <p className="mt-6 text-gray-500 dark:text-gray-400 leading-relaxed">
-              Deploy real-time syncing across your Shopify, Amazon, Etsy, and TikTok Shop stores with our integrated webhook pipeline. New orders appear in your dashboard within seconds of being placed.
+              Connect your Shopify, Amazon, Etsy, and TikTok Shop stores once and your orders, products, and revenue start appearing in your dashboard automatically no manual work needed.
             </p>
           </div>
           <div className="overflow-hidden rounded-3xl border border-gray-200 bg-white p-1.5 shadow-xl shadow-gray-200/40 dark:border-gray-800 dark:bg-gray-900 dark:shadow-none">
@@ -318,7 +329,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── Feature 3: Profit & Loss (two-column reversed) ── */}
-      <section className="relative z-10 mx-auto max-w-6xl px-6 py-32">
+      <section id="pnl" className="relative z-10 mx-auto max-w-6xl px-6 py-32">
         <div className="grid items-center gap-16 lg:grid-cols-2">
           <div className="order-2 lg:order-1">
             <div className="overflow-hidden rounded-3xl border border-gray-200 bg-white p-1.5 shadow-xl shadow-gray-200/40 dark:border-gray-800 dark:bg-gray-900 dark:shadow-none">
@@ -360,8 +371,97 @@ export default function LandingPage() {
               Turn raw orders into actionable P&L insights
             </p>
             <p className="mt-6 text-gray-500 dark:text-gray-400 leading-relaxed">
-              See exactly where your profit comes from and where fees eat into margins. Set COGS per product or as a percentage, track marketplace fees, shipping costs, ad spend, and refunds, all broken down by channel.
+              See exactly where your profit comes from and where fees eat into margins. Set your cost of goods (what you paid to make or buy each product) per item or as a percentage, then track marketplace fees, shipping costs, ad spend, and refunds all broken down by channel.
             </p>
+          </div>
+        </div>
+      </section>
+
+      {/* ── CSV Import ── */}
+      <section className="relative z-10 mx-auto max-w-6xl px-6 py-32">
+        <div className="grid items-center gap-16 lg:grid-cols-2">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-widest text-amber-600 dark:text-amber-400">Import</p>
+            <h2 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">Not everything syncs and that&apos;s okay</h2>
+            <p className="mt-4 text-gray-500 dark:text-gray-400 leading-relaxed">
+              Some platforms don&apos;t have a direct API connection, and some historical data only lives in a spreadsheet.
+              That&apos;s why ChannelPulse lets you import <strong className="font-semibold text-gray-900 dark:text-gray-100">orders, products, and inventory</strong> from any CSV file so nothing is left out of your analytics.
+            </p>
+            <ul className="mt-8 space-y-4">
+              {[
+                { icon: FileSpreadsheet, title: "Smart column mapping", desc: "Paste in any spreadsheet export and we match your columns automatically. No reformatting." },
+                { icon: Upload, title: "Orders, products & inventory", desc: "Import historical orders, set up your product catalog, or update stock levels in bulk." },
+                { icon: Check, title: "Blends with live sync data", desc: "Imported data sits alongside your synced channels so your dashboards stay complete." },
+              ].map((f) => (
+                <li key={f.title} className="flex gap-3">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                    <f.icon className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-950 dark:text-gray-50 text-sm">{f.title}</p>
+                    <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">{f.desc}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+            <div className="mt-10">
+              <Link href="/signup">
+                <button className="inline-flex h-10 items-center gap-2 rounded-xl bg-amber-500 px-6 text-sm font-semibold text-white shadow-md shadow-amber-500/20 transition-colors hover:bg-amber-600">
+                  <Upload className="h-4 w-4" /> Start importing free
+                </button>
+              </Link>
+            </div>
+          </div>
+
+          {/* Import wizard mock */}
+          <div className="overflow-hidden rounded-3xl border border-gray-200 bg-white p-1.5 shadow-xl shadow-gray-200/40 dark:border-gray-800 dark:bg-gray-900 dark:shadow-none">
+            <div className="rounded-2xl border border-gray-100 bg-gray-50 dark:border-gray-800 dark:bg-gray-900/50">
+              {/* Step pills */}
+              <div className="flex items-center gap-0 border-b border-gray-200 px-5 py-3 dark:border-gray-800">
+                {["Choose type", "Upload file", "Map columns", "Review"].map((step, i) => (
+                  <div key={step} className="flex items-center gap-0">
+                    <span className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${i === 1 ? "bg-amber-500 text-white" : "text-gray-400"}`}>
+                      <span className={`flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-bold ${i === 1 ? "bg-white/30" : "bg-gray-200 dark:bg-gray-700"}`}>{i + 1}</span>
+                      <span className="hidden sm:inline">{step}</span>
+                    </span>
+                    {i < 3 && <span className="mx-0.5 text-gray-300 dark:text-gray-700">›</span>}
+                  </div>
+                ))}
+              </div>
+
+              {/* Dropzone */}
+              <div className="p-5 space-y-4">
+                <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-amber-300 bg-amber-50/40 py-10 text-center dark:border-amber-800/40 dark:bg-amber-950/10">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-amber-600 dark:bg-amber-900/50 dark:text-amber-400">
+                    <Upload className="h-5 w-5" />
+                  </div>
+                  <p className="mt-3 text-sm font-medium text-gray-800 dark:text-gray-200">Drop your CSV here</p>
+                  <p className="mt-1 text-xs text-gray-400">or click to browse · orders, products, inventory</p>
+                  <span className="mt-3 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300">Choose file</span>
+                </div>
+
+                {/* Column mapping preview */}
+                <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
+                  <div className="border-b border-gray-100 px-4 py-2.5 dark:border-gray-800">
+                    <p className="text-xs font-medium text-gray-500">Column mapping auto-detected</p>
+                  </div>
+                  <div className="divide-y divide-gray-100 dark:divide-gray-800 text-xs">
+                    {[
+                      { your: "Order ID", maps: "platform_order_id" },
+                      { your: "Sale Date", maps: "ordered_at" },
+                      { your: "Total ($)", maps: "total_amount" },
+                      { your: "SKU", maps: "sku" },
+                    ].map((row) => (
+                      <div key={row.your} className="flex items-center justify-between px-4 py-2.5">
+                        <span className="font-mono text-gray-500 dark:text-gray-400">{row.your}</span>
+                        <span className="text-gray-300 dark:text-gray-600">→</span>
+                        <span className="font-mono font-medium text-amber-700 dark:text-amber-400">{row.maps}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -381,7 +481,7 @@ export default function LandingPage() {
               </p>
               <h2 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">AI insights &amp; deep analytics</h2>
               <p className="mt-4 leading-relaxed text-gray-500 dark:text-gray-400">
-                Go beyond static charts. ChannelPulse combines interactive analytics across every connected store with an AI assistant that understands your synced orders, revenue, products, and P&amp;L—so you can explore trends and get answers without exporting to spreadsheets.
+                Go beyond static charts. ChannelPulse combines interactive analytics across every connected store with an AI assistant that understands your orders, revenue, products, and profit so you can ask questions in plain English and get answers instantly.
               </p>
               <ul className="mt-10 space-y-6">
                 <li className="flex gap-4">
@@ -391,7 +491,7 @@ export default function LandingPage() {
                   <div>
                     <p className="font-semibold text-gray-950 dark:text-gray-50">AI Insights</p>
                     <p className="mt-1 text-sm leading-relaxed text-gray-500 dark:text-gray-400">
-                      Ask questions in plain language, use suggested reports, and dig into performance with context from your real channel data—not generic advice.
+                      Ask questions in plain language, use suggested reports, and dig into performance with context from your real channel data, not generic advice.
                     </p>
                   </div>
                 </li>
@@ -402,7 +502,7 @@ export default function LandingPage() {
                   <div>
                     <p className="font-semibold text-gray-950 dark:text-gray-50">Multichannel analytics</p>
                     <p className="mt-1 text-sm leading-relaxed text-gray-500 dark:text-gray-400">
-                      Revenue trends, order KPIs, channel comparisons, inventory views, and exportable reports—filtered by date range and store, all in one place.
+                      Revenue trends, order KPIs, channel comparisons, inventory views, and exportable reports filtered by date range and store, all in one place.
                     </p>
                   </div>
                 </li>
@@ -431,26 +531,8 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Testimonial ── */}
-      <section className="relative z-10 overflow-hidden border-y border-gray-200/60 bg-white/50 py-24 backdrop-blur-sm dark:border-gray-800/60 dark:bg-gray-900/30">
-        <div className="pointer-events-none absolute left-1/2 top-1/2 h-[300px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-amber-300/[0.06] blur-3xl" />
-        <div className="relative z-10 mx-auto max-w-4xl px-6">
-        <blockquote className="rounded-3xl border border-gray-200 bg-white p-10 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-14">
-          <p className="text-lg font-medium leading-relaxed text-gray-700 dark:text-gray-300 sm:text-xl">
-            <strong>&ldquo;ChannelPulse replaced three spreadsheets and two dashboards for us.</strong> Having Shopify, Amazon, and TikTok Shop revenue in one view with real P&L numbers saved us hours every week. The setup took literally 2 minutes.&rdquo;
-          </p>
-          <div className="mt-8 flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 text-lg font-bold text-amber-800 dark:bg-amber-900 dark:text-amber-200">
-              E
-            </div>
-            <div>
-              <p className="text-sm font-semibold">Emma Chen</p>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Founder, Pinewood Commerce</p>
-            </div>
-          </div>
-        </blockquote>
-        </div>
-      </section>
+      {/* ── Testimonials carousel ── */}
+      <TestimonialsCarousel />
 
       {/* ── Analytics Section (Solar-style data table) ── */}
       <section id="analytics" className="relative z-10 mx-auto max-w-6xl px-6 py-32">
@@ -546,6 +628,110 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ── Inventory and Notifications ── */}
+      <section className="relative z-10 mx-auto max-w-6xl px-6 py-32">
+        <div className="grid items-center gap-16 lg:grid-cols-2">
+          {/* Visual */}
+          <div className="overflow-hidden rounded-3xl border border-gray-200 bg-white p-1.5 shadow-xl shadow-gray-200/40 dark:border-gray-800 dark:bg-gray-900 dark:shadow-none">
+            <div className="rounded-2xl border border-gray-100 bg-gray-50 dark:border-gray-800 dark:bg-gray-900/50">
+
+              {/* Inventory rows */}
+              <div className="border-b border-gray-200 p-4 dark:border-gray-800">
+                <p className="mb-3 text-xs font-semibold text-gray-500 dark:text-gray-400">Inventory across channels</p>
+                <div className="space-y-2">
+                  {[
+                    { name: "Wireless Earbuds Pro", sku: "WEP-001", qty: 3, status: "critical", channel: "#96BF48" },
+                    { name: "Travel Neck Pillow", sku: "TNP-002", qty: 14, status: "low", channel: "#FF9900" },
+                    { name: "Bamboo Cutting Board", sku: "BCB-003", qty: 87, status: "healthy", channel: "#F16521" },
+                    { name: "Resistance Bands Set", sku: "RBS-004", qty: 8, status: "low", channel: "#FE2C55" },
+                  ].map((item) => (
+                    <div key={item.sku} className="flex items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-2.5 dark:border-gray-700 dark:bg-gray-900">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: item.channel }} />
+                        <div className="min-w-0">
+                          <p className="truncate text-xs font-medium">{item.name}</p>
+                          <p className="text-[10px] text-gray-400">{item.sku}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="tabular-nums text-xs font-semibold">{item.qty} left</span>
+                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                          item.status === "critical" ? "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400" :
+                          item.status === "low" ? "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400" :
+                          "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400"
+                        }`}>
+                          {item.status === "critical" ? "Critical" : item.status === "low" ? "Low" : "Healthy"}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Notification toasts */}
+              <div className="space-y-2 p-4">
+                <p className="mb-3 text-xs font-semibold text-gray-500 dark:text-gray-400">Recent notifications</p>
+                {[
+                  { icon: "🔴", title: "Critical stock: Wireless Earbuds Pro", sub: "3 units left across Shopify", time: "Just now" },
+                  { icon: "🟡", title: "Low stock: Resistance Bands Set", sub: "8 units left on TikTok Shop", time: "12 min ago" },
+                  { icon: "📬", title: "Weekly digest sent", sub: "Revenue, orders and inventory summary", time: "Mon 8:00am" },
+                ].map((n) => (
+                  <div key={n.title} className="flex items-start gap-3 rounded-lg border border-gray-200 bg-white px-4 py-3 dark:border-gray-700 dark:bg-gray-900">
+                    <span className="text-sm">{n.icon}</span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-xs font-semibold text-gray-900 dark:text-gray-100">{n.title}</p>
+                      <p className="truncate text-[10px] text-gray-400">{n.sub}</p>
+                    </div>
+                    <span className="shrink-0 text-[10px] text-gray-400">{n.time}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Copy */}
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-widest text-amber-600 dark:text-amber-400">Inventory and alerts</p>
+            <h2 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">Know before you run out</h2>
+            <p className="mt-4 text-gray-500 dark:text-gray-400 leading-relaxed">
+              ChannelPulse tracks stock levels across every connected channel in one view. Every product is marked as Healthy, Low, or Critical based on thresholds you control. You never have to log into each store separately to check what is running low.
+            </p>
+            <ul className="mt-8 space-y-5">
+              {[
+                {
+                  emoji: "🔴",
+                  title: "Critical and low stock alerts",
+                  desc: "Get notified the moment a product dips below your reorder point, before you miss a sale.",
+                },
+                {
+                  emoji: "🟡",
+                  title: "Alerts across all your channels",
+                  desc: "One notification covers all your stores. If Wireless Earbuds Pro is low on Shopify and TikTok Shop, you get one alert, not five.",
+                },
+                {
+                  emoji: "📬",
+                  title: "Weekly email digest",
+                  desc: "A summary of revenue, orders, and inventory health lands in your inbox every Monday morning so you start the week informed.",
+                },
+                {
+                  emoji: "⚙️",
+                  title: "Your thresholds, your rules",
+                  desc: "Set your own critical and low stock numbers. A seller moving 500 units a day needs different triggers than someone selling 10.",
+                },
+              ].map((f) => (
+                <li key={f.title} className="flex gap-3">
+                  <span className="mt-0.5 text-lg">{f.emoji}</span>
+                  <div>
+                    <p className="font-semibold text-sm text-gray-950 dark:text-gray-50">{f.title}</p>
+                    <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">{f.desc}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </section>
+
       {/* ── Pricing ── */}
       <section id="pricing" className="relative z-10 overflow-hidden border-y border-gray-200/60 bg-white/50 py-32 backdrop-blur-sm dark:border-gray-800/60 dark:bg-gray-900/30">
         <div className="pointer-events-none absolute -left-32 top-0 h-[350px] w-[350px] rounded-full bg-violet-400/[0.04] blur-3xl" />
@@ -605,7 +791,7 @@ export default function LandingPage() {
         <div className="rounded-3xl border border-gray-200 bg-white p-12 text-center shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-16">
           <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">Ready to get started?</h2>
           <p className="mx-auto mt-4 max-w-md text-gray-500 dark:text-gray-400">
-            Begin your multichannel analytics journey today or chat with us about your needs.
+            Connect your first store in under 2 minutes. Free to start, no credit card required.
           </p>
           <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
             <Link href="/signup">
@@ -613,8 +799,8 @@ export default function LandingPage() {
                 Start free <ArrowRight className="ml-1 h-4 w-4" />
               </Button>
             </Link>
-            <Link href="/login">
-              <Button variant="outline" className="h-12 rounded-xl px-8 text-base">Sign in</Button>
+            <Link href="/demo">
+              <Button variant="outline" className="h-12 rounded-xl px-8 text-base">View a demo store</Button>
             </Link>
           </div>
         </div>
@@ -622,7 +808,7 @@ export default function LandingPage() {
 
       {/* ── Footer ── */}
       <footer className="relative z-10 bg-white dark:bg-gray-950">
-        {/* Diagonal hatching stripe — matches Solar */}
+        {/* Diagonal hatching stripe matches Solar */}
         <div
           className="h-16 w-full border-y border-gray-200 dark:border-gray-800"
           style={{
@@ -637,28 +823,45 @@ export default function LandingPage() {
             {/* Logo + description */}
             <div className="lg:col-span-2">
               <div className="flex items-center gap-2.5">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500 text-white">
-                  <RiPulseFill className="h-4 w-4" />
-                </div>
+                <Image src="/logo.svg" alt="ChannelPulse" width={32} height={32} className="rounded-lg" />
                 <span className="font-bold">ChannelPulse</span>
               </div>
             </div>
 
             {/* Link columns */}
             {[
-              { title: "Product", links: ["Overview", "Orders", "Revenue", "P&L Reports", "AI Insights", "Documentation", "Changelog"] },
-              { title: "Company", links: ["About", "Blog", "Careers", "Press", "Partners"] },
-              { title: "Resources", links: ["Community", "Contact", "Support", "Privacy Policy", "Terms of Service", "Report an Issue"] },
-              { title: "Channels", links: ["Shopify", "Amazon", "Etsy", "TikTok Shop"] },
+              { title: "Product", links: [
+                { label: "Overview", href: "/landing#features" },
+                { label: "Orders", href: "/landing#analytics" },
+                { label: "Revenue", href: "/landing#analytics" },
+                { label: "P&L Reports", href: "/landing#pnl" },
+                { label: "AI Insights", href: "/landing#ai-analytics" },
+              ]},
+              { title: "Company", links: [
+                { label: "About", href: "/about" },
+              ]},
+              { title: "Resources", links: [
+                { label: "Privacy Policy", href: "/privacy" },
+                { label: "Terms of Service", href: "/terms" },
+              ]},
+              { title: "Channels", links: [
+                { label: "Shopify", href: "" },
+                { label: "Amazon", href: "" },
+                { label: "Etsy", href: "" },
+                { label: "TikTok Shop", href: "" },
+                { label: "Walmart Marketplace", href: "" },
+              ]},
             ].map((col) => (
               <div key={col.title}>
                 <p className="text-sm font-semibold text-gray-950 dark:text-gray-50">{col.title}</p>
                 <ul className="mt-4 space-y-2.5">
                   {col.links.map((link) => (
-                    <li key={link}>
-                      <Link href="#" className="text-sm text-gray-500 transition-colors hover:text-gray-950 dark:text-gray-400 dark:hover:text-gray-50">
-                        {link}
-                      </Link>
+                    <li key={link.label}>
+                      {link.href ? (
+                        <FooterNavLink href={link.href} label={link.label} />
+                      ) : (
+                        <span className="text-sm text-gray-500 dark:text-gray-400">{link.label}</span>
+                      )}
                     </li>
                   ))}
                 </ul>

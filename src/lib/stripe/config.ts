@@ -47,6 +47,7 @@ export const STRIPE_PLANS = {
       "5 sales channels",
       "25,000 orders/month",
       "90-day history",
+      "AI Insights on your synced data",
       "P&L by channel",
       "CSV export",
       "Custom alerts",

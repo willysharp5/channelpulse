@@ -14,7 +14,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    const { plan } = (await request.json()) as { plan: StripePlan };
+    const { plan, returnUrl } = (await request.json()) as { plan: StripePlan; returnUrl?: string };
     const planConfig = STRIPE_PLANS[plan];
 
     if (!planConfig) {
@@ -56,8 +56,8 @@ export async function POST(request: Request) {
       mode: "subscription",
       payment_method_types: ["card"],
       line_items: [{ price: planConfig.priceId, quantity: 1 }],
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/billing?checkout=success`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/billing?checkout=cancelled`,
+      success_url: `${process.env.NEXT_PUBLIC_APP_URL}${returnUrl ?? "/billing"}?checkout=success`,
+      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}${returnUrl ?? "/billing"}?checkout=cancelled`,
       metadata: {
         supabase_user_id: user.id,
         plan,
