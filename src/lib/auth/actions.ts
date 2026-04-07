@@ -73,7 +73,7 @@ export async function signIn(formData: FormData) {
 export async function signOut() {
   const supabase = await createClient();
   await supabase.auth.signOut();
-  redirect("/landing");
+  redirect(process.env.NEXT_PUBLIC_SITE_URL ?? "https://channelpulse.us");
 }
 
 export async function getSession() {

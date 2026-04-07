@@ -34,8 +34,7 @@ export function UserMenu({ email, name }: UserMenuProps) {
   async function handleSignOut() {
     const supabase = createClient();
     await supabase.auth.signOut();
-    router.push("/landing");
-    router.refresh();
+    window.location.href = process.env.NEXT_PUBLIC_SITE_URL ?? "https://channelpulse.us";
   }
 
   return (
