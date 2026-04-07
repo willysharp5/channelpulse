@@ -4,7 +4,12 @@ let _stripe: Stripe | null = null;
 
 export function getStripe(): Stripe {
   if (!_stripe) {
-    _stripe = new Stripe(process.env.STRIPE_SECRET_KEY!.trim());
+    const raw = process.env.STRIPE_SECRET_KEY ?? "";
+    const key = raw.replace(/[^\x20-\x7E]/g, "").trim();
+    if (key.length !== raw.length) {
+      console.warn(`[stripe] key had ${raw.length - key.length} invisible char(s) stripped (raw length=${raw.length}, clean length=${key.length})`);
+    }
+    _stripe = new Stripe(key);
   }
   return _stripe;
 }
