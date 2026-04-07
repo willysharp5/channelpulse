@@ -17,6 +17,7 @@ const PUBLIC_ROUTES = [
   "/api/sync/cron",
   "/api/import/cron",
   "/api/cron/import-jobs-retention",
+  "/api/email/weekly-digest",
 ];
 
 /** Domains that serve only the public marketing site. */
