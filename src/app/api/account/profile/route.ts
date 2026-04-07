@@ -18,10 +18,23 @@ export async function PATCH(request: Request) {
       data: { business_name: full_name },
     });
 
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("org_id")
+      .eq("id", user.id)
+      .single();
+
     await supabase
       .from("profiles")
       .update({ full_name, updated_at: new Date().toISOString() })
       .eq("id", user.id);
+
+    if (profile?.org_id) {
+      await supabase
+        .from("organizations")
+        .update({ name: full_name })
+        .eq("id", profile.org_id);
+    }
 
     return NextResponse.json({ ok: true });
   } catch {
