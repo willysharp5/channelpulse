@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, ArrowUpRight, Check, Sparkles, LineChart, Upload, FileSpreadsheet } from "lucide-react";
 import Image from "next/image";
+import { cn } from "@/lib/utils";
+import { buttonVariants } from "@/components/ui/button-variants";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.channelpulse.us";
 
@@ -81,7 +83,6 @@ import {
   RiShieldCheckFill,
   RiSparklingFill,
 } from "@remixicon/react";
-import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { LandingAiChatSection } from "@/components/landing/landing-ai-chat-section";
 import { TestimonialsCarousel } from "@/components/landing/testimonials-carousel";
@@ -146,11 +147,12 @@ const PRICING = [
 
 export default function LandingPage() {
   return (
-    <div className="scroll-smooth min-h-dvh bg-[#fafaf9] text-gray-950 dark:bg-gray-950 dark:text-gray-50">
+    <>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
+    <div className="scroll-smooth min-h-dvh bg-[#fafaf9] text-gray-950 dark:bg-gray-950 dark:text-gray-50">
 
       {/* ── Nav ── */}
       <nav className="sticky top-0 z-50 border-b border-gray-200/60 bg-[#fafaf9]/80 backdrop-blur-lg dark:border-gray-800/60 dark:bg-gray-950/80">
@@ -186,10 +188,8 @@ export default function LandingPage() {
             <a href={`${APP_URL}/login`} className="hidden text-sm font-medium text-gray-600 transition-colors hover:text-gray-950 dark:text-gray-400 dark:hover:text-gray-50 sm:inline">
               Sign In
             </a>
-            <a href={`${APP_URL}/signup`}>
-              <Button variant="outline" size="sm" className="rounded-lg border-gray-300 font-medium dark:border-gray-700">
-                Get Started
-              </Button>
+            <a href={`${APP_URL}/signup`} className={cn(buttonVariants({ variant: "outline", size: "sm" }), "rounded-lg border-gray-300 font-medium dark:border-gray-700")}>
+              Get Started
             </a>
           </div>
         </div>
@@ -232,19 +232,18 @@ export default function LandingPage() {
           </p>
 
           <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
-            <Link href={`${APP_URL}/demo`}>
-              <Button
-                variant="outline"
-                className="h-12 rounded-xl border-amber-500/50 bg-white/90 px-8 text-base font-semibold text-amber-900 shadow-sm backdrop-blur-sm hover:bg-amber-50 dark:border-amber-500/40 dark:bg-gray-900/90 dark:text-amber-100 dark:hover:bg-amber-950/50"
-              >
-                View a demo store
-              </Button>
-            </Link>
-            <Link href={`${APP_URL}/signup`}>
-              <Button className="h-12 rounded-xl bg-amber-500 px-8 text-base font-semibold text-white shadow-lg shadow-amber-500/25 hover:bg-amber-600">
-                Start tracking free
-              </Button>
-            </Link>
+            <a
+              href={`${APP_URL}/demo`}
+              className="inline-flex h-12 items-center justify-center rounded-xl border border-amber-500/50 bg-white/90 px-8 text-base font-semibold text-amber-900 shadow-sm backdrop-blur-sm transition-colors hover:bg-amber-50 dark:border-amber-500/40 dark:bg-gray-900/90 dark:text-amber-100 dark:hover:bg-amber-950/50"
+            >
+              View a demo store
+            </a>
+            <a
+              href={`${APP_URL}/signup`}
+              className="inline-flex h-12 items-center justify-center rounded-xl bg-amber-500 px-8 text-base font-semibold text-white shadow-lg shadow-amber-500/25 transition-colors hover:bg-amber-600"
+            >
+              Start tracking free
+            </a>
           </div>
         </div>
       </section>
@@ -480,11 +479,9 @@ export default function LandingPage() {
               ))}
             </ul>
             <div className="mt-10">
-              <Link href={`${APP_URL}/signup`}>
-                <button className="inline-flex h-10 items-center gap-2 rounded-xl bg-amber-500 px-6 text-sm font-semibold text-white shadow-md shadow-amber-500/20 transition-colors hover:bg-amber-600">
-                  <Upload className="h-4 w-4" /> Start importing free
-                </button>
-              </Link>
+              <a href={`${APP_URL}/signup`} className="inline-flex h-10 items-center gap-2 rounded-xl bg-amber-500 px-6 text-sm font-semibold text-white shadow-md shadow-amber-500/20 transition-colors hover:bg-amber-600">
+                <Upload className="h-4 w-4" /> Start importing free
+              </a>
             </div>
           </div>
 
@@ -583,19 +580,12 @@ export default function LandingPage() {
                 </li>
               </ul>
               <div className="mt-10 flex flex-wrap gap-3">
-                <Link href={`${APP_URL}/demo`}>
-                  <Button
-                    variant="outline"
-                    className="rounded-xl border-amber-500/40 font-medium text-amber-900 hover:bg-amber-50 dark:text-amber-100 dark:hover:bg-amber-950/40"
-                  >
-                    View a demo store
-                  </Button>
-                </Link>
-                <Link href={`${APP_URL}/signup`}>
-                  <Button className="rounded-xl bg-amber-500 font-semibold text-white shadow-md shadow-amber-500/20 hover:bg-amber-600">
-                    Start with AI &amp; analytics
-                  </Button>
-                </Link>
+                <a href={`${APP_URL}/demo`} className="inline-flex items-center justify-center rounded-xl border border-amber-500/40 px-4 py-2 text-sm font-medium text-amber-900 transition-colors hover:bg-amber-50 dark:text-amber-100 dark:hover:bg-amber-950/40">
+                  View a demo store
+                </a>
+                <a href={`${APP_URL}/signup`} className="inline-flex items-center justify-center rounded-xl bg-amber-500 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-amber-500/20 transition-colors hover:bg-amber-600">
+                  Start with AI &amp; analytics
+                </a>
               </div>
             </div>
 
@@ -846,14 +836,17 @@ export default function LandingPage() {
                 ))}
               </ul>
               <div className="mt-8">
-                <Link href={`${APP_URL}/signup`}>
-                  <Button
-                    className={`w-full rounded-xl ${plan.highlight ? "bg-amber-500 font-semibold text-white shadow-md shadow-amber-500/20 hover:bg-amber-600" : ""}`}
-                    variant={plan.highlight ? "default" : "outline"}
-                  >
-                    {plan.cta}
-                  </Button>
-                </Link>
+                <a
+                  href={`${APP_URL}/signup`}
+                  className={cn(
+                    "inline-flex w-full items-center justify-center rounded-xl px-4 py-2 text-sm font-semibold transition-colors",
+                    plan.highlight
+                      ? "bg-amber-500 text-white shadow-md shadow-amber-500/20 hover:bg-amber-600"
+                      : "border border-border hover:bg-muted"
+                  )}
+                >
+                  {plan.cta}
+                </a>
               </div>
             </div>
           ))}
@@ -869,14 +862,12 @@ export default function LandingPage() {
             Connect your first store in under 2 minutes. Free to start, no credit card required.
           </p>
           <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
-            <Link href={`${APP_URL}/signup`}>
-              <Button className="h-12 rounded-xl bg-amber-500 px-8 text-base font-semibold text-white shadow-lg shadow-amber-500/20 hover:bg-amber-600">
-                Start free <ArrowRight className="ml-1 h-4 w-4" />
-              </Button>
-            </Link>
-            <Link href={`${APP_URL}/demo`}>
-              <Button variant="outline" className="h-12 rounded-xl px-8 text-base">View a demo store</Button>
-            </Link>
+            <a href={`${APP_URL}/signup`} className="inline-flex h-12 items-center gap-1.5 rounded-xl bg-amber-500 px-8 text-base font-semibold text-white shadow-lg shadow-amber-500/20 transition-colors hover:bg-amber-600">
+              Start free <ArrowRight className="h-4 w-4" />
+            </a>
+            <a href={`${APP_URL}/demo`} className={cn(buttonVariants({ variant: "outline" }), "h-12 rounded-xl px-8 text-base")}>
+              View a demo store
+            </a>
           </div>
         </div>
       </section>
@@ -958,5 +949,6 @@ export default function LandingPage() {
         </div>
       </footer>
     </div>
+    </>
   );
 }
