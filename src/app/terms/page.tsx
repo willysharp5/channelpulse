@@ -91,8 +91,7 @@ export default function TermsPage() {
 
           <h2>11. Contact</h2>
           <p>
-            Questions? Contact us at{" "}
-            <a href="mailto:support@channelpulse.io">support@channelpulse.io</a>.
+            Questions? You can reach us through your account settings.
           </p>
         </div>
       </main>

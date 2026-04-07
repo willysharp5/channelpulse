@@ -57,8 +57,7 @@ export default function PrivacyPage() {
           <h2>6. Your Rights</h2>
           <p>
             You may request access to, correction of, or deletion of your personal data at
-            any time by contacting us at{" "}
-            <a href="mailto:support@channelpulse.io">support@channelpulse.io</a>.
+            any time through your account settings.
           </p>
 
           <h2>7. Cookies</h2>
@@ -75,8 +74,7 @@ export default function PrivacyPage() {
 
           <h2>9. Contact</h2>
           <p>
-            Questions? Reach us at{" "}
-            <a href="mailto:support@channelpulse.io">support@channelpulse.io</a>.
+            Questions? You can reach us through your account settings.
           </p>
         </div>
       </main>

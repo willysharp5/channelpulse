@@ -57,15 +57,6 @@ export default function AboutPage() {
           </p>
         </div>
 
-        <div className="mt-14 rounded-2xl bg-amber-50 p-8 dark:bg-amber-950/20">
-          <p className="font-semibold text-gray-950 dark:text-gray-50">Questions or feedback?</p>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            We read every message.{" "}
-            <a href="mailto:support@channelpulse.io" className="font-medium text-amber-700 underline-offset-2 hover:underline dark:text-amber-400">
-              support@channelpulse.io
-            </a>
-          </p>
-        </div>
       </main>
 
       <MarketingFooter />
