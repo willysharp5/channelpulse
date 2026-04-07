@@ -1,7 +1,7 @@
 export const TIKTOK_CONFIG = {
   appKey: process.env.TIKTOK_APP_KEY ?? "",
   appSecret: process.env.TIKTOK_APP_SECRET ?? "",
-  hostName: process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000",
+  hostName: process.env.NEXT_PUBLIC_APP_URL ?? "https://app.channelpulse.us",
   callbackPath: "/api/auth/tiktok/callback",
   authUrl: "https://services.us.tiktokshop.com/open/authorize",
   tokenUrl: "https://auth.tiktok-shops.com/api/v2/token/get",

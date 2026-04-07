@@ -2,7 +2,7 @@ export const SHOPIFY_CONFIG = {
   apiKey: process.env.SHOPIFY_API_KEY ?? "",
   apiSecret: process.env.SHOPIFY_API_SECRET ?? "",
   scopes: "read_products,read_orders,read_inventory,read_locations",
-  hostName: process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000",
+  hostName: process.env.NEXT_PUBLIC_APP_URL ?? "https://app.channelpulse.us",
   callbackPath: "/api/auth/shopify/callback",
 } as const;
 

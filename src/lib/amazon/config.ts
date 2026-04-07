@@ -5,7 +5,7 @@ export const AMAZON_CONFIG = {
   awsSecretAccessKey: process.env.AMAZON_AWS_SECRET_ACCESS_KEY ?? "",
   roleArn: process.env.AMAZON_ROLE_ARN ?? "",
   marketplaceId: process.env.AMAZON_MARKETPLACE_ID ?? "ATVPDKIKX0DER",
-  hostName: process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000",
+  hostName: process.env.NEXT_PUBLIC_APP_URL ?? "https://app.channelpulse.us",
   callbackPath: "/api/auth/amazon/callback",
   region: "us-east-1",
   endpoint: "https://sellingpartnerapi-na.amazon.com",

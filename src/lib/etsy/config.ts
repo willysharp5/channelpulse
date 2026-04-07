@@ -2,7 +2,7 @@ import crypto from "crypto";
 
 export const ETSY_CONFIG = {
   apiKey: process.env.ETSY_API_KEY ?? "",
-  hostName: process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000",
+  hostName: process.env.NEXT_PUBLIC_APP_URL ?? "https://app.channelpulse.us",
   callbackPath: "/api/auth/etsy/callback",
   baseUrl: "https://openapi.etsy.com/v3",
   oauthUrl: "https://www.etsy.com/oauth/connect",

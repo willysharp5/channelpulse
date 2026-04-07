@@ -2,7 +2,7 @@ const BRAND_COLOR = "#18181b";
 const ACCENT_COLOR = "#7c3aed";
 
 function appBaseUrl(): string {
-  return (process.env.NEXT_PUBLIC_APP_URL ?? "https://channelpulse.vercel.app").replace(/\/$/, "");
+  return (process.env.NEXT_PUBLIC_APP_URL ?? "https://app.channelpulse.us").replace(/\/$/, "");
 }
 
 /** Standard outer shell; use with custom inner HTML from admin overrides. */
@@ -116,7 +116,7 @@ export function syncErrorEmail(channelName: string): { subject: string; html: st
       Don't worry — we'll retry automatically. If this keeps happening, try reconnecting your account in Settings.
     </p>
     <div style="margin-top:24px;text-align:center;">
-      <a href="${process.env.NEXT_PUBLIC_APP_URL ?? "https://channelpulse.vercel.app"}/settings"
+      <a href="${process.env.NEXT_PUBLIC_APP_URL ?? "https://app.channelpulse.us"}/settings"
          style="display:inline-block;padding:10px 24px;background:${BRAND_COLOR};color:#fff;text-decoration:none;border-radius:8px;font-size:13px;font-weight:600;">
         Check Settings
       </a>

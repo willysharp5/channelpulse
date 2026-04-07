@@ -33,11 +33,11 @@ const SAMPLE_VARS: Record<string, Record<string, string>> = {
   low_stock: {
     count: "3",
     items: `<tr><td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;"><strong style="color:#18181b;font-size:13px;">Blue Widget — Large</strong><br><span style="font-size:11px;color:#a1a1aa;">SKU: BW-LG-001</span></td><td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;text-align:right;"><span style="display:inline-block;padding:3px 8px;border-radius:99px;font-size:12px;font-weight:600;background:#fffbeb;color:#d97706;">3 left</span></td></tr><tr><td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;"><strong style="color:#18181b;font-size:13px;">Red T-Shirt</strong><br><span style="font-size:11px;color:#a1a1aa;">SKU: RT-MD-002</span></td><td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;text-align:right;"><span style="display:inline-block;padding:3px 8px;border-radius:99px;font-size:12px;font-weight:600;background:#fef2f2;color:#dc2626;">0 left</span></td></tr>`,
-    app_url: process.env.NEXT_PUBLIC_APP_URL ?? "https://channelpulse.vercel.app",
+    app_url: process.env.NEXT_PUBLIC_APP_URL ?? "https://app.channelpulse.us",
   },
   sync_error: {
     channel_name: "Amazon US Store",
-    app_url: process.env.NEXT_PUBLIC_APP_URL ?? "https://channelpulse.vercel.app",
+    app_url: process.env.NEXT_PUBLIC_APP_URL ?? "https://app.channelpulse.us",
   },
   weekly_digest: {
     revenue: "$24,831",
@@ -54,7 +54,7 @@ const SAMPLE_VARS: Record<string, Record<string, string>> = {
     profit_change_color: "#16a34a",
     period: "Mar 24 – Mar 31, 2026",
     highlights: `<div style="padding:12px 16px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;margin-bottom:16px;"><p style="margin:0;font-size:13px;color:#166534;">🏆 <strong>Shopify</strong> was your top channel at <strong>$15,200</strong></p></div>`,
-    app_url: process.env.NEXT_PUBLIC_APP_URL ?? "https://channelpulse.vercel.app",
+    app_url: process.env.NEXT_PUBLIC_APP_URL ?? "https://app.channelpulse.us",
   },
 };
 

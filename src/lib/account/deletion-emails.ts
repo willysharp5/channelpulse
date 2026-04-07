@@ -1,6 +1,6 @@
 import { sendEmail } from "@/lib/email/resend";
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://channelpulse.us";
 const SUPPORT_EMAIL = "support@channelpulse.us";
 
 export async function sendDeletionScheduledEmail(
