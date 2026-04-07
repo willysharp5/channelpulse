@@ -151,7 +151,7 @@ export function revenueDropEmail(params: {
     <div style="margin-top:24px;text-align:center;">
       <a href="${ordersHref}"
          style="display:inline-block;padding:10px 24px;background:${BRAND_COLOR};color:#fff;text-decoration:none;border-radius:8px;font-size:13px;font-weight:600;">
-        View orders (those days)
+        View recent orders
       </a>
     </div>
     `
@@ -254,14 +254,14 @@ export function weeklyDigestEmail(data: WeeklyDigestData): { subject: string; ht
     ${data.topChannel ? `
     <div style="padding:12px 16px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;margin-bottom:16px;">
       <p style="margin:0;font-size:13px;color:#166534;">
-        🏆 <strong>${data.topChannel}</strong> was your top channel at <strong>$${data.topChannelRevenue.toLocaleString()}</strong>
+        <span style="display:inline-block;width:18px;height:18px;background:#16a34a;color:#fff;border-radius:50%;text-align:center;line-height:18px;font-size:11px;font-weight:700;margin-right:6px;vertical-align:middle;">&#x2605;</span><strong>${data.topChannel}</strong> was your top channel at <strong>$${data.topChannelRevenue.toLocaleString()}</strong>
       </p>
     </div>` : ""}
 
     ${data.lowStockCount > 0 ? `
     <div style="padding:12px 16px;background:#fffbeb;border:1px solid #fed7aa;border-radius:8px;margin-bottom:16px;">
       <p style="margin:0;font-size:13px;color:#92400e;">
-        ⚠️ <strong>${data.lowStockCount}</strong> product${data.lowStockCount > 1 ? "s" : ""} running low on stock
+        <span style="display:inline-block;width:18px;height:18px;background:#d97706;color:#fff;border-radius:50%;text-align:center;line-height:18px;font-size:13px;font-weight:700;margin-right:6px;vertical-align:middle;">!</span><strong>${data.lowStockCount}</strong> product${data.lowStockCount > 1 ? "s" : ""} running low on stock
       </p>
       <p style="margin:8px 0 0;font-size:12px;">
         <a href="${lowStockHref}" style="color:#b45309;font-weight:600;">View low-stock inventory</a>
