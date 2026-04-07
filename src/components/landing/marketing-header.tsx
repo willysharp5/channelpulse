@@ -2,6 +2,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.channelpulse.us";
+
 export function MarketingHeader() {
   return (
     <header className="sticky top-0 z-50 border-b border-gray-200/60 bg-[#fafaf9]/80 backdrop-blur-lg dark:border-gray-800/60 dark:bg-gray-950/80">
@@ -20,19 +22,19 @@ export function MarketingHeader() {
         <div className="flex items-center gap-3">
           <ThemeToggle />
           <a
-            href="https://app.channelpulse.us/demo"
+            href={`${APP_URL}/demo`}
             className="hidden text-sm font-medium text-amber-700 transition-colors hover:text-amber-900 dark:text-amber-400 dark:hover:text-amber-300 sm:inline"
           >
             View demo
           </a>
           <a
-            href="https://app.channelpulse.us/login"
+            href={`${APP_URL}/login`}
             className="hidden text-sm font-medium text-gray-600 transition-colors hover:text-gray-950 dark:text-gray-400 dark:hover:text-gray-50 sm:inline"
           >
             Sign in
           </a>
           <a
-            href="https://app.channelpulse.us/signup"
+            href={`${APP_URL}/signup`}
             className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-amber-600"
           >
             Get started free
