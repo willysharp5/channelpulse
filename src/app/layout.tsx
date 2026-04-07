@@ -82,13 +82,11 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: "/logo-16.png", sizes: "16x16", type: "image/png" },
       { url: "/logo-32.png", sizes: "32x32", type: "image/png" },
       { url: "/logo-128.png", sizes: "128x128", type: "image/png" },
+      { url: "/logo-256.png", sizes: "256x256", type: "image/png" },
     ],
     apple: "/apple-touch-icon.png",
-    shortcut: "/favicon.ico",
-    other: [{ rel: "mask-icon", url: "/logo.svg" }],
   },
   manifest: "/site.webmanifest",
 };
