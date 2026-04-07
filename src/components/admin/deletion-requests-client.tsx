@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Loader2, RefreshCw, Search, Trash2, CheckCircle2, Clock, AlertTriangle } from "lucide-react";
+import { Loader2, RefreshCw, Search, Trash2, CheckCircle2, Clock, AlertTriangle, ChevronDown, Database } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -181,47 +181,110 @@ export function DeletionRequestsClient() {
           ) : (
             <div className="divide-y">
               {requests.map((req) => (
-                <div
-                  key={req.id}
-                  className="flex flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between"
-                >
-                  <div className="min-w-0 space-y-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-sm font-semibold">{req.email}</p>
-                      {statusBadge(req.status)}
-                      {isOverdue(req) && (
-                        <Badge variant="outline" className="border-red-300 text-red-600">
-                          <AlertTriangle className="mr-1 h-3 w-3" /> Overdue
-                        </Badge>
+                <div key={req.id} className="px-6 py-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0 space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-sm font-semibold">{req.email}</p>
+                        {statusBadge(req.status)}
+                        {isOverdue(req) && (
+                          <Badge variant="outline" className="border-red-300 text-red-600">
+                            <AlertTriangle className="mr-1 h-3 w-3" /> Overdue
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {req.business_name && <span className="font-medium">{req.business_name} &middot; </span>}
+                        Requested {formatDate(req.requested_at, "d MMM yyyy, h:mm a")}
+                        {req.status === "pending" && (
+                          <> &middot; Purge after {formatDate(req.purge_after_at, "d MMM yyyy")}</>
+                        )}
+                      </p>
+                      {req.stripe_customer_id && (
+                        <p className="font-mono text-[10px] text-muted-foreground/60">
+                          Stripe: {req.stripe_customer_id}
+                        </p>
                       )}
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      {req.business_name && <span className="font-medium">{req.business_name} &middot; </span>}
-                      Requested {formatDate(req.requested_at, "d MMM yyyy, h:mm a")}
-                      {req.status === "pending" && (
-                        <> &middot; Purge after {formatDate(req.purge_after_at, "d MMM yyyy")}</>
-                      )}
-                    </p>
-                    {req.stripe_customer_id && (
-                      <p className="font-mono text-[10px] text-muted-foreground/60">
-                        Stripe: {req.stripe_customer_id}
-                      </p>
-                    )}
-                  </div>
 
-                  {req.status === "pending" && (
-                    <PurgeConfirmDialog
-                      req={req}
-                      purging={purgingId === req.id}
-                      onConfirm={() => void handlePurge(req)}
-                    />
-                  )}
+                    <div className="flex items-center gap-2 shrink-0">
+                      {req.status === "pending" && (
+                        <PurgeConfirmDialog
+                          req={req}
+                          purging={purgingId === req.id}
+                          onConfirm={() => void handlePurge(req)}
+                        />
+                      )}
+                    </div>
+                  </div>
+                  <DataSummaryToggle requestId={req.id} />
                 </div>
               ))}
             </div>
           )}
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+function DataSummaryToggle({ requestId }: { requestId: string }) {
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [data, setData] = useState<{ summary: { table: string; count: number }[]; total: number } | null>(null);
+
+  async function handleToggle() {
+    if (open) {
+      setOpen(false);
+      return;
+    }
+    setOpen(true);
+    if (data) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/admin/deletion-requests/${requestId}/data-summary`);
+      if (res.ok) setData(await res.json());
+    } catch {
+      /* ignore */
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="mt-3">
+      <button
+        onClick={handleToggle}
+        className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <Database className="h-3 w-3" />
+        Data to be deleted
+        <ChevronDown className={`h-3 w-3 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <div className="mt-2 rounded-lg border bg-muted/30 p-3">
+          {loading ? (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Loader2 className="h-3 w-3 animate-spin" /> Loading data summary…
+            </div>
+          ) : data && data.summary.length > 0 ? (
+            <div className="space-y-1.5">
+              {data.summary.map((row) => (
+                <div key={row.table} className="flex items-center justify-between text-xs">
+                  <span className="font-mono text-muted-foreground">{row.table}</span>
+                  <span className="font-semibold tabular-nums">{row.count.toLocaleString()} {row.count === 1 ? "row" : "rows"}</span>
+                </div>
+              ))}
+              <div className="mt-2 flex items-center justify-between border-t pt-2 text-xs font-medium">
+                <span>Total records</span>
+                <span className="tabular-nums">{data.total.toLocaleString()}</span>
+              </div>
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground">No data found for this account</p>
+          )}
+        </div>
+      )}
     </div>
   );
 }
