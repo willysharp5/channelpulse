@@ -50,8 +50,8 @@ export function lowStockAlertEmail(items: LowStockItem[]): { subject: string; ht
   const lowStock = items.filter((i) => i.quantity > 0);
 
   const subject = outOfStock.length > 0
-    ? `🚨 ${outOfStock.length} product${outOfStock.length > 1 ? "s" : ""} out of stock`
-    : `⚠️ ${lowStock.length} product${lowStock.length > 1 ? "s" : ""} running low`;
+    ? `${outOfStock.length} product${outOfStock.length > 1 ? "s" : ""} out of stock`
+    : `${lowStock.length} product${lowStock.length > 1 ? "s" : ""} running low on stock`;
 
   const rows = items
     .map(
@@ -103,7 +103,7 @@ export function lowStockAlertEmail(items: LowStockItem[]): { subject: string; ht
 }
 
 export function syncErrorEmail(channelName: string): { subject: string; html: string } {
-  const subject = `⚠️ Sync issue with ${channelName}`;
+  const subject = `Sync issue with ${channelName}`;
 
   const html = layout(
     subject,
@@ -135,7 +135,7 @@ export function revenueDropEmail(params: {
   orderRangeFromYmd: string;
   orderRangeToYmd: string;
 }): { subject: string; html: string } {
-  const subject = `📉 Revenue down ${params.dropPct}% vs prior day`;
+  const subject = `Revenue down ${params.dropPct}% vs prior day`;
   const y = params.yesterdayRevenue.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
   const p = params.priorRevenue.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
   const ordersHref = `${appBaseUrl()}/orders?from=${encodeURIComponent(params.orderRangeFromYmd)}&to=${encodeURIComponent(params.orderRangeToYmd)}`;
@@ -166,7 +166,7 @@ export function orderSpikeEmail(params: {
   baseline: number;
   spikeDayYmd: string;
 }): { subject: string; html: string } {
-  const subject = `📈 Unusual order volume (${params.orders} orders)`;
+  const subject = `Unusual order volume: ${params.orders} orders today`;
   const ordersHref = `${appBaseUrl()}/orders?from=${encodeURIComponent(params.spikeDayYmd)}&to=${encodeURIComponent(params.spikeDayYmd)}`;
   const html = layout(
     subject,
@@ -208,7 +208,6 @@ interface WeeklyDigestData {
 export function weeklyDigestEmail(data: WeeklyDigestData): { subject: string; html: string } {
   const revenueFormatted = `$${data.totalRevenue.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
   const profitFormatted = `$${data.netProfit.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
-  const changeIcon = data.revenueChange >= 0 ? "📈" : "📉";
   const changeColor = data.revenueChange >= 0 ? "#16a34a" : "#dc2626";
   const changeText = `${data.revenueChange >= 0 ? "+" : ""}${data.revenueChange.toFixed(1)}%`;
   const unitsChangeColor = data.unitsChange >= 0 ? "#16a34a" : "#dc2626";
@@ -216,7 +215,7 @@ export function weeklyDigestEmail(data: WeeklyDigestData): { subject: string; ht
   const profitChangeColor = data.profitChange >= 0 ? "#16a34a" : "#dc2626";
   const profitChangeText = `${data.profitChange >= 0 ? "+" : ""}${data.profitChange.toFixed(1)}%`;
 
-  const subject = `${changeIcon} Your week: ${revenueFormatted} revenue (${changeText})`;
+  const subject = `Your ChannelPulse weekly summary: ${revenueFormatted} revenue (${changeText})`;
   const revenueHref = `${appBaseUrl()}/revenue?from=${encodeURIComponent(data.revenueFromYmd)}&to=${encodeURIComponent(data.revenueToYmd)}`;
   const lowStockHref = `${appBaseUrl()}/inventory?stock=below_threshold`;
 
