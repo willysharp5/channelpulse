@@ -14,9 +14,24 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ChannelPulse | Multichannel Sales Analytics",
+  title: "ChannelPulse",
   description:
-    "See all your Shopify, Amazon, eBay, and Etsy sales in one beautiful dashboard. Revenue, orders, profit & more.",
+    "See all your Shopify, Amazon, Etsy, and TikTok Shop sales in one dashboard. Revenue, orders, profit and more.",
+  applicationName: "ChannelPulse",
+  openGraph: {
+    siteName: "ChannelPulse",
+    title: "ChannelPulse",
+    description: "Unified multichannel analytics for e-commerce sellers.",
+    url: "https://channelpulse.us",
+    type: "website",
+    images: [{ url: "/logo-512.png", width: 512, height: 512, alt: "ChannelPulse" }],
+  },
+  twitter: {
+    card: "summary",
+    title: "ChannelPulse",
+    description: "Unified multichannel analytics for e-commerce sellers.",
+    images: ["/logo-512.png"],
+  },
   icons: {
     icon: [
       { url: "/logo-16.png", sizes: "16x16", type: "image/png" },

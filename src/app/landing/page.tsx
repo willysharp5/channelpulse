@@ -1,8 +1,23 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, ArrowUpRight, Check, Sparkles, LineChart, Upload, FileSpreadsheet } from "lucide-react";
 import Image from "next/image";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.channelpulse.us";
+
+export const metadata: Metadata = {
+  title: "ChannelPulse",
+  applicationName: "ChannelPulse",
+  description: "Unified analytics for multichannel sellers. One dashboard for Shopify, Amazon, Etsy, TikTok Shop and more.",
+  openGraph: {
+    siteName: "ChannelPulse",
+    title: "ChannelPulse — Multichannel Sales Analytics",
+    description: "Unified analytics for multichannel sellers. One dashboard for Shopify, Amazon, Etsy, TikTok Shop and more.",
+    url: "https://channelpulse.us",
+    type: "website",
+    images: [{ url: "/logo-512.png", width: 512, height: 512, alt: "ChannelPulse" }],
+  },
+};
 
 import {
   RiArrowUpSFill,
