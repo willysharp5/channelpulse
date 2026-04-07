@@ -6,6 +6,7 @@ import {
   Save,
   Send,
   Mail,
+  MailCheck,
   Eye,
   EyeOff,
   Pencil,
@@ -19,6 +20,9 @@ import {
   Loader2,
   Zap,
   LayoutTemplate,
+  Trash2,
+  ShieldCheck,
+  Undo2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -58,6 +62,10 @@ const SLUG_ICONS: Record<string, typeof Mail> = {
   weekly_digest: BarChart3,
   revenue_drop: TrendingDown,
   order_spike: TrendingUp,
+  email_verification: MailCheck,
+  deletion_scheduled: Trash2,
+  deletion_cancelled: Undo2,
+  deletion_completed: ShieldCheck,
 };
 
 const SLUG_COLORS: Record<string, string> = {
@@ -66,6 +74,10 @@ const SLUG_COLORS: Record<string, string> = {
   weekly_digest: "text-blue-500",
   revenue_drop: "text-orange-500",
   order_spike: "text-emerald-500",
+  email_verification: "text-violet-500",
+  deletion_scheduled: "text-red-500",
+  deletion_cancelled: "text-emerald-500",
+  deletion_completed: "text-zinc-500",
 };
 
 interface Section {
