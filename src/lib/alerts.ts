@@ -45,7 +45,7 @@ export const DEFAULT_NOTIFICATION_PREFS: Required<
   revenue_drops: true,
   low_stock: true,
   order_spikes: false,
-  weekly_digest: false,
+  weekly_digest: true,
   monthly_report: false,
   channel_summary: false,
   email: true,
