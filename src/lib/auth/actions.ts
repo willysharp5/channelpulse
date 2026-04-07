@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { sendVerificationEmail } from "@/lib/auth/verification-email";
 
 export async function signUp(formData: FormData) {
   const supabase = await createClient();
@@ -17,12 +18,19 @@ export async function signUp(formData: FormData) {
       data: {
         business_name: businessName,
       },
-      emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL ?? "https://app.channelpulse.us"}/auth/callback`,
     },
   });
 
   if (error) {
     return { error: error.message };
+  }
+
+  if (data.user) {
+    try {
+      await sendVerificationEmail(data.user.id, email);
+    } catch (e) {
+      console.error("[signup] Failed to send verification email:", e);
+    }
   }
 
   return { success: true };

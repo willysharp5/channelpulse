@@ -14,12 +14,8 @@ export default function VerifyEmailPage() {
   async function handleResend() {
     setResending(true);
     try {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user?.email) {
-        await supabase.auth.resend({ type: "signup", email: user.email });
-      }
-      setResent(true);
+      const res = await fetch("/api/auth/resend-verification", { method: "POST" });
+      if (res.ok) setResent(true);
     } catch {
       /* ignore */
     } finally {

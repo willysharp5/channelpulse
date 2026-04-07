@@ -19,6 +19,8 @@ const PUBLIC_ROUTES = [
   "/api/cron/import-jobs-retention",
   "/api/email/weekly-digest",
   "/verify-email",
+  "/api/auth/verify-email",
+  "/api/auth/resend-verification",
 ];
 
 /** Domains that serve only the public marketing site. */
@@ -102,8 +104,24 @@ export async function middleware(request: NextRequest) {
   }
 
   const isOAuth = user.app_metadata?.provider !== "email";
-  if (!isOAuth && !user.email_confirmed_at && pathname !== "/verify-email") {
-    return NextResponse.redirect(new URL("/verify-email", request.url));
+  if (!isOAuth && pathname !== "/verify-email") {
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (serviceKey) {
+      const adminClient = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        serviceKey,
+        { auth: { autoRefreshToken: false, persistSession: false } }
+      );
+      const { data: profile } = await adminClient
+        .from("profiles")
+        .select("email_verified")
+        .eq("id", user.id)
+        .single();
+
+      if (!profile?.email_verified) {
+        return NextResponse.redirect(new URL("/verify-email", request.url));
+      }
+    }
   }
 
   if (pathname.startsWith("/admin")) {

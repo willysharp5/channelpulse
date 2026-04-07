@@ -33,6 +33,7 @@ function LoginPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const reason = searchParams.get("reason");
+  const verified = searchParams.get("verified");
   const redirectTo = searchParams.get("redirect") ?? undefined;
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -91,6 +92,12 @@ function LoginPageInner() {
                 This account is deactivated and pending permanent deletion. Check your email for a recovery link if you&apos;d like to keep your account.
               </p>
             </div>
+          </div>
+        )}
+
+        {verified === "true" && (
+          <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200">
+            Email verified! You can now sign in.
           </div>
         )}
 
