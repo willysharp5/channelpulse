@@ -40,16 +40,16 @@ export async function middleware(request: NextRequest) {
   // ── Marketing domain (channelpulse.us) ──────────────────────────────────
   // Serve the landing page for every path; only marketing routes are allowed.
   if (isMarketingDomain) {
-    // Root → serve landing page
     if (pathname === "/") {
       return NextResponse.rewrite(new URL("/landing", request.url));
     }
-    // Known marketing routes → pass through
+    if (pathname === "/landing") {
+      return NextResponse.redirect(new URL("https://channelpulse.us"), 301);
+    }
     if (MARKETING_ROUTES.some((r) => pathname.startsWith(r))) {
       return NextResponse.next();
     }
-    // Anything else on the marketing domain → redirect to landing
-    return NextResponse.redirect(new URL("https://channelpulse.us", request.url));
+    return NextResponse.redirect(new URL("https://channelpulse.us"), 301);
   }
 
   // ── App domain (app.channelpulse.us) ────────────────────────────────────
